@@ -1,0 +1,52 @@
+﻿@page "/"
+@using PoCoupleQuiz.Core.Models
+@using PoCoupleQuiz.Core.Services
+@inject ITeamService TeamService
+@inject NavigationManager NavigationManager
+
+<MudContainer MaxWidth="MaxWidth.Medium">
+    <MudPaper Class="pa-4 ma-4">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Welcome to Couple Quiz!</MudText>
+        <MudText Typo="Typo.body1" Align="Align.Center" Class="mb-8">Enter team names to start the game</MudText>
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-4">Team 1</MudText>
+                    <MudTextField @bind-value="team1.Name" Label="Team Name" Required="true" />
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-4">Team 2</MudText>
+                    <MudTextField @bind-value="team2.Name" Label="Team Name" Required="true" />
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <div class="d-flex justify-center mt-6">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartGame" Size="Size.Large">
+                Start Game
+            </MudButton>
+        </div>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private Team team1 = new();
+    private Team team2 = new();
+
+    private async Task StartGame()
+    {
+        if (string.IsNullOrWhiteSpace(team1.Name) || string.IsNullOrWhiteSpace(team2.Name))
+        {
+            return;
+        }
+
+        await TeamService.SaveTeamAsync(team1);
+        await TeamService.SaveTeamAsync(team2);
+
+        NavigationManager.NavigateTo($"/game/{team1.Name}/{team2.Name}");
+    }
+}

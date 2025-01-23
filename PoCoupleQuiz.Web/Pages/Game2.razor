@@ -1,0 +1,41 @@
+@page "/game2/{team1Name}/{team2Name}"
+@using PoCoupleQuiz.Core.Models
+@using PoCoupleQuiz.Core.Services
+@using Microsoft.AspNetCore.Components
+@using MudBlazor
+@inject IQuestionService QuestionService
+@inject ITeamService TeamService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer>
+    <MudText>Test Page</MudText>
+</MudContainer>
+
+@code {
+    [Parameter]
+    public string Team1Name { get; set; } = "";
+
+    [Parameter]
+    public string Team2Name { get; set; } = "";
+
+    private PoCoupleQuiz.Core.Models.Game? game;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var team1 = await TeamService.GetTeamAsync(Team1Name);
+        var team2 = await TeamService.GetTeamAsync(Team2Name);
+
+        if (team1 == null || team2 == null)
+        {
+            NavigationManager.NavigateTo("/");
+            return;
+        }
+
+        game = new PoCoupleQuiz.Core.Models.Game
+        {
+            Team1 = team1,
+            Team2 = team2
+        };
+    }
+} 

@@ -1,0 +1,220 @@
+@page "/game/{team1Name}/{team2Name}"
+@using PoCoupleQuiz.Core.Models
+@using PoCoupleQuiz.Core.Services
+@using Microsoft.AspNetCore.Components
+@using MudBlazor
+@inject IQuestionService QuestionService
+@inject ITeamService TeamService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer>
+    @if (game == null)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudPaper Class="pa-4 ma-4">
+            <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Round @(game.CurrentRound + 1)</MudText>
+            <MudText Typo="Typo.h6" Align="Align.Center" Class="mb-8">@currentQuestion</MudText>
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Class="mb-4">@game.Team1.Name (@game.Team1Score points)</MudText>
+                        @if (!team1PartnerBAnswered)
+                        {
+                            <MudTextField @bind-value="team1Answer" Label="Your Answer" Required="true" />
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(true, false)" Class="mt-3">
+                                Submit First Answer
+                            </MudButton>
+                        }
+                        else if (!team1PartnerAAnswered)
+                        {
+                            <MudTextField @bind-value="team1MatchAnswer" Label="Your Answer" Required="true" />
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(true, true)" Class="mt-3">
+                                Submit Second Answer
+                            </MudButton>
+                        }
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Class="mb-4">@game.Team2.Name (@game.Team2Score points)</MudText>
+                        @if (!team2PartnerBAnswered)
+                        {
+                            <MudTextField @bind-value="team2Answer" Label="Your Answer" Required="true" />
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(false, false)" Class="mt-3">
+                                Submit First Answer
+                            </MudButton>
+                        }
+                        else if (!team2PartnerAAnswered)
+                        {
+                            <MudTextField @bind-value="team2MatchAnswer" Label="Your Answer" Required="true" />
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(false, true)" Class="mt-3">
+                                Submit Second Answer
+                            </MudButton>
+                        }
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            @if (game.IsGameOver)
+            {
+                <MudPaper Class="pa-4 mt-6" Elevation="3">
+                    <MudText Typo="Typo.h4" Align="Align.Center">Game Over!</MudText>
+                    <MudText Typo="Typo.h5" Align="Align.Center" Class="mt-4">
+                        @if (game.Team1Score > game.Team2Score)
+                        {
+                            <span>@game.Team1.Name wins!</span>
+                        }
+                        else if (game.Team2Score > game.Team1Score)
+                        {
+                            <span>@game.Team2.Name wins!</span>
+                        }
+                        else
+                        {
+                            <span>It's a tie!</span>
+                        }
+                    </MudText>
+                    <div class="d-flex justify-center mt-4">
+                        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="PlayAgain">
+                            Play Again
+                        </MudButton>
+                    </div>
+                </MudPaper>
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [Parameter]
+    public string Team1Name { get; set; } = "";
+
+    [Parameter]
+    public string Team2Name { get; set; } = "";
+
+    private PoCoupleQuiz.Core.Models.Game? game;
+    private string currentQuestion = "";
+    private string team1Answer = "";
+    private string team1MatchAnswer = "";
+    private string team2Answer = "";
+    private string team2MatchAnswer = "";
+    private bool team1PartnerBAnswered;
+    private bool team1PartnerAAnswered;
+    private bool team2PartnerBAnswered;
+    private bool team2PartnerAAnswered;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var team1 = await TeamService.GetTeamAsync(Team1Name);
+        var team2 = await TeamService.GetTeamAsync(Team2Name);
+
+        if (team1 == null || team2 == null)
+        {
+            NavigationManager.NavigateTo("/");
+            return;
+        }
+
+        game = new PoCoupleQuiz.Core.Models.Game
+        {
+            Team1 = team1,
+            Team2 = team2
+        };
+
+        await StartNewRound();
+    }
+
+    private async Task StartNewRound()
+    {
+        if (game == null) return;
+
+        currentQuestion = await QuestionService.GenerateQuestionAsync();
+        team1Answer = "";
+        team1MatchAnswer = "";
+        team2Answer = "";
+        team2MatchAnswer = "";
+        team1PartnerBAnswered = false;
+        team1PartnerAAnswered = false;
+        team2PartnerBAnswered = false;
+        team2PartnerAAnswered = false;
+    }
+
+    private async Task SubmitAnswer(bool isTeam1, bool isMatchingAnswer)
+    {
+        if (game == null) return;
+
+        if (isTeam1)
+        {
+            if (!isMatchingAnswer)
+            {
+                team1PartnerBAnswered = true;
+            }
+            else
+            {
+                team1PartnerAAnswered = true;
+                var isMatch = await QuestionService.CheckAnswerSimilarityAsync(team1Answer, team1MatchAnswer);
+                if (isMatch)
+                {
+                    game.Team1Score++;
+                    Snackbar.Add("Answers match! Point scored!", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Answers don't match!", Severity.Error);
+                }
+            }
+        }
+        else
+        {
+            if (!isMatchingAnswer)
+            {
+                team2PartnerBAnswered = true;
+            }
+            else
+            {
+                team2PartnerAAnswered = true;
+                var isMatch = await QuestionService.CheckAnswerSimilarityAsync(team2Answer, team2MatchAnswer);
+                if (isMatch)
+                {
+                    game.Team2Score++;
+                    Snackbar.Add("Answers match! Point scored!", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Answers don't match!", Severity.Error);
+                }
+            }
+        }
+
+        if (team1PartnerAAnswered && team2PartnerAAnswered)
+        {
+            game.CurrentRound++;
+            if (!game.IsGameOver)
+            {
+                await StartNewRound();
+            }
+            else
+            {
+                if (game.Team1Score > game.Team2Score)
+                {
+                    await TeamService.UpdateTeamStatsAsync(game.Team1.Name, true);
+                    await TeamService.UpdateTeamStatsAsync(game.Team2.Name, false);
+                }
+                else if (game.Team2Score > game.Team1Score)
+                {
+                    await TeamService.UpdateTeamStatsAsync(game.Team1.Name, false);
+                    await TeamService.UpdateTeamStatsAsync(game.Team2.Name, true);
+                }
+            }
+        }
+    }
+
+    private void PlayAgain()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+} 
