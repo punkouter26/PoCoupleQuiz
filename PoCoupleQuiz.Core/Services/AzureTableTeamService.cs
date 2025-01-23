@@ -26,8 +26,9 @@ public class AzureTableTeamService : ITeamService
             return new Team
             {
                 Name = entity.GetString("Name"),
-                Wins = entity.GetInt32("Wins") ?? 0,
-                Losses = entity.GetInt32("Losses") ?? 0
+                MultiplayerWins = entity.GetInt32("MultiplayerWins") ?? 0,
+                SinglePlayerHighScore = entity.GetInt32("SinglePlayerHighScore") ?? 0,
+                LastPlayed = entity.GetDateTime("LastPlayed") ?? DateTime.UtcNow
             };
         }
         catch (RequestFailedException)
@@ -38,33 +39,41 @@ public class AzureTableTeamService : ITeamService
 
     public async Task SaveTeamAsync(Team team)
     {
+        // Ensure LastPlayed is UTC
+        if (team.LastPlayed.Kind != DateTimeKind.Utc)
+        {
+            team.LastPlayed = DateTime.SpecifyKind(team.LastPlayed, DateTimeKind.Utc);
+        }
+
         var entity = new TableEntity("Team", team.Name.ToLowerInvariant())
         {
             { "Name", team.Name },
-            { "Wins", team.Wins },
-            { "Losses", team.Losses }
+            { "MultiplayerWins", team.MultiplayerWins },
+            { "SinglePlayerHighScore", team.SinglePlayerHighScore },
+            { "LastPlayed", team.LastPlayed }
         };
 
         await _tableClient.UpsertEntityAsync(entity);
     }
 
-    public async Task UpdateTeamStatsAsync(string teamName, bool won)
+    public async Task UpdateTeamStatsAsync(string teamName, GameMode mode, int score)
     {
         var team = await GetTeamAsync(teamName);
-        if (team == null)
-        {
-            throw new ArgumentException($"Team {teamName} not found");
-        }
+        if (team == null) return;
 
-        if (won)
+        if (mode == GameMode.MultiPlayer)
         {
-            team.Wins++;
+            team.MultiplayerWins += score > 0 ? 1 : 0;
         }
         else
         {
-            team.Losses++;
+            if (score > team.SinglePlayerHighScore)
+            {
+                team.SinglePlayerHighScore = score;
+            }
         }
-
+        
+        team.LastPlayed = DateTime.UtcNow;
         await SaveTeamAsync(team);
     }
-} 
+}

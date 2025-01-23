@@ -1,4 +1,5 @@
-@page "/game/{team1Name}/{team2Name}"
+@page "/game/multi/{team1Name}/{team2Name}"
+@page "/game/single/{teamName}"
 @using PoCoupleQuiz.Core.Models
 @using PoCoupleQuiz.Core.Services
 @using Microsoft.AspNetCore.Components
@@ -20,7 +21,7 @@
             <MudText Typo="Typo.h6" Align="Align.Center" Class="mb-8">@currentQuestion</MudText>
 
             <MudGrid>
-                <MudItem xs="12" md="6">
+                <MudItem xs="12" md="@(IsSinglePlayer ? 12 : 6)">
                     <MudPaper Class="pa-4" Elevation="2">
                         <MudText Typo="Typo.h6" Class="mb-4">@game.Team1.Name (@game.Team1Score points)</MudText>
                         @if (!team1PartnerBAnswered)
@@ -40,25 +41,28 @@
                     </MudPaper>
                 </MudItem>
 
-                <MudItem xs="12" md="6">
-                    <MudPaper Class="pa-4" Elevation="2">
-                        <MudText Typo="Typo.h6" Class="mb-4">@game.Team2.Name (@game.Team2Score points)</MudText>
-                        @if (!team2PartnerBAnswered)
-                        {
-                            <MudTextField @bind-value="team2Answer" Label="Your Answer" Required="true" />
-                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(false, false)" Class="mt-3">
-                                Submit First Answer
-                            </MudButton>
-                        }
-                        else if (!team2PartnerAAnswered)
-                        {
-                            <MudTextField @bind-value="team2MatchAnswer" Label="Your Answer" Required="true" />
-                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(false, true)" Class="mt-3">
-                                Submit Second Answer
-                            </MudButton>
-                        }
-                    </MudPaper>
-                </MudItem>
+                @if (!IsSinglePlayer)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudPaper Class="pa-4" Elevation="2">
+                            <MudText Typo="Typo.h6" Class="mb-4">@game.Team2.Name (@game.Team2Score points)</MudText>
+                            @if (!team2PartnerBAnswered)
+                            {
+                                <MudTextField @bind-value="team2Answer" Label="Your Answer" Required="true" />
+                                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(false, false)" Class="mt-3">
+                                    Submit First Answer
+                                </MudButton>
+                            }
+                            else if (!team2PartnerAAnswered)
+                            {
+                                <MudTextField @bind-value="team2MatchAnswer" Label="Your Answer" Required="true" />
+                                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(false, true)" Class="mt-3">
+                                    Submit Second Answer
+                                </MudButton>
+                            }
+                        </MudPaper>
+                    </MudItem>
+                }
             </MudGrid>
 
             @if (game.IsGameOver)
@@ -66,17 +70,24 @@
                 <MudPaper Class="pa-4 mt-6" Elevation="3">
                     <MudText Typo="Typo.h4" Align="Align.Center">Game Over!</MudText>
                     <MudText Typo="Typo.h5" Align="Align.Center" Class="mt-4">
-                        @if (game.Team1Score > game.Team2Score)
+                        @if (IsSinglePlayer)
                         {
-                            <span>@game.Team1.Name wins!</span>
-                        }
-                        else if (game.Team2Score > game.Team1Score)
-                        {
-                            <span>@game.Team2.Name wins!</span>
+                            <span>Final Score: @game.Team1Score points!</span>
                         }
                         else
                         {
-                            <span>It's a tie!</span>
+                            @if (game.Team1Score > game.Team2Score)
+                            {
+                                <span>@game.Team1.Name wins!</span>
+                            }
+                            else if (game.Team2Score > game.Team1Score)
+                            {
+                                <span>@game.Team2.Name wins!</span>
+                            }
+                            else
+                            {
+                                <span>It's a tie!</span>
+                            }
                         }
                     </MudText>
                     <div class="d-flex justify-center mt-4">
@@ -92,11 +103,15 @@
 
 @code {
     [Parameter]
-    public string Team1Name { get; set; } = "";
+    public string? Team1Name { get; set; }
 
     [Parameter]
-    public string Team2Name { get; set; } = "";
+    public string? Team2Name { get; set; }
 
+    [Parameter]
+    public string? TeamName { get; set; }
+
+    private bool IsSinglePlayer => TeamName != null;
     private PoCoupleQuiz.Core.Models.Game? game;
     private string currentQuestion = "";
     private string team1Answer = "";
@@ -110,10 +125,21 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var team1 = await TeamService.GetTeamAsync(Team1Name);
-        var team2 = await TeamService.GetTeamAsync(Team2Name);
+        Team? team1;
+        Team? team2;
 
-        if (team1 == null || team2 == null)
+        if (IsSinglePlayer)
+        {
+            team1 = await TeamService.GetTeamAsync(TeamName!);
+            team2 = new Team { Name = "AI Opponent", LastPlayed = DateTime.UtcNow };
+        }
+        else
+        {
+            team1 = await TeamService.GetTeamAsync(Team1Name!);
+            team2 = await TeamService.GetTeamAsync(Team2Name!);
+        }
+
+        if (team1 == null || (team2 == null && !IsSinglePlayer))
         {
             NavigationManager.NavigateTo("/");
             return;
@@ -122,7 +148,7 @@
         game = new PoCoupleQuiz.Core.Models.Game
         {
             Team1 = team1,
-            Team2 = team2
+            Team2 = team2 ?? new Team { Name = "AI Opponent", LastPlayed = DateTime.UtcNow }
         };
 
         await StartNewRound();
@@ -141,6 +167,15 @@
         team1PartnerAAnswered = false;
         team2PartnerBAnswered = false;
         team2PartnerAAnswered = false;
+
+        if (IsSinglePlayer)
+        {
+            // In single player mode, AI opponent automatically answers
+            team2Answer = await QuestionService.GenerateAnswerAsync(currentQuestion);
+            team2PartnerBAnswered = true;
+            team2MatchAnswer = team2Answer;
+            team2PartnerAAnswered = true;
+        }
     }
 
     private async Task SubmitAnswer(bool isTeam1, bool isMatchingAnswer)
@@ -168,7 +203,7 @@
                 }
             }
         }
-        else
+        else if (!IsSinglePlayer)
         {
             if (!isMatchingAnswer)
             {
@@ -190,7 +225,11 @@
             }
         }
 
-        if (team1PartnerAAnswered && team2PartnerAAnswered)
+        bool roundComplete = IsSinglePlayer 
+            ? team1PartnerAAnswered 
+            : team1PartnerAAnswered && team2PartnerAAnswered;
+
+        if (roundComplete)
         {
             game.CurrentRound++;
             if (!game.IsGameOver)
@@ -199,15 +238,15 @@
             }
             else
             {
-                if (game.Team1Score > game.Team2Score)
+                if (IsSinglePlayer)
                 {
-                    await TeamService.UpdateTeamStatsAsync(game.Team1.Name, true);
-                    await TeamService.UpdateTeamStatsAsync(game.Team2.Name, false);
+                    await TeamService.UpdateTeamStatsAsync(game.Team1.Name, GameMode.SinglePlayer, game.Team1Score);
                 }
-                else if (game.Team2Score > game.Team1Score)
+                else
                 {
-                    await TeamService.UpdateTeamStatsAsync(game.Team1.Name, false);
-                    await TeamService.UpdateTeamStatsAsync(game.Team2.Name, true);
+                    var team1Won = game.Team1Score > game.Team2Score;
+                    await TeamService.UpdateTeamStatsAsync(game.Team1.Name, GameMode.MultiPlayer, game.Team1Score);
+                    await TeamService.UpdateTeamStatsAsync(game.Team2.Name, GameMode.MultiPlayer, game.Team2Score);
                 }
             }
         }
@@ -217,4 +256,4 @@
     {
         NavigationManager.NavigateTo("/");
     }
-} 
+}

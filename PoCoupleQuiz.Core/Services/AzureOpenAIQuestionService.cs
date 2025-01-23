@@ -58,4 +58,24 @@ public class AzureOpenAIQuestionService : IQuestionService
         var result = response.Value.Choices[0].Message.Content.Trim().ToLower();
         return result.Contains("yes");
     }
-} 
+
+    public async Task<string> GenerateAnswerAsync(string question)
+    {
+        var chatOptions = new ChatCompletionsOptions
+        {
+            Messages =
+            {
+                new ChatMessage(ChatRole.System, "You are an AI player in a relationship quiz game. Generate a plausible and realistic answer to the given question. Keep answers concise and specific."),
+                new ChatMessage(ChatRole.User, $"Generate an answer to this question: {question}")
+            },
+            MaxTokens = 50,
+            Temperature = 0.6f,
+            NucleusSamplingFactor = 0.9f,
+            FrequencyPenalty = 0,
+            PresencePenalty = 0
+        };
+
+        var response = await _client.GetChatCompletionsAsync(_deploymentName, chatOptions);
+        return response.Value.Choices[0].Message.Content.Trim();
+    }
+}

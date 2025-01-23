@@ -6,5 +6,5 @@ public interface ITeamService
 {
     Task<Team?> GetTeamAsync(string teamName);
     Task SaveTeamAsync(Team team);
-    Task UpdateTeamStatsAsync(string teamName, bool won);
+    Task UpdateTeamStatsAsync(string teamName, GameMode mode, int score);
 } 

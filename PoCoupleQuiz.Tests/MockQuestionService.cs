@@ -13,6 +13,14 @@ public class MockQuestionService : IQuestionService
         "What is your partner's dream vacation destination?"
     };
 
+    private readonly Dictionary<string, string> _predefinedAnswers = new()
+    {
+        { "What is your partner's favorite color?", "Blue" },
+        { "What is your partner's favorite food?", "Pizza" },
+        { "Where was your first date?", "Restaurant" },
+        { "What is your partner's dream vacation destination?", "Paris" }
+    };
+
     public Task<string> GenerateQuestionAsync()
     {
         var question = _predefinedQuestions[_questionCounter % _predefinedQuestions.Length];
@@ -44,4 +52,14 @@ public class MockQuestionService : IQuestionService
 
         return Task.FromResult(false);
     }
-} 
+
+    public Task<string> GenerateAnswerAsync(string question)
+    {
+        // Return predefined answer if available, otherwise return a generic answer
+        if (_predefinedAnswers.TryGetValue(question, out var answer))
+        {
+            return Task.FromResult(answer);
+        }
+        return Task.FromResult("I don't know");
+    }
+}

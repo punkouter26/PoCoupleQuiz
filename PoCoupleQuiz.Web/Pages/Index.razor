@@ -5,24 +5,47 @@
 @inject NavigationManager NavigationManager
 
 <MudContainer MaxWidth="MaxWidth.Medium">
-    <MudPaper Class="pa-4 ma-4">
-        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Welcome to Couple Quiz!</MudText>
-        <MudText Typo="Typo.body1" Align="Align.Center" Class="mb-8">Enter team names to start the game</MudText>
+    <MudPaper Class="pa-4 ma-4" Elevation="2">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Welcome to PoCouple Quiz!</MudText>
+        
+        <MudButtonGroup Variant="Variant.Outlined" FullWidth="true" Class="mb-6">
+            <MudButton Color="Color.Primary"
+                      Variant="@(isSinglePlayer ? Variant.Outlined : Variant.Filled)"
+                      OnClick="() => SetGameMode(false)">
+                Multiplayer
+            </MudButton>
+            <MudButton Color="Color.Primary"
+                      Variant="@(isSinglePlayer ? Variant.Filled : Variant.Outlined)"
+                      OnClick="() => SetGameMode(true)">
+                Single Player
+            </MudButton>
+        </MudButtonGroup>
 
         <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.h6" Class="mb-4">Team 1</MudText>
-                    <MudTextField @bind-value="team1.Name" Label="Team Name" Required="true" />
-                </MudPaper>
-            </MudItem>
+            @if (!isSinglePlayer)
+            {
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.h6" Class="mb-4">Team 1</MudText>
+                        <MudTextField @bind-value="team1.Name" Label="Team Name" Required="true" />
+                    </MudPaper>
+                </MudItem>
 
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.h6" Class="mb-4">Team 2</MudText>
-                    <MudTextField @bind-value="team2.Name" Label="Team Name" Required="true" />
-                </MudPaper>
-            </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.h6" Class="mb-4">Team 2</MudText>
+                        <MudTextField @bind-value="team2.Name" Label="Team Name" Required="true" />
+                    </MudPaper>
+                </MudItem>
+            }
+            else {
+                <MudItem xs="12">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.h6" Class="mb-4">Player Name</MudText>
+                        <MudTextField @bind-value="team1.Name" Label="Your Name" Required="true" />
+                    </MudPaper>
+                </MudItem>
+            }
         </MudGrid>
 
         <div class="d-flex justify-center mt-6">
@@ -36,17 +59,27 @@
 @code {
     private Team team1 = new();
     private Team team2 = new();
+    private bool isSinglePlayer = false;
+
+    private void SetGameMode(bool singlePlayer)
+    {
+        isSinglePlayer = singlePlayer;
+        if (singlePlayer) team2.Name = "";
+    }
 
     private async Task StartGame()
     {
-        if (string.IsNullOrWhiteSpace(team1.Name) || string.IsNullOrWhiteSpace(team2.Name))
-        {
-            return;
-        }
+        var validationRequired = isSinglePlayer
+            ? string.IsNullOrWhiteSpace(team1.Name)
+            : string.IsNullOrWhiteSpace(team1.Name) || string.IsNullOrWhiteSpace(team2.Name);
+        
+        if (validationRequired) return;
 
         await TeamService.SaveTeamAsync(team1);
-        await TeamService.SaveTeamAsync(team2);
+        if (!isSinglePlayer) await TeamService.SaveTeamAsync(team2);
 
-        NavigationManager.NavigateTo($"/game/{team1.Name}/{team2.Name}");
+        NavigationManager.NavigateTo(isSinglePlayer
+            ? $"/game/single/{team1.Name}"
+            : $"/game/multi/{team1.Name}/{team2.Name}");
     }
 }
