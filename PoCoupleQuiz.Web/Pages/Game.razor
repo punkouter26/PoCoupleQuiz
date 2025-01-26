@@ -4,20 +4,28 @@
 @using PoCoupleQuiz.Core.Services
 @using Microsoft.AspNetCore.Components
 @using MudBlazor
+@using System.Text.Json
 @inject IQuestionService QuestionService
 @inject ITeamService TeamService
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
+@inject IGameHistoryService GameHistoryService
 
 <MudContainer>
     @if (game == null)
     {
         <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
     }
-    else
+    else if (!game.IsGameOver)
     {
         <MudPaper Class="pa-4 ma-4">
             <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Round @(game.CurrentRound + 1)</MudText>
+            @if (IsSinglePlayer && !team1PartnerBAnswered)
+            {
+                <MudText Typo="Typo.h5" Align="Align.Center" Color="@(remainingSeconds <= 2 ? Color.Error : Color.Default)">
+                    Time Remaining: @remainingSeconds seconds
+                </MudText>
+            }
             <MudText Typo="Typo.h6" Align="Align.Center" Class="mb-8">@currentQuestion</MudText>
 
             <MudGrid>
@@ -26,14 +34,14 @@
                         <MudText Typo="Typo.h6" Class="mb-4">@game.Team1.Name (@game.Team1Score points)</MudText>
                         @if (!team1PartnerBAnswered)
                         {
-                            <MudTextField @bind-value="team1Answer" Label="Your Answer" Required="true" />
+                            <MudTextField @bind-Value="team1Answer" Label="Your Answer" Required="true" />
                             <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(true, false)" Class="mt-3">
                                 Submit First Answer
                             </MudButton>
                         }
                         else if (!team1PartnerAAnswered)
                         {
-                            <MudTextField @bind-value="team1MatchAnswer" Label="Your Answer" Required="true" />
+                            <MudTextField @bind-Value="team1MatchAnswer" Label="Your Answer" Required="true" />
                             <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(true, true)" Class="mt-3">
                                 Submit Second Answer
                             </MudButton>
@@ -48,14 +56,14 @@
                             <MudText Typo="Typo.h6" Class="mb-4">@game.Team2.Name (@game.Team2Score points)</MudText>
                             @if (!team2PartnerBAnswered)
                             {
-                                <MudTextField @bind-value="team2Answer" Label="Your Answer" Required="true" />
+                                <MudTextField @bind-Value="team2Answer" Label="Your Answer" Required="true" />
                                 <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(false, false)" Class="mt-3">
                                     Submit First Answer
                                 </MudButton>
                             }
                             else if (!team2PartnerAAnswered)
                             {
-                                <MudTextField @bind-value="team2MatchAnswer" Label="Your Answer" Required="true" />
+                                <MudTextField @bind-Value="team2MatchAnswer" Label="Your Answer" Required="true" />
                                 <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(false, true)" Class="mt-3">
                                     Submit Second Answer
                                 </MudButton>
@@ -64,39 +72,6 @@
                     </MudItem>
                 }
             </MudGrid>
-
-            @if (game.IsGameOver)
-            {
-                <MudPaper Class="pa-4 mt-6" Elevation="3">
-                    <MudText Typo="Typo.h4" Align="Align.Center">Game Over!</MudText>
-                    <MudText Typo="Typo.h5" Align="Align.Center" Class="mt-4">
-                        @if (IsSinglePlayer)
-                        {
-                            <span>Final Score: @game.Team1Score points!</span>
-                        }
-                        else
-                        {
-                            @if (game.Team1Score > game.Team2Score)
-                            {
-                                <span>@game.Team1.Name wins!</span>
-                            }
-                            else if (game.Team2Score > game.Team1Score)
-                            {
-                                <span>@game.Team2.Name wins!</span>
-                            }
-                            else
-                            {
-                                <span>It's a tie!</span>
-                            }
-                        }
-                    </MudText>
-                    <div class="d-flex justify-center mt-4">
-                        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="PlayAgain">
-                            Play Again
-                        </MudButton>
-                    </div>
-                </MudPaper>
-            }
         </MudPaper>
     }
 </MudContainer>
@@ -122,6 +97,13 @@
     private bool team1PartnerAAnswered;
     private bool team2PartnerBAnswered;
     private bool team2PartnerAAnswered;
+    private int remainingSeconds = 5;
+    private System.Threading.Timer? timer;
+    private Dictionary<QuestionCategory, int> _categoryStats = new();
+    private List<string> _matchedAnswers = new();
+    private List<double> _responseTimes = new();
+    private DateTime _roundStartTime;
+    private Question? _currentQuestion;
 
     protected override async Task OnInitializedAsync()
     {
@@ -154,11 +136,52 @@
         await StartNewRound();
     }
 
+    private void StartTimer()
+    {
+        remainingSeconds = 5;
+        timer?.Dispose();
+        timer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                remainingSeconds--;
+                if (remainingSeconds <= 0)
+                {
+                    timer?.Dispose();
+                    if (IsSinglePlayer && !team1PartnerBAnswered && game != null)
+                    {
+                        team1Answer = "";
+                        team1PartnerBAnswered = true;
+                        team1PartnerAAnswered = true;
+                        game.CurrentRound++;
+
+                        await TeamService.UpdateTeamStatsAsync(game.Team1.Name, GameMode.SinglePlayer, game.Team1Score);
+                        
+                        if (game.CurrentRound >= 3)
+                        {
+                            NavigationManager.NavigateTo($"/game-over/{game.Team1.Name}/{game.Team1Score}");
+                            return;
+                        }
+                        else
+                        {
+                            Snackbar.Add("Time's up! Moving to next question.", Severity.Warning);
+                            await StartNewRound();
+                        }
+                    }
+                }
+                StateHasChanged();
+            });
+        }, null, 0, 1000);
+    }
+
     private async Task StartNewRound()
     {
-        if (game == null) return;
+        if (game == null || game.IsGameOver) return;
 
-        currentQuestion = await QuestionService.GenerateQuestionAsync();
+        _roundStartTime = DateTime.UtcNow;
+        _currentQuestion = await QuestionService.GenerateQuestionAsync();
+        currentQuestion = _currentQuestion.Text;
+        
         team1Answer = "";
         team1MatchAnswer = "";
         team2Answer = "";
@@ -170,7 +193,7 @@
 
         if (IsSinglePlayer)
         {
-            // In single player mode, AI opponent automatically answers
+            StartTimer();
             team2Answer = await QuestionService.GenerateAnswerAsync(currentQuestion);
             team2PartnerBAnswered = true;
             team2MatchAnswer = team2Answer;
@@ -180,7 +203,15 @@
 
     private async Task SubmitAnswer(bool isTeam1, bool isMatchingAnswer)
     {
-        if (game == null) return;
+        if (game == null || _currentQuestion == null) return;
+
+        var responseTime = (DateTime.UtcNow - _roundStartTime).TotalSeconds;
+        _responseTimes.Add(responseTime);
+
+        if (IsSinglePlayer && isTeam1 && !isMatchingAnswer)
+        {
+            timer?.Dispose();
+        }
 
         if (isTeam1)
         {
@@ -195,12 +226,21 @@
                 if (isMatch)
                 {
                     game.Team1Score++;
+                    game.Team1.CorrectAnswers++;
+                    _matchedAnswers.Add(team1Answer);
+                    
+                    // Update category stats
+                    if (!_categoryStats.ContainsKey(_currentQuestion.Category))
+                        _categoryStats[_currentQuestion.Category] = 0;
+                    _categoryStats[_currentQuestion.Category]++;
+                    
                     Snackbar.Add("Answers match! Point scored!", Severity.Success);
                 }
                 else
                 {
                     Snackbar.Add("Answers don't match!", Severity.Error);
                 }
+                game.Team1.TotalQuestionsAnswered++;
             }
         }
         else if (!IsSinglePlayer)
@@ -216,12 +256,21 @@
                 if (isMatch)
                 {
                     game.Team2Score++;
+                    game.Team2.CorrectAnswers++;
+                    _matchedAnswers.Add(team2Answer);
+                    
+                    // Update category stats
+                    if (!_categoryStats.ContainsKey(_currentQuestion.Category))
+                        _categoryStats[_currentQuestion.Category] = 0;
+                    _categoryStats[_currentQuestion.Category]++;
+                    
                     Snackbar.Add("Answers match! Point scored!", Severity.Success);
                 }
                 else
                 {
                     Snackbar.Add("Answers don't match!", Severity.Error);
                 }
+                game.Team2.TotalQuestionsAnswered++;
             }
         }
 
@@ -238,22 +287,41 @@
             }
             else
             {
+                // Save game history
+                var history = new GameHistory
+                {
+                    Team1Name = game.Team1.Name,
+                    Team2Name = game.Team2.Name,
+                    GameMode = IsSinglePlayer ? GameMode.SinglePlayer : GameMode.MultiPlayer,
+                    Team1Score = game.Team1Score,
+                    Team2Score = game.Team2Score,
+                    TotalQuestions = game.CurrentRound,
+                    AverageResponseTime = _responseTimes.Average(),
+                    CategoryStats = JsonSerializer.Serialize(_categoryStats),
+                    MatchedAnswers = JsonSerializer.Serialize(_matchedAnswers)
+                };
+                await GameHistoryService.SaveGameHistoryAsync(history);
+
                 if (IsSinglePlayer)
                 {
+                    await TeamService.SaveTeamAsync(game.Team1);
                     await TeamService.UpdateTeamStatsAsync(game.Team1.Name, GameMode.SinglePlayer, game.Team1Score);
+                    NavigationManager.NavigateTo($"/game-over/{game.Team1.Name}/{game.Team1Score}");
                 }
                 else
                 {
-                    var team1Won = game.Team1Score > game.Team2Score;
+                    await TeamService.SaveTeamAsync(game.Team1);
+                    await TeamService.SaveTeamAsync(game.Team2);
                     await TeamService.UpdateTeamStatsAsync(game.Team1.Name, GameMode.MultiPlayer, game.Team1Score);
                     await TeamService.UpdateTeamStatsAsync(game.Team2.Name, GameMode.MultiPlayer, game.Team2Score);
+                    NavigationManager.NavigateTo($"/game-over/multi/{game.Team1.Name}/{game.Team1Score}/{game.Team2.Name}/{game.Team2Score}");
                 }
             }
         }
     }
 
-    private void PlayAgain()
+    public void Dispose()
     {
-        NavigationManager.NavigateTo("/");
+        timer?.Dispose();
     }
 }

@@ -1,0 +1,78 @@
+@page "/game-over/{teamName}/{score:int}"
+@page "/game-over/multi/{team1Name}/{team1Score:int}/{team2Name}/{team2Score:int}"
+@using PoCoupleQuiz.Core.Models
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager NavigationManager
+
+<MudContainer>
+    <MudPaper Class="pa-16 ma-4" Elevation="3">
+        <MudText Typo="Typo.h2" Align="Align.Center" Class="mb-8">Game Over!</MudText>
+
+        @if (IsSinglePlayer)
+        {
+            <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-8">
+                Final Score: @Score points!
+            </MudText>
+        }
+        else
+        {
+            <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-8">
+                @if (Team1Score > Team2Score)
+                {
+                    <span>@Team1Name wins!</span>
+                }
+                else if (Team2Score > Team1Score)
+                {
+                    <span>@Team2Name wins!</span>
+                }
+                else
+                {
+                    <span>It's a tie!</span>
+                }
+            </MudText>
+
+            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">
+                @Team1Name: @Team1Score points
+            </MudText>
+            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-8">
+                @Team2Name: @Team2Score points
+            </MudText>
+        }
+
+        <div class="d-flex justify-center">
+            <MudButton Color="Color.Primary" 
+                      Variant="Variant.Filled" 
+                      Size="Size.Large"
+                      OnClick="PlayAgain">
+                Start Over
+            </MudButton>
+        </div>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter]
+    public string? TeamName { get; set; }
+
+    [Parameter]
+    public int Score { get; set; }
+
+    [Parameter]
+    public string? Team1Name { get; set; }
+
+    [Parameter]
+    public int Team1Score { get; set; }
+
+    [Parameter]
+    public string? Team2Name { get; set; }
+
+    [Parameter]
+    public int Team2Score { get; set; }
+
+    private bool IsSinglePlayer => TeamName != null;
+
+    private void PlayAgain()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+}

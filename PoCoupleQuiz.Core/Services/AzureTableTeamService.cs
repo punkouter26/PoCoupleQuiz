@@ -5,7 +5,7 @@ using PoCoupleQuiz.Core.Models;
 
 namespace PoCoupleQuiz.Core.Services;
 
-public class AzureTableTeamService : ITeamService
+public class AzureTableTeamService : ITeamService, IAzureTableTeamService
 {
     private readonly TableClient _tableClient;
 
@@ -28,7 +28,9 @@ public class AzureTableTeamService : ITeamService
                 Name = entity.GetString("Name"),
                 MultiplayerWins = entity.GetInt32("MultiplayerWins") ?? 0,
                 SinglePlayerHighScore = entity.GetInt32("SinglePlayerHighScore") ?? 0,
-                LastPlayed = entity.GetDateTime("LastPlayed") ?? DateTime.UtcNow
+                LastPlayed = entity.GetDateTime("LastPlayed") ?? DateTime.UtcNow,
+                TotalQuestionsAnswered = entity.GetInt32("TotalQuestionsAnswered") ?? 0,
+                CorrectAnswers = entity.GetInt32("CorrectAnswers") ?? 0
             };
         }
         catch (RequestFailedException)
@@ -50,7 +52,9 @@ public class AzureTableTeamService : ITeamService
             { "Name", team.Name },
             { "MultiplayerWins", team.MultiplayerWins },
             { "SinglePlayerHighScore", team.SinglePlayerHighScore },
-            { "LastPlayed", team.LastPlayed }
+            { "LastPlayed", team.LastPlayed },
+            { "TotalQuestionsAnswered", team.TotalQuestionsAnswered },
+            { "CorrectAnswers", team.CorrectAnswers }
         };
 
         await _tableClient.UpsertEntityAsync(entity);
@@ -59,7 +63,10 @@ public class AzureTableTeamService : ITeamService
     public async Task UpdateTeamStatsAsync(string teamName, GameMode mode, int score)
     {
         var team = await GetTeamAsync(teamName);
-        if (team == null) return;
+        if (team == null) 
+        {
+            team = new Team { Name = teamName };
+        }
 
         if (mode == GameMode.MultiPlayer)
         {
@@ -73,7 +80,35 @@ public class AzureTableTeamService : ITeamService
             }
         }
         
+        // Update the total questions and correct answers from the current game
+        team.TotalQuestionsAnswered++;
+        if (score > 0)
+        {
+            team.CorrectAnswers++;
+        }
+        
         team.LastPlayed = DateTime.UtcNow;
         await SaveTeamAsync(team);
+    }
+
+    public async Task<IEnumerable<Team>> GetAllTeamsAsync()
+    {
+        var teams = new List<Team>();
+        var queryResults = _tableClient.QueryAsync<TableEntity>(filter: $"PartitionKey eq 'Team'");
+
+        await foreach (var entity in queryResults)
+        {
+            teams.Add(new Team
+            {
+                Name = entity.GetString("Name"),
+                MultiplayerWins = entity.GetInt32("MultiplayerWins") ?? 0,
+                SinglePlayerHighScore = entity.GetInt32("SinglePlayerHighScore") ?? 0,
+                LastPlayed = entity.GetDateTime("LastPlayed") ?? DateTime.UtcNow,
+                TotalQuestionsAnswered = entity.GetInt32("TotalQuestionsAnswered") ?? 0,
+                CorrectAnswers = entity.GetInt32("CorrectAnswers") ?? 0
+            });
+        }
+
+        return teams;
     }
 }
