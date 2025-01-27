@@ -1,88 +1,103 @@
-﻿@page "/"
+@page "/"
 @using PoCoupleQuiz.Core.Models
 @using PoCoupleQuiz.Core.Services
 @inject ITeamService TeamService
 @inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IGameStateService GameState
 
 <MudContainer MaxWidth="MaxWidth.Medium">
     <MudPaper Class="pa-4 ma-4" Elevation="2">
-        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Welcome to PoCouple Quiz!</MudText>
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Welcome to Know Your Friend Quiz!</MudText>
         
-        <MudButtonGroup Variant="Variant.Outlined" FullWidth="true" Class="mb-6">
-            <MudButton Color="Color.Primary"
-                      Variant="@(isSinglePlayer ? Variant.Outlined : Variant.Filled)"
-                      OnClick="() => SetGameMode(false)">
-                Multiplayer
-            </MudButton>
-            <MudButton Color="Color.Primary"
-                      Variant="@(isSinglePlayer ? Variant.Filled : Variant.Outlined)"
-                      OnClick="() => SetGameMode(true)">
-                Single Player
-            </MudButton>
-        </MudButtonGroup>
+        <MudText Typo="Typo.body1" Class="mb-4" Align="Align.Center">
+            One player (the king) answers questions about themselves while others try to match their answers.
+            The player who knows the king player best wins!
+        </MudText>
 
-        <MudGrid>
-            @if (!isSinglePlayer)
+        <MudPaper Class="pa-4 mb-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-4">Game Setup</MudText>
+            
+            <MudNumericField @bind-Value="playerCount" 
+                            Label="Number of Players (1-6 plus king)" 
+                            Min="1" 
+                            Max="6"
+                            Class="mb-4" />
+
+            <MudTextField @bind-Value="kingPlayerName" 
+                         Label="King Player Name" 
+                         Required="true"
+                         Class="mb-4" />
+
+            @for (int i = 0; i < playerCount; i++)
             {
-                <MudItem xs="12" md="6">
-                    <MudPaper Class="pa-4" Elevation="1">
-                        <MudText Typo="Typo.h6" Class="mb-4">Team 1</MudText>
-                        <MudTextField @bind-value="team1.Name" Label="Team Name" Required="true" />
-                    </MudPaper>
-                </MudItem>
-
-                <MudItem xs="12" md="6">
-                    <MudPaper Class="pa-4" Elevation="1">
-                        <MudText Typo="Typo.h6" Class="mb-4">Team 2</MudText>
-                        <MudTextField @bind-value="team2.Name" Label="Team Name" Required="true" />
-                    </MudPaper>
-                </MudItem>
+                var playerIndex = i;
+                <MudTextField @bind-Value="@guessingPlayerNames[playerIndex]"
+                            Label="@($"Player {playerIndex + 1} Name")"
+                            Required="true"
+                            Class="mb-2" />
             }
-            else {
-                <MudItem xs="12">
-                    <MudPaper Class="pa-4" Elevation="1">
-                        <MudText Typo="Typo.h6" Class="mb-4">Player Name</MudText>
-                        <MudTextField @bind-value="team1.Name" Label="Your Name" Required="true" />
-                    </MudPaper>
-                </MudItem>
-            }
-        </MudGrid>
+        </MudPaper>
 
-        <div class="d-flex justify-center mt-6">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartGame" Size="Size.Large" Class="mx-2">
+        <div class="d-flex justify-center">
+            <MudButton Variant="Variant.Filled" 
+                      Color="Color.Primary" 
+                      OnClick="StartGame" 
+                      Size="Size.Large" 
+                      Disabled="@(!CanStartGame)"
+                      Class="mx-2">
                 Start Game
-            </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Href="/leaderboard" Size="Size.Large" Class="mx-2">
-                View Leaderboard
             </MudButton>
         </div>
     </MudPaper>
 </MudContainer>
 
 @code {
-    private Team team1 = new();
-    private Team team2 = new();
-    private bool isSinglePlayer = false;
+    private int playerCount = 1;
+    private string kingPlayerName = "";
+    private string[] guessingPlayerNames = new string[6];  // Max 6 players
 
-    private void SetGameMode(bool singlePlayer)
-    {
-        isSinglePlayer = singlePlayer;
-        if (singlePlayer) team2.Name = "";
-    }
+    private bool CanStartGame => 
+        !string.IsNullOrWhiteSpace(kingPlayerName) && 
+        guessingPlayerNames.Take(playerCount).All(name => !string.IsNullOrWhiteSpace(name));
 
     private async Task StartGame()
     {
-        var validationRequired = isSinglePlayer
-            ? string.IsNullOrWhiteSpace(team1.Name)
-            : string.IsNullOrWhiteSpace(team1.Name) || string.IsNullOrWhiteSpace(team2.Name);
+        if (!CanStartGame) return;
+
+        // Check for duplicate names
+        var allNames = new List<string> { kingPlayerName };
+        allNames.AddRange(guessingPlayerNames.Take(playerCount));
+        if (allNames.Count != allNames.Distinct().Count())
+        {
+            Snackbar.Add("Each player must have a unique name", Severity.Error);
+            return;
+        }
+
+        var game = new PoCoupleQuiz.Core.Models.Game();
         
-        if (validationRequired) return;
+        // Add king player
+        game.AddPlayer(new Player { Name = kingPlayerName, IsKingPlayer = true });
+        
+        // Add guessing players
+        foreach (var playerName in guessingPlayerNames.Take(playerCount))
+        {
+            game.AddPlayer(new Player { Name = playerName, IsKingPlayer = false });
+        }
 
-        await TeamService.SaveTeamAsync(team1);
-        if (!isSinglePlayer) await TeamService.SaveTeamAsync(team2);
+        // Save initial player stats
+        foreach (var player in game.Players)
+        {
+            await TeamService.SaveTeamAsync(new Team 
+            { 
+                Name = player.Name,
+                LastPlayed = DateTime.UtcNow
+            });
+        }
 
-        NavigationManager.NavigateTo(isSinglePlayer
-            ? $"/game/single/{team1.Name}"
-            : $"/game/multi/{team1.Name}/{team2.Name}");
+        // Initialize game state with king player
+        GameState.InitializeGame(game, kingPlayerName);
+
+        NavigationManager.NavigateTo("/game/king");
     }
 }

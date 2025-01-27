@@ -19,6 +19,10 @@ public class GameHistory : ITableEntity
     public double AverageResponseTime { get; set; }
     public string CategoryStats { get; set; } = string.Empty; // JSON string of Dictionary<QuestionCategory, int>
     public string MatchedAnswers { get; set; } = string.Empty; // JSON string of List<string>
-    
-    public static string GenerateRowKey() => $"{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"
+
+    public static string GenerateRowKey()
+    {
+        // Generate a unique row key using a reverse chronological format for better querying
+        return $"{DateTime.MaxValue.Ticks - DateTime.UtcNow.Ticks:d19}-{Guid.NewGuid():N}";
+    }
 } 

@@ -24,8 +24,8 @@ public class AzureOpenAIQuestionService : IQuestionService
         {
             Messages =
             {
-                new ChatMessage(ChatRole.System, "You are a relationship quiz game host. Generate fun, appropriate questions that one partner should answer about the other partner. The questions should be specific and have clear answers."),
-                new ChatMessage(ChatRole.User, "Generate a single question.")
+                new ChatMessage(ChatRole.System, "You are a quiz game host. Generate fun, appropriate questions about someone's personal habits, preferences, and daily routines. These questions should help determine how well others know this person. Questions should be specific and have clear answers. For example: 'What is their favorite breakfast food?', 'What time do they usually go to bed?', 'What's their most used app on their phone?'"),
+                new ChatMessage(ChatRole.User, "Generate a single question that would reveal how well someone knows the person being asked about.")
             },
             MaxTokens = 100,
             Temperature = 0.7f,
@@ -44,8 +44,8 @@ public class AzureOpenAIQuestionService : IQuestionService
         {
             Messages =
             {
-                new ChatMessage(ChatRole.System, "You are a relationship quiz game judge. Your task is to determine if two answers mean the same thing. Answer with just 'yes' or 'no'."),
-                new ChatMessage(ChatRole.User, $"Are these answers similar enough to be considered the same?\nAnswer 1: {answer1}\nAnswer 2: {answer2}")
+                new ChatMessage(ChatRole.System, "You are a quiz game judge. Your task is to determine if a player's guess matches what the main player answered about themselves. Consider semantic similarity and be somewhat lenient - answers don't need to be word-for-word identical to be considered a match. Answer with just 'yes' or 'no'."),
+                new ChatMessage(ChatRole.User, $"Do these answers match?\nMain player's answer: {answer1}\nGuessing player's answer: {answer2}")
             },
             MaxTokens = 10,
             Temperature = 0.3f,
@@ -65,7 +65,7 @@ public class AzureOpenAIQuestionService : IQuestionService
         {
             Messages =
             {
-                new ChatMessage(ChatRole.System, "You are an AI player in a relationship quiz game. Generate a plausible and realistic answer to the given question. Keep answers concise and specific."),
+                new ChatMessage(ChatRole.System, "You are an AI player in a quiz game. Generate a plausible and realistic answer about someone's personal habits or preferences. Keep answers concise and specific."),
                 new ChatMessage(ChatRole.User, $"Generate an answer to this question: {question}")
             },
             MaxTokens = 50,

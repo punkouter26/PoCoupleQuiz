@@ -1,43 +1,30 @@
-@page "/game-over/{teamName}/{score:int}"
-@page "/game-over/multi/{team1Name}/{team1Score:int}/{team2Name}/{team2Score:int}"
+@page "/game-over/king/{kingName}/{winnerName}/{winnerScore:int}/{scores}"
 @using PoCoupleQuiz.Core.Models
 @using Microsoft.AspNetCore.Components
 @inject NavigationManager NavigationManager
+@inject IGameStateService GameState
 
 <MudContainer>
     <MudPaper Class="pa-16 ma-4" Elevation="3">
         <MudText Typo="Typo.h2" Align="Align.Center" Class="mb-8">Game Over!</MudText>
 
-        @if (IsSinglePlayer)
-        {
-            <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-8">
-                Final Score: @Score points!
-            </MudText>
-        }
-        else
-        {
-            <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-8">
-                @if (Team1Score > Team2Score)
-                {
-                    <span>@Team1Name wins!</span>
-                }
-                else if (Team2Score > Team1Score)
-                {
-                    <span>@Team2Name wins!</span>
-                }
-                else
-                {
-                    <span>It's a tie!</span>
-                }
-            </MudText>
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-8">
+            @WinnerName knows @KingName best!
+        </MudText>
 
-            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">
-                @Team1Name: @Team1Score points
-            </MudText>
-            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-8">
-                @Team2Name: @Team2Score points
-            </MudText>
-        }
+        <MudPaper Class="pa-4 mb-8" Elevation="2">
+            <MudText Typo="Typo.h5" Class="mb-4">Final Scores:</MudText>
+            <MudTable Items="@PlayerScores" Dense="true" Hover="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>Player</MudTh>
+                    <MudTh>Score</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.PlayerName</MudTd>
+                    <MudTd>@context.Score points</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
 
         <div class="d-flex justify-center">
             <MudButton Color="Color.Primary" 
@@ -52,27 +39,46 @@
 
 @code {
     [Parameter]
-    public string? TeamName { get; set; }
+    public string? KingName { get; set; }
 
     [Parameter]
-    public int Score { get; set; }
+    public string? WinnerName { get; set; }
 
     [Parameter]
-    public string? Team1Name { get; set; }
+    public int WinnerScore { get; set; }
 
     [Parameter]
-    public int Team1Score { get; set; }
+    public string? Scores { get; set; }
 
-    [Parameter]
-    public string? Team2Name { get; set; }
+    private List<PlayerScore> PlayerScores { get; set; } = new();
 
-    [Parameter]
-    public int Team2Score { get; set; }
-
-    private bool IsSinglePlayer => TeamName != null;
+    protected override void OnInitialized()
+    {
+        GameState.ClearGame();
+        if (!string.IsNullOrEmpty(Scores))
+        {
+            var decodedScores = Uri.UnescapeDataString(Scores);
+            PlayerScores = decodedScores.Split('|')
+                .Select(s => {
+                    var parts = s.Split(':');
+                    return new PlayerScore { 
+                        PlayerName = parts[0], 
+                        Score = int.Parse(parts[1])
+                    };
+                })
+                .OrderByDescending(s => s.Score)
+                .ToList();
+        }
+    }
 
     private void PlayAgain()
     {
         NavigationManager.NavigateTo("/");
+    }
+
+    private class PlayerScore
+    {
+        public string PlayerName { get; set; } = "";
+        public int Score { get; set; }
     }
 }

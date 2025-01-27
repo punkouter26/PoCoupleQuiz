@@ -1,5 +1,4 @@
-@page "/game/multi/{team1Name}/{team2Name}"
-@page "/game/single/{teamName}"
+@page "/game/king"
 @using PoCoupleQuiz.Core.Models
 @using PoCoupleQuiz.Core.Services
 @using Microsoft.AspNetCore.Components
@@ -10,291 +9,172 @@
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @inject IGameHistoryService GameHistoryService
+@inject IGameStateService GameState
 
 <MudContainer>
     @if (game == null)
     {
-        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        <MudText>No active game found. Please <MudLink Href="/">start a new game</MudLink>.</MudText>
     }
-    else if (!game.IsGameOver)
+    else
     {
         <MudPaper Class="pa-4 ma-4">
             <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Round @(game.CurrentRound + 1)</MudText>
-            @if (IsSinglePlayer && !team1PartnerBAnswered)
-            {
-                <MudText Typo="Typo.h5" Align="Align.Center" Color="@(remainingSeconds <= 2 ? Color.Error : Color.Default)">
-                    Time Remaining: @remainingSeconds seconds
-                </MudText>
-            }
             <MudText Typo="Typo.h6" Align="Align.Center" Class="mb-8">@currentQuestion</MudText>
 
-            <MudGrid>
-                <MudItem xs="12" md="@(IsSinglePlayer ? 12 : 6)">
-                    <MudPaper Class="pa-4" Elevation="2">
-                        <MudText Typo="Typo.h6" Class="mb-4">@game.Team1.Name (@game.Team1Score points)</MudText>
-                        @if (!team1PartnerBAnswered)
-                        {
-                            <MudTextField @bind-Value="team1Answer" Label="Your Answer" Required="true" />
-                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(true, false)" Class="mt-3">
-                                Submit First Answer
-                            </MudButton>
-                        }
-                        else if (!team1PartnerAAnswered)
-                        {
-                            <MudTextField @bind-Value="team1MatchAnswer" Label="Your Answer" Required="true" />
-                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(true, true)" Class="mt-3">
-                                Submit Second Answer
-                            </MudButton>
-                        }
-                    </MudPaper>
-                </MudItem>
-
-                @if (!IsSinglePlayer)
+            @if (!kingPlayerAnswered)
+            {
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-4">@game.KingPlayer!.Name's turn to answer:</MudText>
+                    <MudTextField @bind-Value="@kingAnswer" Label="Your Answer" Required="true" />
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitKingAnswer" Class="mt-3">
+                        Submit Answer
+                    </MudButton>
+                </MudPaper>
+            }
+            else
+            {
+                var nextPlayer = GetNextPlayerToAnswer();
+                if (nextPlayer != null)
                 {
-                    <MudItem xs="12" md="6">
-                        <MudPaper Class="pa-4" Elevation="2">
-                            <MudText Typo="Typo.h6" Class="mb-4">@game.Team2.Name (@game.Team2Score points)</MudText>
-                            @if (!team2PartnerBAnswered)
-                            {
-                                <MudTextField @bind-Value="team2Answer" Label="Your Answer" Required="true" />
-                                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(false, false)" Class="mt-3">
-                                    Submit First Answer
-                                </MudButton>
-                            }
-                            else if (!team2PartnerAAnswered)
-                            {
-                                <MudTextField @bind-Value="team2MatchAnswer" Label="Your Answer" Required="true" />
-                                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => SubmitAnswer(false, true)" Class="mt-3">
-                                    Submit Second Answer
-                                </MudButton>
-                            }
-                        </MudPaper>
-                    </MudItem>
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Class="mb-4">@nextPlayer.Name's turn to guess what @game.KingPlayer!.Name answered:</MudText>
+                        <MudTextField @bind-Value="@currentPlayerAnswer" Label="Your Guess" Required="true" />
+                        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => SubmitPlayerGuess(nextPlayer.Name))" Class="mt-3">
+                            Submit Guess
+                        </MudButton>
+                    </MudPaper>
                 }
-            </MudGrid>
+                else
+                {
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText>All players have answered. Moving to next round...</MudText>
+                    </MudPaper>
+                }
+            }
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.h6" Class="mb-2">Scoreboard:</MudText>
+            @foreach (var score in game.GetScoreboard())
+            {
+                <MudText>@score.Key: @score.Value points</MudText>
+            }
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.h6" Class="mb-2">Players who have answered:</MudText>
+            @foreach (var player in game.Players)
+            {
+                <MudChip T="string" Color="@(HasPlayerAnswered(player.Name) ? Color.Success : Color.Default)" 
+                         Class="ma-1" Text="@(player.Name + (player.IsKingPlayer ? " (King)" : ""))">
+                </MudChip>
+            }
         </MudPaper>
     }
 </MudContainer>
 
 @code {
-    [Parameter]
-    public string? Team1Name { get; set; }
-
-    [Parameter]
-    public string? Team2Name { get; set; }
-
-    [Parameter]
-    public string? TeamName { get; set; }
-
-    private bool IsSinglePlayer => TeamName != null;
     private PoCoupleQuiz.Core.Models.Game? game;
     private string currentQuestion = "";
-    private string team1Answer = "";
-    private string team1MatchAnswer = "";
-    private string team2Answer = "";
-    private string team2MatchAnswer = "";
-    private bool team1PartnerBAnswered;
-    private bool team1PartnerAAnswered;
-    private bool team2PartnerBAnswered;
-    private bool team2PartnerAAnswered;
-    private int remainingSeconds = 5;
-    private System.Threading.Timer? timer;
-    private Dictionary<QuestionCategory, int> _categoryStats = new();
-    private List<string> _matchedAnswers = new();
-    private List<double> _responseTimes = new();
+    private string kingAnswer = "";
+    private string currentPlayerAnswer = "";
+    private bool kingPlayerAnswered;
     private DateTime _roundStartTime;
     private Question? _currentQuestion;
+    private List<double> _responseTimes = new();
+    private Dictionary<QuestionCategory, int> _categoryStats = new();
+    private List<string> _matchedAnswers = new();
 
     protected override async Task OnInitializedAsync()
     {
-        Team? team1;
-        Team? team2;
-
-        if (IsSinglePlayer)
-        {
-            team1 = await TeamService.GetTeamAsync(TeamName!);
-            team2 = new Team { Name = "AI Opponent", LastPlayed = DateTime.UtcNow };
-        }
-        else
-        {
-            team1 = await TeamService.GetTeamAsync(Team1Name!);
-            team2 = await TeamService.GetTeamAsync(Team2Name!);
-        }
-
-        if (team1 == null || (team2 == null && !IsSinglePlayer))
+        game = GameState.CurrentGame;
+        if (game == null)
         {
             NavigationManager.NavigateTo("/");
             return;
         }
 
-        game = new PoCoupleQuiz.Core.Models.Game
-        {
-            Team1 = team1,
-            Team2 = team2 ?? new Team { Name = "AI Opponent", LastPlayed = DateTime.UtcNow }
-        };
-
         await StartNewRound();
     }
 
-    private void StartTimer()
+    private Player? GetNextPlayerToAnswer()
     {
-        remainingSeconds = 5;
-        timer?.Dispose();
-        timer = new System.Threading.Timer(async _ =>
-        {
-            await InvokeAsync(async () =>
-            {
-                remainingSeconds--;
-                if (remainingSeconds <= 0)
-                {
-                    timer?.Dispose();
-                    if (IsSinglePlayer && !team1PartnerBAnswered && game != null)
-                    {
-                        team1Answer = "";
-                        team1PartnerBAnswered = true;
-                        team1PartnerAAnswered = true;
-                        game.CurrentRound++;
+        if (game == null) return null;
+        return game.Players.FirstOrDefault(p => !p.IsKingPlayer && !HasPlayerAnswered(p.Name));
+    }
 
-                        await TeamService.UpdateTeamStatsAsync(game.Team1.Name, GameMode.SinglePlayer, game.Team1Score);
-                        
-                        if (game.CurrentRound >= 3)
-                        {
-                            NavigationManager.NavigateTo($"/game-over/{game.Team1.Name}/{game.Team1Score}");
-                            return;
-                        }
-                        else
-                        {
-                            Snackbar.Add("Time's up! Moving to next question.", Severity.Warning);
-                            await StartNewRound();
-                        }
-                    }
-                }
-                StateHasChanged();
-            });
-        }, null, 0, 1000);
+    private bool HasPlayerAnswered(string playerName)
+    {
+        if (game == null || game.Questions.Count <= game.CurrentRound) return false;
+        
+        var currentGameQuestion = game.Questions[game.CurrentRound];
+        if (game.KingPlayer?.Name == playerName)
+            return !string.IsNullOrEmpty(currentGameQuestion.KingPlayerAnswer);
+            
+        return currentGameQuestion.HasPlayerAnswered(playerName);
     }
 
     private async Task StartNewRound()
     {
-        if (game == null || game.IsGameOver) return;
+        if (game == null) return;
 
         _roundStartTime = DateTime.UtcNow;
-        _currentQuestion = await QuestionService.GenerateQuestionAsync();
-        currentQuestion = _currentQuestion.Text;
+        currentQuestion = await QuestionService.GenerateQuestionAsync();
+        _currentQuestion = new Question { Text = currentQuestion };
         
-        team1Answer = "";
-        team1MatchAnswer = "";
-        team2Answer = "";
-        team2MatchAnswer = "";
-        team1PartnerBAnswered = false;
-        team1PartnerAAnswered = false;
-        team2PartnerBAnswered = false;
-        team2PartnerAAnswered = false;
+        kingPlayerAnswered = false;
+        kingAnswer = "";
+        currentPlayerAnswer = "";
 
-        if (IsSinglePlayer)
+        if (game.Questions.Count <= game.CurrentRound)
         {
-            StartTimer();
-            team2Answer = await QuestionService.GenerateAnswerAsync(currentQuestion);
-            team2PartnerBAnswered = true;
-            team2MatchAnswer = team2Answer;
-            team2PartnerAAnswered = true;
+            game.Questions.Add(new GameQuestion { Question = currentQuestion });
         }
+
+        StateHasChanged();
     }
 
-    private async Task SubmitAnswer(bool isTeam1, bool isMatchingAnswer)
+    private async Task SubmitKingAnswer()
     {
-        if (game == null || _currentQuestion == null) return;
+        if (game == null || string.IsNullOrWhiteSpace(kingAnswer)) return;
+
+        var currentGameQuestion = game.Questions[game.CurrentRound];
+        currentGameQuestion.KingPlayerAnswer = kingAnswer;
+        kingPlayerAnswered = true;
+        Snackbar.Add("Answer submitted!", Severity.Success);
+        StateHasChanged();
+    }
+
+    private async Task SubmitPlayerGuess(string playerName)
+    {
+        if (game == null || string.IsNullOrWhiteSpace(currentPlayerAnswer) || _currentQuestion == null) return;
 
         var responseTime = (DateTime.UtcNow - _roundStartTime).TotalSeconds;
         _responseTimes.Add(responseTime);
 
-        if (IsSinglePlayer && isTeam1 && !isMatchingAnswer)
-        {
-            timer?.Dispose();
-        }
+        var currentGameQuestion = game.Questions[game.CurrentRound];
+        currentGameQuestion.RecordPlayerAnswer(playerName, currentPlayerAnswer);
+        currentPlayerAnswer = "";
+        Snackbar.Add("Guess submitted!", Severity.Success);
+        StateHasChanged();
 
-        if (isTeam1)
+        // Check if all players have answered
+        var allPlayersAnswered = game.AllPlayersAnswered(game.CurrentRound);
+        if (allPlayersAnswered)
         {
-            if (!isMatchingAnswer)
-            {
-                team1PartnerBAnswered = true;
-            }
-            else
-            {
-                team1PartnerAAnswered = true;
-                var isMatch = await QuestionService.CheckAnswerSimilarityAsync(team1Answer, team1MatchAnswer);
-                if (isMatch)
-                {
-                    game.Team1Score++;
-                    game.Team1.CorrectAnswers++;
-                    _matchedAnswers.Add(team1Answer);
-                    
-                    // Update category stats
-                    if (!_categoryStats.ContainsKey(_currentQuestion.Category))
-                        _categoryStats[_currentQuestion.Category] = 0;
-                    _categoryStats[_currentQuestion.Category]++;
-                    
-                    Snackbar.Add("Answers match! Point scored!", Severity.Success);
-                }
-                else
-                {
-                    Snackbar.Add("Answers don't match!", Severity.Error);
-                }
-                game.Team1.TotalQuestionsAnswered++;
-            }
-        }
-        else if (!IsSinglePlayer)
-        {
-            if (!isMatchingAnswer)
-            {
-                team2PartnerBAnswered = true;
-            }
-            else
-            {
-                team2PartnerAAnswered = true;
-                var isMatch = await QuestionService.CheckAnswerSimilarityAsync(team2Answer, team2MatchAnswer);
-                if (isMatch)
-                {
-                    game.Team2Score++;
-                    game.Team2.CorrectAnswers++;
-                    _matchedAnswers.Add(team2Answer);
-                    
-                    // Update category stats
-                    if (!_categoryStats.ContainsKey(_currentQuestion.Category))
-                        _categoryStats[_currentQuestion.Category] = 0;
-                    _categoryStats[_currentQuestion.Category]++;
-                    
-                    Snackbar.Add("Answers match! Point scored!", Severity.Success);
-                }
-                else
-                {
-                    Snackbar.Add("Answers don't match!", Severity.Error);
-                }
-                game.Team2.TotalQuestionsAnswered++;
-            }
-        }
-
-        bool roundComplete = IsSinglePlayer 
-            ? team1PartnerAAnswered 
-            : team1PartnerAAnswered && team2PartnerAAnswered;
-
-        if (roundComplete)
-        {
+            game.UpdateScores(game.CurrentRound);
             game.CurrentRound++;
-            if (!game.IsGameOver)
-            {
-                await StartNewRound();
-            }
-            else
+
+            if (game.IsGameOver)
             {
                 // Save game history
                 var history = new GameHistory
                 {
-                    Team1Name = game.Team1.Name,
-                    Team2Name = game.Team2.Name,
-                    GameMode = IsSinglePlayer ? GameMode.SinglePlayer : GameMode.MultiPlayer,
-                    Team1Score = game.Team1Score,
-                    Team2Score = game.Team2Score,
+                    Team1Name = game.KingPlayer!.Name,
+                    Team2Name = "Multiple Players",
+                    GameMode = GameMode.KingPlayer,
+                    Team1Score = game.Players.Max(p => p.Score),
                     TotalQuestions = game.CurrentRound,
                     AverageResponseTime = _responseTimes.Average(),
                     CategoryStats = JsonSerializer.Serialize(_categoryStats),
@@ -302,26 +182,27 @@
                 };
                 await GameHistoryService.SaveGameHistoryAsync(history);
 
-                if (IsSinglePlayer)
+                // Save player stats
+                foreach (var player in game.Players)
                 {
-                    await TeamService.SaveTeamAsync(game.Team1);
-                    await TeamService.UpdateTeamStatsAsync(game.Team1.Name, GameMode.SinglePlayer, game.Team1Score);
-                    NavigationManager.NavigateTo($"/game-over/{game.Team1.Name}/{game.Team1Score}");
+                    await TeamService.SaveTeamAsync(new Team 
+                    { 
+                        Name = player.Name,
+                        MultiplayerWins = player.Score > 0 ? 1 : 0,
+                        TotalQuestionsAnswered = game.CurrentRound,
+                        CorrectAnswers = player.TotalCorrectGuesses
+                    });
                 }
-                else
-                {
-                    await TeamService.SaveTeamAsync(game.Team1);
-                    await TeamService.SaveTeamAsync(game.Team2);
-                    await TeamService.UpdateTeamStatsAsync(game.Team1.Name, GameMode.MultiPlayer, game.Team1Score);
-                    await TeamService.UpdateTeamStatsAsync(game.Team2.Name, GameMode.MultiPlayer, game.Team2Score);
-                    NavigationManager.NavigateTo($"/game-over/multi/{game.Team1.Name}/{game.Team1Score}/{game.Team2.Name}/{game.Team2Score}");
-                }
+
+                GameState.ClearGame();
+                var winner = game.Players.OrderByDescending(p => p.Score).First();
+                var scores = string.Join("|", game.GetScoreboard().Select(s => $"{s.Key}:{s.Value}"));
+                NavigationManager.NavigateTo($"/game-over/king/{game.KingPlayer!.Name}/{winner.Name}/{winner.Score}/{Uri.EscapeDataString(scores)}");
+            }
+            else
+            {
+                await StartNewRound();
             }
         }
-    }
-
-    public void Dispose()
-    {
-        timer?.Dispose();
     }
 }

@@ -1,6 +1,8 @@
 @page "/statistics/{teamName}"
 @using PoCoupleQuiz.Core.Models
 @using PoCoupleQuiz.Core.Services
+@using MudBlazor
+@using System.Text.Json
 @inject IGameHistoryService GameHistoryService
 @inject ITeamService TeamService
 @inject NavigationManager NavigationManager
@@ -8,14 +10,14 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
     <MudGrid>
         <MudItem xs="12" Class="d-flex align-center">
-            <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="mr-2 cursor-pointer" @onclick="() => NavigationManager.NavigateTo("/")" />
+            <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="mr-2 cursor-pointer" onclick="@(() => NavigationManager.NavigateTo("/"))" />
             <MudText Typo="Typo.h4">Statistics for @TeamName</MudText>
         </MudItem>
     </MudGrid>
 
     @if (_team == null)
     {
-        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        <MudProgressCircular Color="@Color.Primary" Indeterminate="true" />
     }
     else
     {
@@ -23,26 +25,26 @@
             <!-- Quick Stats Cards -->
             <MudItem xs="12" md="3">
                 <MudPaper Class="pa-4" Style="background: var(--mud-palette-primary);">
-                    <MudText Typo="Typo.h5" Color="Color.Surface">Total Games</MudText>
-                    <MudText Typo="Typo.h3" Color="Color.Surface">@_gameHistories.Count()</MudText>
+                    <MudText Typo="Typo.h5" Color="@Color.Surface">Total Games</MudText>
+                    <MudText Typo="Typo.h3" Color="@Color.Surface">@_gameHistories.Count()</MudText>
                 </MudPaper>
             </MudItem>
             <MudItem xs="12" md="3">
                 <MudPaper Class="pa-4" Style="background: var(--mud-palette-secondary);">
-                    <MudText Typo="Typo.h5" Color="Color.Surface">Win Rate</MudText>
-                    <MudText Typo="Typo.h3" Color="Color.Surface">@(_team.CorrectPercentage.ToString("F1"))%</MudText>
+                    <MudText Typo="Typo.h5" Color="@Color.Surface">Win Rate</MudText>
+                    <MudText Typo="Typo.h3" Color="@Color.Surface">@(_team.CorrectPercentage.ToString("F1"))%</MudText>
                 </MudPaper>
             </MudItem>
             <MudItem xs="12" md="3">
                 <MudPaper Class="pa-4" Style="background: var(--mud-palette-tertiary);">
-                    <MudText Typo="Typo.h5" Color="Color.Surface">Current Streak</MudText>
-                    <MudText Typo="Typo.h3" Color="Color.Surface">@_currentStreak</MudText>
+                    <MudText Typo="Typo.h5" Color="@Color.Surface">Current Streak</MudText>
+                    <MudText Typo="Typo.h3" Color="@Color.Surface">@_currentStreak</MudText>
                 </MudPaper>
             </MudItem>
             <MudItem xs="12" md="3">
                 <MudPaper Class="pa-4" Style="background: var(--mud-palette-info);">
-                    <MudText Typo="Typo.h5" Color="Color.Surface">Best Streak</MudText>
-                    <MudText Typo="Typo.h3" Color="Color.Surface">@_bestStreak</MudText>
+                    <MudText Typo="Typo.h5" Color="@Color.Surface">Best Streak</MudText>
+                    <MudText Typo="Typo.h3" Color="@Color.Surface">@_bestStreak</MudText>
                 </MudPaper>
             </MudItem>
 
@@ -87,13 +89,11 @@
                     <MudText Typo="Typo.h6" Class="mb-4">Top Matched Answers</MudText>
                     @if (_topAnswers.Any())
                     {
-                        <MudList>
+                        <MudList clickable="false" Dense="true" T="string">
                             @for (var i = 0; i < _topAnswers.Count; i++)
                             {
                                 var index = i;
-                                <MudListItem Icon="@($"{index + 1}")">
-                                    <MudText>@_topAnswers[index]</MudText>
-                                </MudListItem>
+                                <MudListItem T="string" Text="@_topAnswers[index]" Icon="@($"{index + 1}")" />
                             }
                         </MudList>
                     }
@@ -160,10 +160,10 @@
     private int _bestStreak;
     private string _bestCategory = "-";
 
-    private ChartSeries[] _chartSeries = Array.Empty<ChartSeries>();
+    private List<ChartSeries> _chartSeries = new();
     private string[] _chartLabels = Array.Empty<string>();
     
-    private ChartSeries[] _responseTimeSeries = Array.Empty<ChartSeries>();
+    private List<ChartSeries> _responseTimeSeries = new();
     private string[] _responseTimeLabels = Array.Empty<string>();
 
     protected override async Task OnInitializedAsync()
@@ -186,7 +186,7 @@
             _bestCategory = orderedStats.First().Key.ToString();
             
             _chartLabels = orderedStats.Select(c => c.Key.ToString()).ToArray();
-            _chartSeries = new[]
+            _chartSeries = new List<ChartSeries>
             {
                 new ChartSeries
                 {
@@ -198,8 +198,8 @@
 
         // Prepare response time chart data
         var recentGames = _gameHistories.Take(10).Reverse();
-        _responseTimeLabels = recentGames.Select(g => g.Timestamp?.LocalDateTime.ToString("MM/dd")).ToArray();
-        _responseTimeSeries = new[]
+        _responseTimeLabels = recentGames.Select(g => g.Timestamp?.LocalDateTime.ToString("MM/dd") ?? "-").ToArray();
+        _responseTimeSeries = new List<ChartSeries>
         {
             new ChartSeries
             {
@@ -246,4 +246,4 @@
             _bestStreak = bestStreak;
         }
     }
-} 
+}
