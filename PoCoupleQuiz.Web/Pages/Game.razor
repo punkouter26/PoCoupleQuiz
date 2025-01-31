@@ -11,6 +11,47 @@
 @inject IGameHistoryService GameHistoryService
 @inject IGameStateService GameState
 
+<style>
+    .game-container {
+        background: linear-gradient(135deg, #FFF8E1, #FFE0B2);
+        padding: 2rem;
+        border-radius: 20px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .question-container {
+        background-color: #F8BBD0;
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .answer-container {
+        background-color: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .scoreboard {
+        background-color: #E1BEE7;
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin-top: 1.5rem;
+    }
+
+    .player-chip {
+        margin: 0.5rem;
+        transition: transform 0.2s;
+    }
+
+    .player-chip:hover {
+        transform: scale(1.1);
+    }
+</style>
+
 <MudContainer>
     @if (game == null)
     {
@@ -18,59 +59,83 @@
     }
     else
     {
-        <MudPaper Class="pa-4 ma-4">
-            <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Round @(game.CurrentRound + 1)</MudText>
-            <MudText Typo="Typo.h6" Align="Align.Center" Class="mb-8">@currentQuestion</MudText>
+        <div class="game-container">
+            <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-4">Round @(game.CurrentRound + 1) 🎯</MudText>
+            
+            <div class="question-container">
+                <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">@currentQuestion</MudText>
+            </div>
 
             @if (!kingPlayerAnswered)
             {
-                <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.h6" Class="mb-4">@game.KingPlayer!.Name's turn to answer:</MudText>
-                    <MudTextField @bind-Value="@kingAnswer" Label="Your Answer" Required="true" />
-                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitKingAnswer" Class="mt-3">
+                <div class="answer-container">
+                    <MudText Typo="Typo.h6" Class="mb-4">@game.KingPlayer!.Name's turn to answer 👑</MudText>
+                    <MudTextField @bind-Value="@kingAnswer" 
+                                Label="Your Answer" 
+                                Required="true"
+                                Variant="Variant.Outlined"
+                                Class="mb-4" />
+                    <MudButton Color="Color.Primary" 
+                              Variant="Variant.Filled" 
+                              OnClick="SubmitKingAnswer" 
+                              Class="mt-3"
+                              StartIcon="@Icons.Material.Filled.Send">
                         Submit Answer
                     </MudButton>
-                </MudPaper>
+                </div>
             }
             else
             {
                 var nextPlayer = GetNextPlayerToAnswer();
                 if (nextPlayer != null)
                 {
-                    <MudPaper Class="pa-4" Elevation="2">
-                        <MudText Typo="Typo.h6" Class="mb-4">@nextPlayer.Name's turn to guess what @game.KingPlayer!.Name answered:</MudText>
-                        <MudTextField @bind-Value="@currentPlayerAnswer" Label="Your Guess" Required="true" />
-                        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => SubmitPlayerGuess(nextPlayer.Name))" Class="mt-3">
+                    <div class="answer-container">
+                        <MudText Typo="Typo.h6" Class="mb-4">@nextPlayer.Name's turn to guess what @game.KingPlayer!.Name answered 🤔</MudText>
+                        <MudTextField @bind-Value="@currentPlayerAnswer" 
+                                    Label="Your Guess" 
+                                    Required="true"
+                                    Variant="Variant.Outlined"
+                                    Class="mb-4" />
+                        <MudButton Color="Color.Secondary" 
+                                  Variant="Variant.Filled" 
+                                  OnClick="@(() => SubmitPlayerGuess(nextPlayer.Name))" 
+                                  Class="mt-3"
+                                  StartIcon="@Icons.Material.Filled.Send">
                             Submit Guess
                         </MudButton>
-                    </MudPaper>
+                    </div>
                 }
                 else
                 {
-                    <MudPaper Class="pa-4" Elevation="2">
-                        <MudText>All players have answered. Moving to next round...</MudText>
-                    </MudPaper>
+                    <div class="answer-container">
+                        <MudText Align="Align.Center">All players have answered. Moving to next round... 🎉</MudText>
+                    </div>
                 }
             }
 
-            <MudDivider Class="my-4" />
+            <div class="scoreboard">
+                <MudText Typo="Typo.h5" Class="mb-4">Scoreboard 🏆</MudText>
+                @foreach (var score in game.GetScoreboard())
+                {
+                    <MudText>@score.Key: @score.Value points ⭐</MudText>
+                }
 
-            <MudText Typo="Typo.h6" Class="mb-2">Scoreboard:</MudText>
-            @foreach (var score in game.GetScoreboard())
-            {
-                <MudText>@score.Key: @score.Value points</MudText>
-            }
+                <MudDivider Class="my-4" />
 
-            <MudDivider Class="my-4" />
-
-            <MudText Typo="Typo.h6" Class="mb-2">Players who have answered:</MudText>
-            @foreach (var player in game.Players)
-            {
-                <MudChip T="string" Color="@(HasPlayerAnswered(player.Name) ? Color.Success : Color.Default)" 
-                         Class="ma-1" Text="@(player.Name + (player.IsKingPlayer ? " (King)" : ""))">
-                </MudChip>
-            }
-        </MudPaper>
+                <MudText Typo="Typo.h6" Class="mb-2">Players who have answered:</MudText>
+                <div style="display: flex; flex-wrap: wrap;">
+                    @foreach (var player in game.Players)
+                    {
+                        <MudChip T="string" 
+                                Color="@(HasPlayerAnswered(player.Name) ? Color.Success : Color.Default)"
+                                Class="player-chip"
+                                Icon="@(player.IsKingPlayer ? Icons.Material.Filled.Stars : Icons.Material.Filled.Person)">
+                            @(player.Name + (player.IsKingPlayer ? " (King)" : ""))
+                        </MudChip>
+                    }
+                </div>
+            </div>
+        </div>
     }
 </MudContainer>
 

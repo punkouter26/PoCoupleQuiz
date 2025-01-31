@@ -6,17 +6,55 @@
 @inject ISnackbar Snackbar
 @inject IGameStateService GameState
 
+<style>
+    .title-container {
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+        padding: 2rem;
+        border-radius: 20px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        animation: bounce 2s infinite;
+    }
+
+    @@keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .game-title {
+        font-family: 'Comic Sans MS', cursive;
+        color: #FF4081;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .subtitle {
+        font-family: 'Comic Sans MS', cursive;
+        color: #673AB7;
+    }
+
+    .setup-container {
+        background-color: #F8BBD0;
+        border-radius: 15px;
+        padding: 2rem;
+    }
+</style>
+
 <MudContainer MaxWidth="MaxWidth.Medium">
-    <MudPaper Class="pa-4 ma-4" Elevation="2">
-        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Welcome to Know Your Friend Quiz!</MudText>
-        
+    <div class="title-container">
+        <MudText Typo="Typo.h2" Align="Align.Center" Class="game-title mb-4">PoCoupleQuiz</MudText>
+        <MudText Typo="Typo.h6" Align="Align.Center" Class="subtitle">
+            The Fun Way to Test How Well You Know Each Other! 🎮 💝
+        </MudText>
+    </div>
+
+    <MudPaper Class="pa-4 ma-4 setup-container" Elevation="3">
         <MudText Typo="Typo.body1" Class="mb-4" Align="Align.Center">
             One player (the king) answers questions about themselves while others try to match their answers.
-            The player who knows the king player best wins!
+            The player who knows the king player best wins! 🏆
         </MudText>
 
         <MudPaper Class="pa-4 mb-4" Elevation="1">
-            <MudText Typo="Typo.h6" Class="mb-4">Game Setup</MudText>
+            <MudText Typo="Typo.h6" Class="mb-4">Game Setup 🎲</MudText>
             
             <MudNumericField @bind-Value="playerCount" 
                             Label="Number of Players (1-6 plus king)" 

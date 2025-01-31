@@ -8,6 +8,7 @@ public class AzureOpenAIQuestionService : IQuestionService
 {
     private readonly OpenAIClient _client;
     private readonly string _deploymentName;
+    private string _lastQuestion = string.Empty; // Track the last question
 
     public AzureOpenAIQuestionService(IConfiguration configuration)
     {
@@ -25,17 +26,19 @@ public class AzureOpenAIQuestionService : IQuestionService
             Messages =
             {
                 new ChatMessage(ChatRole.System, "You are a quiz game host. Generate fun, appropriate questions about someone's personal habits, preferences, and daily routines. These questions should help determine how well others know this person. Questions should be specific and have clear answers. For example: 'What is their favorite breakfast food?', 'What time do they usually go to bed?', 'What's their most used app on their phone?'"),
-                new ChatMessage(ChatRole.User, "Generate a single question that would reveal how well someone knows the person being asked about.")
+                new ChatMessage(ChatRole.User, $"Generate a single question that would reveal how well someone knows the person being asked about. Do not generate this question: {_lastQuestion}")
             },
             MaxTokens = 100,
             Temperature = 0.7f,
             NucleusSamplingFactor = 0.95f,
-            FrequencyPenalty = 0,
-            PresencePenalty = 0
+            FrequencyPenalty = 0.8f, // Increased to reduce repetition
+            PresencePenalty = 0.8f   // Increased to reduce repetition
         };
 
         var response = await _client.GetChatCompletionsAsync(_deploymentName, chatOptions);
-        return response.Value.Choices[0].Message.Content.Trim();
+        var newQuestion = response.Value.Choices[0].Message.Content.Trim();
+        _lastQuestion = newQuestion; // Store the new question
+        return newQuestion;
     }
 
     public async Task<bool> CheckAnswerSimilarityAsync(string answer1, string answer2)
