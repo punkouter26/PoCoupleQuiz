@@ -4,37 +4,10 @@ param projectName string = 'PoCoupleQuiz'
 @description('The location for all resources')
 param location string = resourceGroup().location
 
-// Storage Account
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: toLower('${projectName}storage')
-  location: location
-  sku: {
-    name: 'Standard_LRS'
-  }
-  kind: 'StorageV2'
-  properties: {
-    minimumTlsVersion: 'TLS1_2'
-    allowBlobPublicAccess: false
-    supportsHttpsTrafficOnly: true
-  }
-}
-
-// Create table service
-resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-01-01' = {
-  parent: storageAccount
-  name: 'default'
-}
-
-// Create Teams table
-resource teamsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
-  parent: tableService
-  name: 'Teams'
-}
-
-// Create GameHistory table
-resource gameHistoryTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-01-01' = {
-  parent: tableService
-  name: 'GameHistory'
+// Reference existing storage account
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
+  name: 'pocouplequizstorage'
+  scope: resourceGroup('PoCoupleQuiz')
 }
 
 // Reference existing App Service Plan from PoShared resource group
@@ -62,14 +35,23 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'WEBSITE_RUN_FROM_PACKAGE'
           value: '1'
         }
+        {
+          name: 'AzureOpenAI__Endpoint'
+          value: 'https://poshared.openai.azure.com/'
+        }
+        {
+          name: 'AzureOpenAI__Key'
+          value: '6FlBrnPuXn2gUjyqVWiFFqu0Ma7I57TUavukI9ZixcaDFmNDhFVdJQQJ99BAACYeBjFXJ3w3AAABACOGIyFf'
+        }
+        {
+          name: 'AzureOpenAI__DeploymentName'
+          value: 'gpt-35-turbo'
+        }
       ]
     }
-  }
-  identity: {
-    type: 'SystemAssigned'
   }
 }
 
 // Output the web app URL
 output webAppUrl string = 'https://${webApp.properties.defaultHostName}'
-output storageAccountName string = storageAccount.name 
+output storageAccountName string = storageAccount.name
