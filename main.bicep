@@ -1,17 +1,8 @@
 @description('The name of the project/solution')
-param projectName string = 'PoCoupleQuizApp'
+param projectName string = 'PoCoupleQuiz'
 
 @description('The location for all resources')
 param location string = resourceGroup().location
-
-@description('The SKU of App Service Plan')
-param appServicePlanSku object = {
-  name: 'F1'
-  tier: 'Free'
-  size: 'F1'
-  family: 'F'
-  capacity: 1
-}
 
 // Storage Account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
@@ -46,24 +37,19 @@ resource gameHistoryTable 'Microsoft.Storage/storageAccounts/tableServices/table
   name: 'GameHistory'
 }
 
-// App Service Plan
-resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
-  name: '${projectName}-plan'
-  location: location
-  sku: appServicePlanSku
-  kind: 'app'
-  properties: {
-    reserved: false
-  }
+// Reference existing App Service Plan from PoShared resource group
+resource sharedAppServicePlan 'Microsoft.Web/serverfarms@2023-01-01' existing = {
+  name: 'PoSharedFree'
+  scope: resourceGroup('PoShared')
 }
 
-// Web App
+// Web App using shared app service plan
 resource webApp 'Microsoft.Web/sites@2023-01-01' = {
   name: projectName
   location: location
   kind: 'app'
   properties: {
-    serverFarmId: appServicePlan.id
+    serverFarmId: sharedAppServicePlan.id
     httpsOnly: true
     siteConfig: {
       netFrameworkVersion: 'v8.0'
