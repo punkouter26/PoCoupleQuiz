@@ -15,7 +15,7 @@ public class AzureOpenAIQuestionService : IQuestionService
         var endpoint = configuration["AzureOpenAI:Endpoint"] ?? throw new ArgumentNullException("AzureOpenAI:Endpoint");
         var key = configuration["AzureOpenAI:Key"] ?? throw new ArgumentNullException("AzureOpenAI:Key");
         _deploymentName = configuration["AzureOpenAI:DeploymentName"] ?? throw new ArgumentNullException("AzureOpenAI:DeploymentName");
-        
+
         _client = new OpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
     }
 

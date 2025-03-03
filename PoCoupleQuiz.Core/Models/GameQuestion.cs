@@ -9,7 +9,7 @@ public class GameQuestion
 
     public bool HasPlayerAnswered(string playerName) => PlayerAnswers.ContainsKey(playerName);
     public bool HasPlayerMatched(string playerName) => PlayersMatched.Contains(playerName);
-    
+
     public void RecordPlayerAnswer(string playerName, string answer)
     {
         PlayerAnswers[playerName] = answer;

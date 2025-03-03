@@ -37,7 +37,7 @@ public class AzureTableTeamService : ITeamService, IAzureTableTeamService
     {
         var teams = new List<Team>();
         var queryResults = _tableClient.QueryAsync<TeamTableEntity>(filter: $"PartitionKey eq 'Team'");
-        
+
         await foreach (var entity in queryResults)
         {
             teams.Add(entity.ToTeam());

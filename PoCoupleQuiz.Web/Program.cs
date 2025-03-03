@@ -13,7 +13,7 @@ builder.Services.AddMudServices();
 // Add application services
 builder.Services.AddSingleton<IQuestionService, AzureOpenAIQuestionService>();
 builder.Services.AddSingleton<ITeamService, AzureTableTeamService>();
-builder.Services.AddSingleton<IAzureTableTeamService>(sp => 
+builder.Services.AddSingleton<IAzureTableTeamService>(sp =>
 {
     var service = sp.GetRequiredService<ITeamService>();
     var tableService = service as AzureTableTeamService;

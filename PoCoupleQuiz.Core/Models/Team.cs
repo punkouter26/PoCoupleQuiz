@@ -13,9 +13,9 @@ public class Team
     public DateTime LastPlayed { get; set; }
     public int TotalQuestionsAnswered { get; set; }
     public int CorrectAnswers { get; set; }
-    
-    public double CorrectPercentage => TotalQuestionsAnswered > 0 
-        ? (double)CorrectAnswers / TotalQuestionsAnswered * 100 
+
+    public double CorrectPercentage => TotalQuestionsAnswered > 0
+        ? (double)CorrectAnswers / TotalQuestionsAnswered * 100
         : 0;
 
     // For Azure Table Storage
