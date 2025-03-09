@@ -75,6 +75,16 @@
                             Required="true"
                             Class="mb-2" />
             }
+            
+            <MudSelect T="DifficultyLevel" @bind-Value="selectedDifficulty" Label="Difficulty Level" Class="mt-4">
+                <MudSelectItem Value="DifficultyLevel.Easy">Easy (3 rounds)</MudSelectItem>
+                <MudSelectItem Value="DifficultyLevel.Medium">Medium (5 rounds)</MudSelectItem>
+                <MudSelectItem Value="DifficultyLevel.Hard">Hard (7 rounds)</MudSelectItem>
+            </MudSelect>
+            
+            <MudText Typo="Typo.caption" Class="mt-1">
+                @GetDifficultyDescription(selectedDifficulty)
+            </MudText>
         </MudPaper>
 
         <div class="d-flex justify-center">
@@ -94,10 +104,19 @@
     private int playerCount = 1;
     private string kingPlayerName = "";
     private string[] guessingPlayerNames = new string[6];  // Max 6 players
+    private DifficultyLevel selectedDifficulty = DifficultyLevel.Medium;
 
     private bool CanStartGame => 
         !string.IsNullOrWhiteSpace(kingPlayerName) && 
         guessingPlayerNames.Take(playerCount).All(name => !string.IsNullOrWhiteSpace(name));
+        
+    private string GetDifficultyDescription(DifficultyLevel difficulty) => difficulty switch
+    {
+        DifficultyLevel.Easy => "Easier questions and fewer rounds for a quick game.",
+        DifficultyLevel.Medium => "Standard questions with a balanced game length.",
+        DifficultyLevel.Hard => "Challenging questions and more rounds for an in-depth game.",
+        _ => string.Empty
+    };
 
     private async Task StartGame()
     {
@@ -112,7 +131,10 @@
             return;
         }
 
-        var game = new PoCoupleQuiz.Core.Models.Game();
+        var game = new PoCoupleQuiz.Core.Models.Game
+        {
+            Difficulty = selectedDifficulty
+        };
         
         // Add king player
         game.AddPlayer(new Player { Name = kingPlayerName, IsKingPlayer = true });

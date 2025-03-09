@@ -1,8 +1,0 @@
-<step title="Incoming Request" date="2025-02-01T19:35:59.661" instance="92ca53" url="/logstream" method="GET" type="request" pid="17796,2,8" Connection="Keep-Alive" Accept-Encoding="identity" Authorization="Bas..." Host="pocouplequiz.scm.azurewebsites.net" User-Agent="AZURECLI/2.67.0 (MSI)" x-ms-client-request-id="c0584df6-e0d3-11ef-92c3-4c445ba888eb" X-ARR-LOG-ID="c0584df6-e0d3-11ef-92c3-4c445ba888eb" CLIENT-IP="69.138.244.34:57511" X-SITE-DEPLOYMENT-ID="PoCoupleQuiz" WAS-DEFAULT-HOSTNAME="pocouplequiz.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/logstream" X-MS-COLDSTART="1" >
-  <step title="LogStreamHandler.BeginProcessRequest" date="2025-02-01T19:35:59.724" >
-    <step title="LockFile &apos;C:\home\site\locks\hooks.lock&apos; acquired" date="2025-02-01T19:35:59.802" /><!-- duration: 0ms -->
-    <step title="LockFile &apos;C:\home\site\locks\hooks.lock&apos; released" date="2025-02-01T19:35:59.880" /><!-- duration: 16ms -->
-  </step><!-- duration: 188ms -->
-  <step title="LogStreamHandler.EndProcessRequest" date="2025-02-01T19:36:46.894" /><!-- duration: 16ms -->
-  <step title="Outgoing response" date="2025-02-01T19:36:46.925" type="response" statusCode="200" statusText="OK" Server="Microsoft-IIS/10.0" Cache-Control="private" X-AspNet-Version="4.0.30319" Content-Type="text/plain; charset=utf-8" /><!-- duration: 16ms -->
-</step><!-- duration: 47280ms -->

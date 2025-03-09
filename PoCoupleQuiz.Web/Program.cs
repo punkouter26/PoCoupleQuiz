@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor.Services;
 using PoCoupleQuiz.Core.Services;
+using PoCoupleQuiz.Tests;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,7 +12,25 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddMudServices();
 
 // Add application services
-builder.Services.AddSingleton<IQuestionService, AzureOpenAIQuestionService>();
+// Determine if we should use the mock service based on configuration
+var openAiEndpoint = builder.Configuration["AzureOpenAI:Endpoint"];
+var openAiKey = builder.Configuration["AzureOpenAI:Key"];
+var useMockService = string.IsNullOrEmpty(openAiEndpoint) || 
+                      string.IsNullOrEmpty(openAiKey) ||
+                      openAiEndpoint.Contains("your-resource-name");
+
+// Register IQuestionService with proper implementation based on availability of credentials
+if (useMockService)
+{
+    Console.WriteLine("Using MockQuestionService for questions (Azure OpenAI credentials not provided)");
+    builder.Services.AddSingleton<IQuestionService, MockQuestionService>();
+}
+else
+{
+    Console.WriteLine("Using AzureOpenAIQuestionService for questions");
+    builder.Services.AddSingleton<IQuestionService, AzureOpenAIQuestionService>();
+}
+
 builder.Services.AddSingleton<ITeamService, AzureTableTeamService>();
 builder.Services.AddSingleton<IAzureTableTeamService>(sp =>
 {

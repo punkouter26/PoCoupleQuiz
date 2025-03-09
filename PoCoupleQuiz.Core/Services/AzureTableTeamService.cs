@@ -2,6 +2,7 @@ using Azure;
 using Azure.Data.Tables;
 using Microsoft.Extensions.Configuration;
 using PoCoupleQuiz.Core.Models;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace PoCoupleQuiz.Core.Services;
@@ -9,19 +10,46 @@ namespace PoCoupleQuiz.Core.Services;
 public class AzureTableTeamService : ITeamService, IAzureTableTeamService
 {
     private readonly TableClient _tableClient;
+    private readonly IConfiguration _configuration;
+    // Fallback in-memory storage when Azure Storage is not available
+    private static readonly ConcurrentDictionary<string, Team> _inMemoryTeams = new();
+    private readonly bool _useInMemoryFallback;
 
     public AzureTableTeamService(IConfiguration configuration)
     {
-        var connectionString = configuration["AzureStorage:ConnectionString"] ?? "UseDevelopmentStorage=true";
-        _tableClient = new TableClient(connectionString, "Teams");
-        _tableClient.CreateIfNotExists();
+        _configuration = configuration;
+        _useInMemoryFallback = false;
+
+        try
+        {
+            var connectionString = configuration["AzureStorage:ConnectionString"];
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new ArgumentNullException(nameof(connectionString), "Azure Storage connection string is required");
+            }
+
+            _tableClient = new TableClient(connectionString, "Teams");
+            _tableClient.CreateIfNotExists();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to initialize Azure Table Storage: {ex.Message}");
+            _useInMemoryFallback = true;
+            Console.WriteLine("Falling back to in-memory storage for teams.");
+            throw; // Rethrow to ensure the application knows there's a configuration issue
+        }
     }
 
     public async Task<Team?> GetTeamAsync(string teamName)
     {
+        if (_useInMemoryFallback)
+        {
+            return _inMemoryTeams.TryGetValue(teamName.ToLowerInvariant(), out var team) ? team : null;
+        }
+
         try
         {
-            var response = await _tableClient.GetEntityAsync<TeamTableEntity>(
+            var response = await _tableClient!.GetEntityAsync<TeamTableEntity>(
                 partitionKey: "Team",
                 rowKey: teamName.ToLowerInvariant()
             );
@@ -31,25 +59,60 @@ public class AzureTableTeamService : ITeamService, IAzureTableTeamService
         {
             return null;
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Azure Table Storage error: {ex.Message}");
+            // Fallback to in-memory if Azure storage fails
+            return _inMemoryTeams.TryGetValue(teamName.ToLowerInvariant(), out var team) ? team : null;
+        }
     }
 
     public async Task<IEnumerable<Team>> GetAllTeamsAsync()
     {
-        var teams = new List<Team>();
-        var queryResults = _tableClient.QueryAsync<TeamTableEntity>(filter: $"PartitionKey eq 'Team'");
-
-        await foreach (var entity in queryResults)
+        if (_useInMemoryFallback)
         {
-            teams.Add(entity.ToTeam());
+            return _inMemoryTeams.Values.ToList();
         }
 
-        return teams;
+        try
+        {
+            var teams = new List<Team>();
+            var queryResults = _tableClient!.QueryAsync<TeamTableEntity>(filter: $"PartitionKey eq 'Team'");
+
+            await foreach (var entity in queryResults)
+            {
+                teams.Add(entity.ToTeam());
+            }
+
+            return teams;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Azure Table Storage error: {ex.Message}");
+            // Fallback to in-memory if Azure storage fails
+            return _inMemoryTeams.Values.ToList();
+        }
     }
 
     public async Task SaveTeamAsync(Team team)
     {
-        var entity = new TeamTableEntity(team);
-        await _tableClient.UpsertEntityAsync(entity);
+        if (_useInMemoryFallback)
+        {
+            _inMemoryTeams[team.Name.ToLowerInvariant()] = team;
+            return;
+        }
+
+        try
+        {
+            var entity = new TeamTableEntity(team);
+            await _tableClient!.UpsertEntityAsync(entity);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Azure Table Storage error: {ex.Message}");
+            // Fallback to in-memory if Azure storage fails
+            _inMemoryTeams[team.Name.ToLowerInvariant()] = team;
+        }
     }
 
     public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score)

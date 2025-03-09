@@ -1,12 +1,27 @@
 namespace PoCoupleQuiz.Core.Models;
 
+public enum DifficultyLevel
+{
+    Easy,
+    Medium,
+    Hard
+}
+
 public class Game
 {
     public List<Player> Players { get; set; } = new();
     public Player? KingPlayer => Players.FirstOrDefault(p => p.IsKingPlayer);
     public List<GameQuestion> Questions { get; set; } = new();
     public int CurrentRound { get; set; }
-    public bool IsGameOver => CurrentRound >= 5; // Increased rounds since we have more players
+    public DifficultyLevel Difficulty { get; set; } = DifficultyLevel.Medium;
+    public int MaxRounds => Difficulty switch
+    {
+        DifficultyLevel.Easy => 3,
+        DifficultyLevel.Medium => 5,
+        DifficultyLevel.Hard => 7,
+        _ => 5
+    };
+    public bool IsGameOver => CurrentRound >= MaxRounds;
 
     public int MinimumPlayers => 2; // At least 1 king and 1 guessing player
     public bool HasEnoughPlayers => Players.Count >= MinimumPlayers;

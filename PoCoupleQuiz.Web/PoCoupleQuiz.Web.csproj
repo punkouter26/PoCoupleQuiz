@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PoCoupleQuiz.Core\PoCoupleQuiz.Core.csproj" />
+    <ProjectReference Include="..\PoCoupleQuiz.Tests\PoCoupleQuiz.Tests.csproj" />
   </ItemGroup>
 
 </Project>

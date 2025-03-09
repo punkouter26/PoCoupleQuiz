@@ -5,12 +5,27 @@ namespace PoCoupleQuiz.Tests;
 public class MockQuestionService : IQuestionService
 {
     private int _questionCounter = 0;
-    private readonly string[] _predefinedQuestions = new[]
+    
+    private readonly string[] _easyQuestions = new[]
     {
         "What is your partner's favorite color?",
+        "Do they prefer coffee or tea?",
+        "What is their favorite season?"
+    };
+    
+    private readonly string[] _mediumQuestions = new[]
+    {
         "What is your partner's favorite food?",
         "Where was your first date?",
-        "What is your partner's dream vacation destination?"
+        "What is your partner's dream vacation destination?",
+        "What time do they usually go to bed?"
+    };
+    
+    private readonly string[] _hardQuestions = new[]
+    {
+        "What was their most defining life experience?",
+        "How do they approach conflict resolution?",
+        "What was their childhood ambition?"
     };
 
     private readonly Dictionary<string, string> _predefinedAnswers = new()
@@ -21,9 +36,16 @@ public class MockQuestionService : IQuestionService
         { "What is your partner's dream vacation destination?", "Paris" }
     };
 
-    public Task<string> GenerateQuestionAsync()
+    public Task<string> GenerateQuestionAsync(string? difficulty = null)
     {
-        var question = _predefinedQuestions[_questionCounter % _predefinedQuestions.Length];
+        string[] questionSet = difficulty?.ToLower() switch
+        {
+            "easy" => _easyQuestions,
+            "hard" => _hardQuestions,
+            _ => _mediumQuestions
+        };
+        
+        var question = questionSet[_questionCounter % questionSet.Length];
         _questionCounter++;
         return Task.FromResult(question);
     }

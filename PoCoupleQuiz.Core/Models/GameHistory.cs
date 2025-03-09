@@ -5,11 +5,17 @@ namespace PoCoupleQuiz.Core.Models;
 
 public class GameHistory : ITableEntity
 {
+    public GameHistory()
+    {
+        Date = DateTime.UtcNow;
+    }
+
     public string PartitionKey { get; set; } = string.Empty;
     public string RowKey { get; set; } = string.Empty;
     public DateTimeOffset? Timestamp { get; set; }
     public ETag ETag { get; set; }
 
+    public DateTime Date { get; set; }
     public string Team1Name { get; set; } = string.Empty;
     public string Team2Name { get; set; } = string.Empty;
     public GameMode GameMode { get; set; }
@@ -25,4 +31,4 @@ public class GameHistory : ITableEntity
         // Generate a unique row key using a reverse chronological format for better querying
         return $"{DateTime.MaxValue.Ticks - DateTime.UtcNow.Ticks:d19}-{Guid.NewGuid():N}";
     }
-} 
+}

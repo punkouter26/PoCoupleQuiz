@@ -4,12 +4,14 @@
 @using Microsoft.AspNetCore.Components
 @using MudBlazor
 @using System.Text.Json
+@using System.Timers
 @inject IQuestionService QuestionService
 @inject ITeamService TeamService
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @inject IGameHistoryService GameHistoryService
 @inject IGameStateService GameState
+@implements IDisposable
 
 <style>
     .game-container {
@@ -50,6 +52,63 @@
     .player-chip:hover {
         transform: scale(1.1);
     }
+
+    .difficulty-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 12px;
+        font-weight: bold;
+    }
+    
+    .easy-badge {
+        background-color: #A5D6A7;
+        color: #1B5E20;
+    }
+    
+    .medium-badge {
+        background-color: #FFE082;
+        color: #FF6F00;
+    }
+    
+    .hard-badge {
+        background-color: #EF9A9A;
+        color: #B71C1C;
+    }
+    
+    .progress-container {
+        margin: 1rem 0;
+    }
+    
+    .timer-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+    
+    .timer {
+        font-size: 1.5rem;
+        font-weight: bold;
+        text-align: center;
+        margin: 0 1rem;
+        min-width: 60px;
+    }
+    
+    .timer-critical {
+        color: #B71C1C;
+    }
+    
+    .matched-answer {
+        background-color: #DCEDC8;
+        border-left: 4px solid #8BC34A;
+    }
+    
+    .unmatched-answer {
+        background-color: #FFECB3;
+        border-left: 4px solid #FFC107;
+    }
 </style>
 
 <MudContainer>
@@ -59,12 +118,33 @@
     }
     else
     {
-        <div class="game-container">
+        <div class="game-container" style="position: relative;">
+            <div class="@GetDifficultyBadgeClass()">
+                @game.Difficulty.ToString()
+            </div>
+            
             <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-4">Round @(game.CurrentRound + 1) 🎯</MudText>
+            
+            <div class="progress-container">
+                <MudText Typo="Typo.caption" Class="mb-1">Round progress: @(game.CurrentRound + 1)/@(game.MaxRounds)</MudText>
+                <MudProgressLinear Value="@((game.CurrentRound + 1) * 100 / game.MaxRounds)" 
+                                  Color="@GetProgressColor()" 
+                                  Class="rounded-lg" 
+                                  Striped="true" />
+            </div>
             
             <div class="question-container">
                 <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">@currentQuestion</MudText>
             </div>
+
+            @if (IsTimerActive)
+            {
+                <div class="timer-container">
+                    <MudIcon Icon="@Icons.Material.Filled.Timer" Color="@(RemainingSeconds <= 5 ? Color.Error : Color.Default)" />
+                    <div class="timer @(RemainingSeconds <= 5 ? "timer-critical" : "")">@RemainingSeconds</div>
+                    <MudText>seconds remaining</MudText>
+                </div>
+            }
 
             @if (!kingPlayerAnswered)
             {
@@ -77,11 +157,61 @@
                                 Class="mb-4" />
                     <MudButton Color="Color.Primary" 
                               Variant="Variant.Filled" 
-                              OnClick="SubmitKingAnswer" 
+                              OnClick="@SubmitKingAnswer" 
                               Class="mt-3"
                               StartIcon="@Icons.Material.Filled.Send">
                         Submit Answer
                     </MudButton>
+                </div>
+            }
+            else if (showingRoundSummary && game.Questions.Count > 0 && game.CurrentRound > 0 && game.CurrentRound <= game.Questions.Count)
+            {
+                <div class="answer-container">
+                    <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">Round @game.CurrentRound Summary</MudText>
+                    
+                    <MudPaper Class="pa-3 mb-4 matched-answer">
+                        <MudText Typo="Typo.subtitle1"><strong>@game.KingPlayer!.Name's Answer:</strong></MudText>
+                        <MudText>@game.Questions[game.CurrentRound - 1].KingPlayerAnswer</MudText>
+                    </MudPaper>
+                    
+                    <MudText Typo="Typo.h6" Class="mb-2">Player Guesses:</MudText>
+                    @foreach (var answer in game.Questions[game.CurrentRound - 1].PlayerAnswers)
+                    {
+                        var matched = game.Questions[game.CurrentRound - 1].HasPlayerMatched(answer.Key);
+                        <MudPaper Class="@(matched ? "pa-3 mb-2 matched-answer" : "pa-3 mb-2 unmatched-answer")">
+                            <MudText Typo="Typo.subtitle1">
+                                <strong>@answer.Key:</strong> 
+                                @answer.Value
+                                @if (matched)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" />
+                                }
+                            </MudText>
+                        </MudPaper>
+                    }
+                    
+                    <div class="d-flex justify-center mt-4">
+                        <MudButton Color="Color.Primary" 
+                                  Variant="Variant.Filled" 
+                                  OnClick="@ContinueToNextRound" 
+                                  Class="mt-3">
+                            @(game.IsGameOver ? "See Final Results" : "Continue to Next Round")
+                        </MudButton>
+                    </div>
+                </div>
+            }
+            else if (showingRoundSummary)
+            {
+                <div class="answer-container">
+                    <MudText Typo="Typo.h5" Color="Color.Error">An error occurred displaying the round summary. Starting next round...</MudText>
+                    <div class="d-flex justify-center mt-4">
+                        <MudButton Color="Color.Primary" 
+                                  Variant="Variant.Filled" 
+                                  OnClick="@ContinueToNextRound" 
+                                  Class="mt-3">
+                            Continue
+                        </MudButton>
+                    </div>
                 </div>
             }
             else
@@ -108,7 +238,7 @@
                 else
                 {
                     <div class="answer-container">
-                        <MudText Align="Align.Center">All players have answered. Moving to next round... 🎉</MudText>
+                        <MudText Align="Align.Center">All players have answered. Moving to round summary... 🎉</MudText>
                     </div>
                 }
             }
@@ -150,6 +280,20 @@
     private List<double> _responseTimes = new();
     private Dictionary<QuestionCategory, int> _categoryStats = new();
     private List<string> _matchedAnswers = new();
+    private bool showingRoundSummary = false;
+    
+    // Timer properties
+    private Timer? _timer;
+    private int RemainingSeconds { get; set; }
+    private bool IsTimerActive => RemainingSeconds > 0;
+    private const int KingAnswerTime = 45;  // King has more time to provide their answer
+    private int PlayerAnswerTime => game?.Difficulty switch
+    {
+        DifficultyLevel.Easy => 40,
+        DifficultyLevel.Medium => 30,
+        DifficultyLevel.Hard => 20,
+        _ => 30
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,7 +304,96 @@
             return;
         }
 
+        _timer = new Timer(1000);
+        _timer.Elapsed += TimerTick;
+
         await StartNewRound();
+    }
+    
+    private void StartTimer(int seconds)
+    {
+        RemainingSeconds = seconds;
+        _timer?.Start();
+    }
+    
+    private void StopTimer()
+    {
+        _timer?.Stop();
+        RemainingSeconds = 0;
+    }
+    
+    private void TimerTick(object? sender, ElapsedEventArgs e)
+    {
+        if (RemainingSeconds <= 0)
+        {
+            _timer?.Stop();
+            
+            // Time's up!
+            InvokeAsync(async () =>
+            {
+                if (!kingPlayerAnswered)
+                {
+                    // Force submit king's answer if they have entered anything
+                    if (!string.IsNullOrWhiteSpace(kingAnswer))
+                    {
+                        await SubmitKingAnswer();
+                    }
+                    else
+                    {
+                        // Skip this round if king hasn't answered
+                        Snackbar.Add("Time's up! Moving to next round...", Severity.Warning);
+                        game!.CurrentRound++;
+                        if (game.IsGameOver)
+                        {
+                            await EndGame();
+                        }
+                        else
+                        {
+                            await StartNewRound();
+                        }
+                    }
+                }
+                else
+                {
+                    var nextPlayer = GetNextPlayerToAnswer();
+                    if (nextPlayer != null)
+                    {
+                        // Force submit player's guess if they have entered anything
+                        if (!string.IsNullOrWhiteSpace(currentPlayerAnswer))
+                        {
+                            await SubmitPlayerGuess(nextPlayer.Name);
+                        }
+                        else
+                        {
+                            // Skip this player's turn and move to next player
+                            Snackbar.Add($"{nextPlayer.Name} ran out of time!", Severity.Warning);
+                            var currentGameQuestion = game!.Questions[game.CurrentRound];
+                            currentGameQuestion.RecordPlayerAnswer(nextPlayer.Name, "");
+                            
+                            if (game.AllPlayersAnswered(game.CurrentRound))
+                            {
+                                // All players have answered, move to next round
+                                await ProcessEndOfRound();
+                            }
+                            else
+                            {
+                                nextPlayer = GetNextPlayerToAnswer();
+                                if (nextPlayer != null)
+                                {
+                                    StartTimer(PlayerAnswerTime);
+                                }
+                            }
+                        }
+                    }
+                }
+                StateHasChanged();
+            });
+        }
+        else
+        {
+            RemainingSeconds--;
+            InvokeAsync(StateHasChanged);
+        }
     }
 
     private Player? GetNextPlayerToAnswer()
@@ -184,18 +417,34 @@
     {
         if (game == null) return;
 
+        showingRoundSummary = false;
         _roundStartTime = DateTime.UtcNow;
-        currentQuestion = await QuestionService.GenerateQuestionAsync();
+        
+        // Generate question based on difficulty
+        currentQuestion = game.Difficulty switch
+        {
+            DifficultyLevel.Easy => await QuestionService.GenerateQuestionAsync("easy"),
+            DifficultyLevel.Hard => await QuestionService.GenerateQuestionAsync("hard"),
+            _ => await QuestionService.GenerateQuestionAsync()
+        };
+        
         _currentQuestion = new Question { Text = currentQuestion };
         
         kingPlayerAnswered = false;
         kingAnswer = "";
         currentPlayerAnswer = "";
 
-        if (game.Questions.Count <= game.CurrentRound)
+        // Initialize the Questions list if it's null
+        game.Questions ??= new List<GameQuestion>();
+
+        // Add new question for current round if needed
+        while (game.Questions.Count <= game.CurrentRound)
         {
             game.Questions.Add(new GameQuestion { Question = currentQuestion });
         }
+        
+        // Start the timer for king's answer
+        StartTimer(KingAnswerTime);
 
         StateHasChanged();
     }
@@ -204,16 +453,30 @@
     {
         if (game == null || string.IsNullOrWhiteSpace(kingAnswer)) return;
 
+        // Stop the timer
+        StopTimer();
+
         var currentGameQuestion = game.Questions[game.CurrentRound];
         currentGameQuestion.KingPlayerAnswer = kingAnswer;
         kingPlayerAnswered = true;
         Snackbar.Add("Answer submitted!", Severity.Success);
+        
+        var nextPlayer = GetNextPlayerToAnswer();
+        if (nextPlayer != null)
+        {
+            // Start timer for first player's guess
+            StartTimer(PlayerAnswerTime);
+        }
+        
         StateHasChanged();
     }
 
     private async Task SubmitPlayerGuess(string playerName)
     {
-        if (game == null || string.IsNullOrWhiteSpace(currentPlayerAnswer) || _currentQuestion == null) return;
+        if (game == null || _currentQuestion == null) return;
+
+        // Stop the timer
+        StopTimer();
 
         var responseTime = (DateTime.UtcNow - _roundStartTime).TotalSeconds;
         _responseTimes.Add(responseTime);
@@ -228,46 +491,108 @@
         var allPlayersAnswered = game.AllPlayersAnswered(game.CurrentRound);
         if (allPlayersAnswered)
         {
-            game.UpdateScores(game.CurrentRound);
-            game.CurrentRound++;
-
-            if (game.IsGameOver)
+            await ProcessEndOfRound();
+        }
+        else
+        {
+            var nextPlayer = GetNextPlayerToAnswer();
+            if (nextPlayer != null)
             {
-                // Save game history
-                var history = new GameHistory
-                {
-                    Team1Name = game.KingPlayer!.Name,
-                    Team2Name = "Multiple Players",
-                    GameMode = GameMode.KingPlayer,
-                    Team1Score = game.Players.Max(p => p.Score),
-                    TotalQuestions = game.CurrentRound,
-                    AverageResponseTime = _responseTimes.Average(),
-                    CategoryStats = JsonSerializer.Serialize(_categoryStats),
-                    MatchedAnswers = JsonSerializer.Serialize(_matchedAnswers)
-                };
-                await GameHistoryService.SaveGameHistoryAsync(history);
-
-                // Save player stats
-                foreach (var player in game.Players)
-                {
-                    await TeamService.SaveTeamAsync(new Team 
-                    { 
-                        Name = player.Name,
-                        MultiplayerWins = player.Score > 0 ? 1 : 0,
-                        TotalQuestionsAnswered = game.CurrentRound,
-                        CorrectAnswers = player.TotalCorrectGuesses
-                    });
-                }
-
-                GameState.ClearGame();
-                var winner = game.Players.OrderByDescending(p => p.Score).First();
-                var scores = string.Join("|", game.GetScoreboard().Select(s => $"{s.Key}:{s.Value}"));
-                NavigationManager.NavigateTo($"/game-over/king/{game.KingPlayer!.Name}/{winner.Name}/{winner.Score}/{Uri.EscapeDataString(scores)}");
+                // Start timer for next player's guess
+                StartTimer(PlayerAnswerTime);
             }
-            else
-            {
-                await StartNewRound();
-            }
+        }
+    }
+    
+    private Task ProcessEndOfRound()
+    {
+        game!.UpdateScores(game.CurrentRound);
+        
+        // Show round summary instead of immediately proceeding
+        showingRoundSummary = true;
+        
+        // Capture matched answers for statistics
+        var currentGameQuestion = game.Questions[game.CurrentRound];
+        foreach (var player in currentGameQuestion.PlayersMatched)
+        {
+            _matchedAnswers.Add($"{player}:{currentGameQuestion.Question}");
+        }
+        
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+    
+    private Task ContinueToNextRound()
+    {
+        game!.CurrentRound++;
+        
+        if (game.IsGameOver)
+        {
+            return EndGame();
+        }
+        else
+        {
+            return StartNewRound();
+        }
+    }
+    
+    private async Task EndGame()
+    {
+        // Save game history
+        var history = new GameHistory
+        {
+            Team1Name = game!.KingPlayer!.Name,
+            Team2Name = "Multiple Players",
+            GameMode = GameMode.KingPlayer,
+            Team1Score = game.Players.Max(p => p.Score),
+            TotalQuestions = game.CurrentRound,
+            AverageResponseTime = _responseTimes.Count > 0 ? _responseTimes.Average() : 0,
+            CategoryStats = JsonSerializer.Serialize(_categoryStats),
+            MatchedAnswers = JsonSerializer.Serialize(_matchedAnswers)
+        };
+        await GameHistoryService.SaveGameHistoryAsync(history);
+
+        // Save player stats
+        foreach (var player in game.Players)
+        {
+            await TeamService.SaveTeamAsync(new Team 
+            { 
+                Name = player.Name,
+                MultiplayerWins = player.Score > 0 ? 1 : 0,
+                TotalQuestionsAnswered = game.CurrentRound,
+                CorrectAnswers = player.TotalCorrectGuesses
+            });
+        }
+
+        GameState.ClearGame();
+        var winner = game.Players.OrderByDescending(p => p.Score).First();
+        var scores = string.Join("|", game.GetScoreboard().Select(s => $"{s.Key}:{s.Value}"));
+        NavigationManager.NavigateTo($"/game-over/king/{game.KingPlayer!.Name}/{winner.Name}/{winner.Score}/{Uri.EscapeDataString(scores)}");
+        return;
+    }
+
+    private string GetDifficultyBadgeClass() => game?.Difficulty switch
+    {
+        DifficultyLevel.Easy => "difficulty-badge easy-badge",
+        DifficultyLevel.Medium => "difficulty-badge medium-badge",
+        DifficultyLevel.Hard => "difficulty-badge hard-badge",
+        _ => "difficulty-badge medium-badge"
+    };
+    
+    private Color GetProgressColor() => game?.Difficulty switch
+    {
+        DifficultyLevel.Easy => Color.Success,
+        DifficultyLevel.Medium => Color.Warning,
+        DifficultyLevel.Hard => Color.Error,
+        _ => Color.Warning
+    };
+
+    public void Dispose()
+    {
+        if (_timer != null)
+        {
+            _timer.Elapsed -= TimerTick;
+            _timer.Dispose();
         }
     }
 }
