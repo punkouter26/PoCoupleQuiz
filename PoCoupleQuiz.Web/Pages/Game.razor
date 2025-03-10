@@ -164,30 +164,41 @@
                     </MudButton>
                 </div>
             }
-            else if (showingRoundSummary && game.Questions.Count > 0 && game.CurrentRound > 0 && game.CurrentRound <= game.Questions.Count)
+            else if (showingRoundSummary && game.Questions.Count > 0)
             {
+                // Use safe index calculation with bounds checking
+                var prevRoundIndex = Math.Max(0, Math.Min(game.CurrentRound - 1, game.Questions.Count - 1));
+                var hasPreviousRound = prevRoundIndex >= 0 && prevRoundIndex < game.Questions.Count;
+                
                 <div class="answer-container">
-                    <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">Round @game.CurrentRound Summary</MudText>
+                    <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">Round @(prevRoundIndex + 1) Summary</MudText>
                     
-                    <MudPaper Class="pa-3 mb-4 matched-answer">
-                        <MudText Typo="Typo.subtitle1"><strong>@game.KingPlayer!.Name's Answer:</strong></MudText>
-                        <MudText>@game.Questions[game.CurrentRound - 1].KingPlayerAnswer</MudText>
-                    </MudPaper>
-                    
-                    <MudText Typo="Typo.h6" Class="mb-2">Player Guesses:</MudText>
-                    @foreach (var answer in game.Questions[game.CurrentRound - 1].PlayerAnswers)
+                    @if (hasPreviousRound)
                     {
-                        var matched = game.Questions[game.CurrentRound - 1].HasPlayerMatched(answer.Key);
-                        <MudPaper Class="@(matched ? "pa-3 mb-2 matched-answer" : "pa-3 mb-2 unmatched-answer")">
-                            <MudText Typo="Typo.subtitle1">
-                                <strong>@answer.Key:</strong> 
-                                @answer.Value
-                                @if (matched)
-                                {
-                                    <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" />
-                                }
-                            </MudText>
+                        <MudPaper Class="pa-3 mb-4 matched-answer">
+                            <MudText Typo="Typo.subtitle1"><strong>@game.KingPlayer!.Name's Answer:</strong></MudText>
+                            <MudText>@game.Questions[prevRoundIndex].KingPlayerAnswer</MudText>
                         </MudPaper>
+                        
+                        <MudText Typo="Typo.h6" Class="mb-2">Player Guesses:</MudText>
+                        @foreach (var answer in game.Questions[prevRoundIndex].PlayerAnswers)
+                        {
+                            var matched = game.Questions[prevRoundIndex].HasPlayerMatched(answer.Key);
+                            <MudPaper Class="@(matched ? "pa-3 mb-2 matched-answer" : "pa-3 mb-2 unmatched-answer")">
+                                <MudText Typo="Typo.subtitle1">
+                                    <strong>@answer.Key:</strong> 
+                                    @answer.Value
+                                    @if (matched)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" />
+                                    }
+                                </MudText>
+                            </MudPaper>
+                        }
+                    }
+                    else
+                    {
+                        <MudText Color="Color.Error">Error: Unable to display round summary. Previous round data not found.</MudText>
                     }
                     
                     <div class="d-flex justify-center mt-4">
@@ -257,7 +268,7 @@
                     @foreach (var player in game.Players)
                     {
                         <MudChip T="string" 
-                                Color="@(HasPlayerAnswered(player.Name) ? Color.Success : Color.Default)"
+                                Color="@(SafeHasPlayerAnswered(player.Name) ? Color.Success : Color.Default)"
                                 Class="player-chip"
                                 Icon="@(player.IsKingPlayer ? Icons.Material.Filled.Stars : Icons.Material.Filled.Person)">
                             @(player.Name + (player.IsKingPlayer ? " (King)" : ""))
@@ -304,6 +315,13 @@
             return;
         }
 
+        // Initialize game state
+        game.Questions ??= new List<GameQuestion>();
+        game.CurrentRound = Math.Min(game.CurrentRound, game.MaxRounds - 1);
+        game.CurrentRound = Math.Max(0, game.CurrentRound);
+
+        Console.WriteLine($"Game initialized. CurrentRound: {game.CurrentRound}, Questions count: {game.Questions.Count}");
+
         _timer = new Timer(1000);
         _timer.Elapsed += TimerTick;
 
@@ -342,8 +360,9 @@
                     {
                         // Skip this round if king hasn't answered
                         Snackbar.Add("Time's up! Moving to next round...", Severity.Warning);
-                        game!.CurrentRound++;
-                        if (game.IsGameOver)
+                        await SafeIncrementRound();
+                        
+                        if (game!.IsGameOver)
                         {
                             await EndGame();
                         }
@@ -367,21 +386,36 @@
                         {
                             // Skip this player's turn and move to next player
                             Snackbar.Add($"{nextPlayer.Name} ran out of time!", Severity.Warning);
-                            var currentGameQuestion = game!.Questions[game.CurrentRound];
-                            currentGameQuestion.RecordPlayerAnswer(nextPlayer.Name, "");
                             
-                            if (game.AllPlayersAnswered(game.CurrentRound))
+                            // Safely record an empty answer for this player
+                            EnsureCurrentQuestionExists();
+                            
+                            var currentRoundIndex = Math.Min(game!.CurrentRound, game.Questions.Count - 1);
+                            if (currentRoundIndex >= 0 && currentRoundIndex < game.Questions.Count)
                             {
-                                // All players have answered, move to next round
-                                await ProcessEndOfRound();
+                                var currentGameQuestion = game.Questions[currentRoundIndex];
+                                currentGameQuestion.RecordPlayerAnswer(nextPlayer.Name, "");
+                                
+                                if (game.AllPlayersAnswered(currentRoundIndex))
+                                {
+                                    // All players have answered, move to next round
+                                    await ProcessEndOfRound();
+                                }
+                                else
+                                {
+                                    nextPlayer = GetNextPlayerToAnswer();
+                                    if (nextPlayer != null)
+                                    {
+                                        StartTimer(PlayerAnswerTime);
+                                    }
+                                }
                             }
                             else
                             {
-                                nextPlayer = GetNextPlayerToAnswer();
-                                if (nextPlayer != null)
-                                {
-                                    StartTimer(PlayerAnswerTime);
-                                }
+                                // Handle invalid round index
+                                Console.WriteLine($"Warning: Invalid round index in TimerTick. CurrentRound: {game.CurrentRound}, Questions count: {game.Questions.Count}");
+                                // Recover by creating a new question
+                                await StartNewRound();
                             }
                         }
                     }
@@ -399,12 +433,28 @@
     private Player? GetNextPlayerToAnswer()
     {
         if (game == null) return null;
-        return game.Players.FirstOrDefault(p => !p.IsKingPlayer && !HasPlayerAnswered(p.Name));
+        return game.Players.FirstOrDefault(p => !p.IsKingPlayer && !SafeHasPlayerAnswered(p.Name));
     }
 
     private bool HasPlayerAnswered(string playerName)
     {
-        if (game == null || game.Questions.Count <= game.CurrentRound) return false;
+        return SafeHasPlayerAnswered(playerName);
+    }
+    
+    private bool SafeHasPlayerAnswered(string playerName)
+    {
+        if (game == null) return false;
+        
+        // Ensure Questions list is initialized
+        game.Questions ??= new List<GameQuestion>();
+        
+        // Check if CurrentRound is valid
+        if (game.CurrentRound < 0 || game.CurrentRound >= game.Questions.Count)
+        {
+            // Log the issue but don't crash
+            Console.WriteLine($"Warning in SafeHasPlayerAnswered: Invalid CurrentRound index: {game.CurrentRound}, Questions count: {game.Questions.Count}");
+            return false;
+        }
         
         var currentGameQuestion = game.Questions[game.CurrentRound];
         if (game.KingPlayer?.Name == playerName)
@@ -413,38 +463,76 @@
         return currentGameQuestion.HasPlayerAnswered(playerName);
     }
 
+    private void EnsureCurrentQuestionExists()
+    {
+        if (game == null) return;
+        
+        // Ensure Questions list is initialized
+        game.Questions ??= new List<GameQuestion>();
+        
+        // Make sure current round is in bounds
+        game.CurrentRound = Math.Max(0, Math.Min(game.CurrentRound, game.MaxRounds - 1));
+        
+        // Add questions if needed to match the current round
+        while (game.CurrentRound >= game.Questions.Count)
+        {
+            game.Questions.Add(new GameQuestion { Question = currentQuestion });
+            Console.WriteLine($"Added missing question for round {game.Questions.Count-1}. Questions count now: {game.Questions.Count}");
+        }
+    }
+
     private async Task StartNewRound()
     {
         if (game == null) return;
 
+        // Reset round state
         showingRoundSummary = false;
-        _roundStartTime = DateTime.UtcNow;
-        
-        // Generate question based on difficulty
-        currentQuestion = game.Difficulty switch
-        {
-            DifficultyLevel.Easy => await QuestionService.GenerateQuestionAsync("easy"),
-            DifficultyLevel.Hard => await QuestionService.GenerateQuestionAsync("hard"),
-            _ => await QuestionService.GenerateQuestionAsync()
-        };
-        
-        _currentQuestion = new Question { Text = currentQuestion };
-        
         kingPlayerAnswered = false;
         kingAnswer = "";
         currentPlayerAnswer = "";
-
-        // Initialize the Questions list if it's null
-        game.Questions ??= new List<GameQuestion>();
-
-        // Add new question for current round if needed
-        while (game.Questions.Count <= game.CurrentRound)
-        {
-            game.Questions.Add(new GameQuestion { Question = currentQuestion });
-        }
+        _roundStartTime = DateTime.UtcNow;
         
-        // Start the timer for king's answer
-        StartTimer(KingAnswerTime);
+        // Ensure current round is within valid bounds
+        game.CurrentRound = Math.Max(0, Math.Min(game.CurrentRound, game.MaxRounds - 1));
+        
+        Console.WriteLine($"Starting round {game.CurrentRound + 1}/{game.MaxRounds}");
+        
+        // Ensure we have a GameQuestion object for the current round
+        EnsureCurrentQuestionExists();
+        
+        // Generate question based on difficulty
+        try 
+        {
+            currentQuestion = game.Difficulty switch
+            {
+                DifficultyLevel.Easy => await QuestionService.GenerateQuestionAsync("easy"),
+                DifficultyLevel.Hard => await QuestionService.GenerateQuestionAsync("hard"),
+                _ => await QuestionService.GenerateQuestionAsync()
+            };
+            
+            Console.WriteLine($"Generated question for round {game.CurrentRound + 1}: {currentQuestion}");
+            
+            _currentQuestion = new Question { Text = currentQuestion };
+            
+            // Update the question for this round
+            game.Questions[game.CurrentRound].Question = currentQuestion;
+            
+            // Start the timer for king's answer
+            StartTimer(KingAnswerTime);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error generating question: {ex}");
+            Snackbar.Add("Error generating question. Using a default question.", Severity.Warning);
+            
+            // Use a fallback question
+            currentQuestion = "What is their favorite food?";
+            _currentQuestion = new Question { Text = currentQuestion };
+            game.Questions[game.CurrentRound].Question = currentQuestion;
+            
+            // Start the timer for king's answer
+            StartTimer(KingAnswerTime);
+        }
 
         StateHasChanged();
     }
@@ -456,6 +544,9 @@
         // Stop the timer
         StopTimer();
 
+        // Ensure the current game question exists
+        EnsureCurrentQuestionExists();
+        
         var currentGameQuestion = game.Questions[game.CurrentRound];
         currentGameQuestion.KingPlayerAnswer = kingAnswer;
         kingPlayerAnswered = true;
@@ -481,10 +572,51 @@
         var responseTime = (DateTime.UtcNow - _roundStartTime).TotalSeconds;
         _responseTimes.Add(responseTime);
 
+        // Ensure the current game question exists
+        EnsureCurrentQuestionExists();
+
         var currentGameQuestion = game.Questions[game.CurrentRound];
+        
+        // Record the player's answer
         currentGameQuestion.RecordPlayerAnswer(playerName, currentPlayerAnswer);
+        
+        // Check if the answer matches the king's answer
+        // First do a simple case-insensitive check
+        bool isMatch = string.Equals(currentPlayerAnswer, currentGameQuestion.KingPlayerAnswer, StringComparison.OrdinalIgnoreCase);
+        
+        // If not an exact match, try semantic similarity check with OpenAI
+        if (!isMatch && !string.IsNullOrWhiteSpace(currentPlayerAnswer) && !string.IsNullOrWhiteSpace(currentGameQuestion.KingPlayerAnswer))
+        {
+            try
+            {
+                // Use AI to check for semantic similarity
+                isMatch = await QuestionService.CheckAnswerSimilarityAsync(currentGameQuestion.KingPlayerAnswer, currentPlayerAnswer);
+                Console.WriteLine($"Semantic similarity check for '{currentPlayerAnswer}' against '{currentGameQuestion.KingPlayerAnswer}': {isMatch}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking answer similarity: {ex.Message}. Falling back to simple comparison.");
+                
+                // Fallback to simple contains check if API fails
+                isMatch = currentPlayerAnswer.ToLowerInvariant().Contains(currentGameQuestion.KingPlayerAnswer.ToLowerInvariant()) || 
+                         currentGameQuestion.KingPlayerAnswer.ToLowerInvariant().Contains(currentPlayerAnswer.ToLowerInvariant());
+            }
+        }
+        
+        // If the answers match, mark the player as having a match
+        if (isMatch)
+        {
+            currentGameQuestion.MarkPlayerAsMatched(playerName);
+            Console.WriteLine($"Player {playerName}'s answer matches! Marked as matched.");
+            Snackbar.Add("Good guess! That matches the king's answer!", Severity.Success);
+        }
+        else
+        {
+            Console.WriteLine($"Player {playerName}'s answer does not match.");
+            Snackbar.Add("Submitted your guess!", Severity.Info);
+        }
+        
         currentPlayerAnswer = "";
-        Snackbar.Add("Guess submitted!", Severity.Success);
         StateHasChanged();
 
         // Check if all players have answered
@@ -506,25 +638,67 @@
     
     private Task ProcessEndOfRound()
     {
-        game!.UpdateScores(game.CurrentRound);
+        if (game == null) return Task.CompletedTask;
         
-        // Show round summary instead of immediately proceeding
-        showingRoundSummary = true;
-        
-        // Capture matched answers for statistics
-        var currentGameQuestion = game.Questions[game.CurrentRound];
-        foreach (var player in currentGameQuestion.PlayersMatched)
+        try
         {
-            _matchedAnswers.Add($"{player}:{currentGameQuestion.Question}");
+            // Ensure the current round is valid
+            var currentRoundIndex = Math.Min(game.CurrentRound, game.Questions.Count - 1);
+            if (currentRoundIndex >= 0 && currentRoundIndex < game.Questions.Count)
+            {
+                game.UpdateScores(currentRoundIndex);
+                
+                // Show round summary instead of immediately proceeding
+                showingRoundSummary = true;
+                
+                // Capture matched answers for statistics
+                var currentGameQuestion = game.Questions[currentRoundIndex];
+                foreach (var player in currentGameQuestion.PlayersMatched)
+                {
+                    _matchedAnswers.Add($"{player}:{currentGameQuestion.Question}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Error in ProcessEndOfRound: Invalid round index: {game.CurrentRound}, Questions count: {game.Questions.Count}");
+                // Still proceed to show summary screen
+                showingRoundSummary = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing end of round: {ex.Message}");
+            // Still proceed to show summary screen
+            showingRoundSummary = true;
         }
         
         StateHasChanged();
         return Task.CompletedTask;
     }
     
+    private async Task SafeIncrementRound()
+    {
+        if (game == null) return;
+        
+        // Increment round with bounds checking
+        game.CurrentRound++;
+        
+        // Ensure within max bounds
+        if (game.CurrentRound >= game.MaxRounds)
+        {
+            game.CurrentRound = game.MaxRounds;
+        }
+        
+        // Log the round transition for debugging
+        Console.WriteLine($"Moving to round {game.CurrentRound + 1}. Total questions: {game.Questions.Count}, Max rounds: {game.MaxRounds}");
+    }
+    
     private Task ContinueToNextRound()
     {
-        game!.CurrentRound++;
+        if (game == null) return Task.CompletedTask;
+        
+        // Increment round safely
+        SafeIncrementRound();
         
         if (game.IsGameOver)
         {
@@ -538,14 +712,16 @@
     
     private async Task EndGame()
     {
+        if (game == null) return;
+        
         // Save game history
         var history = new GameHistory
         {
-            Team1Name = game!.KingPlayer!.Name,
+            Team1Name = game.KingPlayer!.Name,
             Team2Name = "Multiple Players",
             GameMode = GameMode.KingPlayer,
             Team1Score = game.Players.Max(p => p.Score),
-            TotalQuestions = game.CurrentRound,
+            TotalQuestions = Math.Min(game.CurrentRound, game.Questions.Count),
             AverageResponseTime = _responseTimes.Count > 0 ? _responseTimes.Average() : 0,
             CategoryStats = JsonSerializer.Serialize(_categoryStats),
             MatchedAnswers = JsonSerializer.Serialize(_matchedAnswers)
@@ -559,7 +735,7 @@
             { 
                 Name = player.Name,
                 MultiplayerWins = player.Score > 0 ? 1 : 0,
-                TotalQuestionsAnswered = game.CurrentRound,
+                TotalQuestionsAnswered = Math.Min(game.CurrentRound, game.Questions.Count),
                 CorrectAnswers = player.TotalCorrectGuesses
             });
         }
