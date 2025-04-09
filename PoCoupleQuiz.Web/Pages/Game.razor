@@ -5,12 +5,14 @@
 @using MudBlazor
 @using System.Text.Json
 @using System.Timers
+@using Microsoft.Extensions.Logging // Added Logging
 @inject IQuestionService QuestionService
 @inject ITeamService TeamService
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @inject IGameHistoryService GameHistoryService
 @inject IGameStateService GameState
+@inject ILogger<Game> Logger // Added Logger injection
 @implements IDisposable
 
 <style>
@@ -139,10 +141,17 @@
 
             @if (IsTimerActive)
             {
-                <div class="timer-container">
-                    <MudIcon Icon="@Icons.Material.Filled.Timer" Color="@(RemainingSeconds <= 5 ? Color.Error : Color.Default)" />
-                    <div class="timer @(RemainingSeconds <= 5 ? "timer-critical" : "")">@RemainingSeconds</div>
-                    <MudText>seconds remaining</MudText>
+                <div class="timer-container flex-column"> @* Use flex-column for stacking *@
+                    <div class="d-flex align-center justify-center mb-2"> @* Inner flex row for icon/text *@
+                        <MudIcon Icon="@Icons.Material.Filled.Timer" Color="@GetTimerColor()" />
+                        <div class="timer @(RemainingSeconds <= 5 ? "timer-critical" : "")">@RemainingSeconds</div>
+                        <MudText>seconds remaining</MudText>
+                    </div>
+                    <MudProgressLinear Color="@GetTimerColor()" 
+                                       Size="Size.Large" 
+                                       Value="@GetTimerProgress()" 
+                                       Class="rounded-lg" 
+                                       Style="width: 80%; margin: auto;" /> @* Added progress bar *@
                 </div>
             }
 
@@ -254,28 +263,9 @@
                 }
             }
 
-            <div class="scoreboard">
-                <MudText Typo="Typo.h5" Class="mb-4">Scoreboard 🏆</MudText>
-                @foreach (var score in game.GetScoreboard())
-                {
-                    <MudText>@score.Key: @score.Value points ⭐</MudText>
-                }
-
-                <MudDivider Class="my-4" />
-
-                <MudText Typo="Typo.h6" Class="mb-2">Players who have answered:</MudText>
-                <div style="display: flex; flex-wrap: wrap;">
-                    @foreach (var player in game.Players)
-                    {
-                        <MudChip T="string" 
-                                Color="@(SafeHasPlayerAnswered(player.Name) ? Color.Success : Color.Default)"
-                                Class="player-chip"
-                                Icon="@(player.IsKingPlayer ? Icons.Material.Filled.Stars : Icons.Material.Filled.Person)">
-                            @(player.Name + (player.IsKingPlayer ? " (King)" : ""))
-                        </MudChip>
-                    }
-                </div>
-            </div>
+            @* Replace scoreboard div with the new component *@
+            <ScoreboardDisplay GameInstance="@game" />
+            
         </div>
     }
 </MudContainer>
@@ -320,7 +310,7 @@
         game.CurrentRound = Math.Min(game.CurrentRound, game.MaxRounds - 1);
         game.CurrentRound = Math.Max(0, game.CurrentRound);
 
-        Console.WriteLine($"Game initialized. CurrentRound: {game.CurrentRound}, Questions count: {game.Questions.Count}");
+        Logger.LogInformation("Game initialized. CurrentRound: {CurrentRound}, Questions count: {QuestionsCount}", game.CurrentRound, game.Questions.Count);
 
         _timer = new Timer(1000);
         _timer.Elapsed += TimerTick;
@@ -345,82 +335,18 @@
         if (RemainingSeconds <= 0)
         {
             _timer?.Stop();
-            
-            // Time's up!
-            InvokeAsync(async () =>
+            // Time's up! Use InvokeAsync to safely interact with Blazor's synchronization context
+            InvokeAsync(async () => 
             {
                 if (!kingPlayerAnswered)
                 {
-                    // Force submit king's answer if they have entered anything
-                    if (!string.IsNullOrWhiteSpace(kingAnswer))
-                    {
-                        await SubmitKingAnswer();
-                    }
-                    else
-                    {
-                        // Skip this round if king hasn't answered
-                        Snackbar.Add("Time's up! Moving to next round...", Severity.Warning);
-                        await SafeIncrementRound();
-                        
-                        if (game!.IsGameOver)
-                        {
-                            await EndGame();
-                        }
-                        else
-                        {
-                            await StartNewRound();
-                        }
-                    }
+                    await HandleKingTimeoutAsync();
                 }
                 else
                 {
-                    var nextPlayer = GetNextPlayerToAnswer();
-                    if (nextPlayer != null)
-                    {
-                        // Force submit player's guess if they have entered anything
-                        if (!string.IsNullOrWhiteSpace(currentPlayerAnswer))
-                        {
-                            await SubmitPlayerGuess(nextPlayer.Name);
-                        }
-                        else
-                        {
-                            // Skip this player's turn and move to next player
-                            Snackbar.Add($"{nextPlayer.Name} ran out of time!", Severity.Warning);
-                            
-                            // Safely record an empty answer for this player
-                            EnsureCurrentQuestionExists();
-                            
-                            var currentRoundIndex = Math.Min(game!.CurrentRound, game.Questions.Count - 1);
-                            if (currentRoundIndex >= 0 && currentRoundIndex < game.Questions.Count)
-                            {
-                                var currentGameQuestion = game.Questions[currentRoundIndex];
-                                currentGameQuestion.RecordPlayerAnswer(nextPlayer.Name, "");
-                                
-                                if (game.AllPlayersAnswered(currentRoundIndex))
-                                {
-                                    // All players have answered, move to next round
-                                    await ProcessEndOfRound();
-                                }
-                                else
-                                {
-                                    nextPlayer = GetNextPlayerToAnswer();
-                                    if (nextPlayer != null)
-                                    {
-                                        StartTimer(PlayerAnswerTime);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                // Handle invalid round index
-                                Console.WriteLine($"Warning: Invalid round index in TimerTick. CurrentRound: {game.CurrentRound}, Questions count: {game.Questions.Count}");
-                                // Recover by creating a new question
-                                await StartNewRound();
-                            }
-                        }
-                    }
+                    await HandlePlayerTimeoutAsync();
                 }
-                StateHasChanged();
+                StateHasChanged(); // Ensure UI updates after handling timeout
             });
         }
         else
@@ -429,39 +355,117 @@
             InvokeAsync(StateHasChanged);
         }
     }
+    
+    // --- Refactored Timer Timeout Handlers ---
+    
+    private async Task HandleKingTimeoutAsync()
+    {
+        if (game == null) return;
+
+        // Force submit king's answer if they have entered anything
+        if (!string.IsNullOrWhiteSpace(kingAnswer))
+        {
+            await SubmitKingAnswer(); // Submit whatever was typed
+        }
+        else
+        {
+            // Skip this round entirely if king hasn't answered anything
+            Snackbar.Add("King ran out of time! Skipping round...", Severity.Warning);
+            SafeIncrementRound(); // Advance round state
+            
+            if (game.IsGameOver)
+            {
+                await EndGame(); // Navigate to game over
+            }
+            else
+            {
+                await StartNewRound(); // Start the next round
+            }
+        }
+    }
+
+    private async Task HandlePlayerTimeoutAsync()
+    {
+        if (game == null) return;
+
+        var nextPlayer = GetNextPlayerToAnswer();
+        if (nextPlayer == null) return; // Should not happen if called correctly, but safe check
+
+        // Force submit player's guess if they have entered anything
+        if (!string.IsNullOrWhiteSpace(currentPlayerAnswer))
+        {
+            await SubmitPlayerGuess(nextPlayer.Name); // Submit whatever was typed
+        }
+        else
+        {
+            // Skip this player's turn and record an empty answer
+            Snackbar.Add($"{nextPlayer.Name} ran out of time!", Severity.Warning);
+            
+            EnsureCurrentQuestionExists(); // Make sure the GameQuestion object exists
+            
+            var currentRoundIndex = Math.Min(game.CurrentRound, game.Questions.Count - 1);
+            if (currentRoundIndex >= 0 && currentRoundIndex < game.Questions.Count)
+            {
+                var currentGameQuestion = game.Questions[currentRoundIndex];
+                currentGameQuestion.RecordPlayerAnswer(nextPlayer.Name, ""); // Record empty answer for the timed-out player
+                
+                if (game.AllPlayersAnswered(currentRoundIndex))
+                {
+                    // All players have now answered (or timed out), process end of round
+                    ProcessEndOfRound(); 
+                }
+                else
+                {
+                    // Move to the next player and start their timer
+                    var subsequentPlayer = GetNextPlayerToAnswer();
+                    if (subsequentPlayer != null)
+                    {
+                        StartTimer(PlayerAnswerTime);
+                    }
+                    // If subsequentPlayer is null here, it means the last player timed out, 
+                    // and AllPlayersAnswered should have been true, leading to ProcessEndOfRound.
+                }
+            }
+            else
+            {
+                // Handle unexpected invalid round index
+                Logger.LogError("Invalid round index {CurrentRound} in HandlePlayerTimeoutAsync. Questions count: {QuestionsCount}", game.CurrentRound, game.Questions.Count);
+                // Attempt recovery by starting a new round
+                await StartNewRound();
+            }
+        }
+    }
+
+    // --- End Refactored Timer Timeout Handlers ---
 
     private Player? GetNextPlayerToAnswer()
     {
         if (game == null) return null;
-        return game.Players.FirstOrDefault(p => !p.IsKingPlayer && !SafeHasPlayerAnswered(p.Name));
+        // Use the method directly from the ScoreboardDisplay component instance if needed elsewhere,
+        // or pass the necessary state down. For now, GetNextPlayerToAnswer needs this logic.
+        // Let's replicate the check here temporarily until further refactoring.
+        return game.Players.FirstOrDefault(p => !p.IsKingPlayer && !InternalSafeHasPlayerAnswered(p.Name));
     }
 
-    private bool HasPlayerAnswered(string playerName)
-    {
-        return SafeHasPlayerAnswered(playerName);
-    }
+    // Removed HasPlayerAnswered as it was just a wrapper for the removed SafeHasPlayerAnswered
     
-    private bool SafeHasPlayerAnswered(string playerName)
+    // Replicate the check needed by GetNextPlayerToAnswer locally
+    private bool InternalSafeHasPlayerAnswered(string playerName)
     {
         if (game == null) return false;
-        
-        // Ensure Questions list is initialized
         game.Questions ??= new List<GameQuestion>();
-        
-        // Check if CurrentRound is valid
         if (game.CurrentRound < 0 || game.CurrentRound >= game.Questions.Count)
         {
-            // Log the issue but don't crash
-            Console.WriteLine($"Warning in SafeHasPlayerAnswered: Invalid CurrentRound index: {game.CurrentRound}, Questions count: {game.Questions.Count}");
-            return false;
+             Logger.LogWarning("InternalSafeHasPlayerAnswered: Invalid CurrentRound index: {CurrentRound}, Questions count: {QuestionsCount}", game.CurrentRound, game.Questions.Count);
+             return false;
         }
-        
         var currentGameQuestion = game.Questions[game.CurrentRound];
-        if (game.KingPlayer?.Name == playerName)
-            return !string.IsNullOrEmpty(currentGameQuestion.KingPlayerAnswer);
-            
+        if (game.KingPlayer?.Name == playerName) return !string.IsNullOrEmpty(currentGameQuestion.KingPlayerAnswer);
         return currentGameQuestion.HasPlayerAnswered(playerName);
     }
+    
+    // Removed SafeHasPlayerAnswered as it's now in ScoreboardDisplay.razor
+    // private bool SafeHasPlayerAnswered(string playerName) { ... }
 
     private void EnsureCurrentQuestionExists()
     {
@@ -477,7 +481,7 @@
         while (game.CurrentRound >= game.Questions.Count)
         {
             game.Questions.Add(new GameQuestion { Question = currentQuestion });
-            Console.WriteLine($"Added missing question for round {game.Questions.Count-1}. Questions count now: {game.Questions.Count}");
+            Logger.LogWarning("Added missing question for round {RoundIndex}. Questions count now: {QuestionsCount}", game.Questions.Count - 1, game.Questions.Count);
         }
     }
 
@@ -494,42 +498,61 @@
         
         // Ensure current round is within valid bounds
         game.CurrentRound = Math.Max(0, Math.Min(game.CurrentRound, game.MaxRounds - 1));
-        
-        Console.WriteLine($"Starting round {game.CurrentRound + 1}/{game.MaxRounds}");
-        
+
+        Logger.LogInformation("Starting round {CurrentRoundPlusOne}/{MaxRounds}", game.CurrentRound + 1, game.MaxRounds); // Corrected syntax
+
         // Ensure we have a GameQuestion object for the current round
         EnsureCurrentQuestionExists();
         
         // Generate question based on difficulty
         try 
         {
-            currentQuestion = game.Difficulty switch
+            // GenerateQuestionAsync now returns a Question object
+            _currentQuestion = game.Difficulty switch
             {
                 DifficultyLevel.Easy => await QuestionService.GenerateQuestionAsync("easy"),
                 DifficultyLevel.Hard => await QuestionService.GenerateQuestionAsync("hard"),
                 _ => await QuestionService.GenerateQuestionAsync()
             };
             
-            Console.WriteLine($"Generated question for round {game.CurrentRound + 1}: {currentQuestion}");
+            // Use the Text property for display
+            currentQuestion = _currentQuestion.Text; 
+            Logger.LogInformation("Generated question for round {CurrentRoundPlusOne}: {QuestionText} (Category: {Category})", game.CurrentRound + 1, currentQuestion, _currentQuestion.Category);
             
-            _currentQuestion = new Question { Text = currentQuestion };
-            
-            // Update the question for this round
+            // Update the question text for this round in the game state
             game.Questions[game.CurrentRound].Question = currentQuestion;
-            
+            // Note: GameQuestion model doesn't store Category yet. This could be a future enhancement.
+
+            // Update category statistics using the Category from the returned Question object
+            _categoryStats ??= new Dictionary<QuestionCategory, int>(); // Initialize if null
+            if (_categoryStats.ContainsKey(_currentQuestion.Category))
+            {
+                _categoryStats[_currentQuestion.Category]++;
+            }
+            else
+            {
+                _categoryStats[_currentQuestion.Category] = 1;
+            }
+            Logger.LogInformation("Updated category stats for {Category}. Current stats: {StatsJson}", _currentQuestion.Category, JsonSerializer.Serialize(_categoryStats));
+
             // Start the timer for king's answer
             StartTimer(KingAnswerTime);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error generating question: {ex}");
+            Logger.LogError(ex, "Error generating question in StartNewRound");
             Snackbar.Add("Error generating question. Using a default question.", Severity.Warning);
             
-            // Use a fallback question
-            currentQuestion = "What is their favorite food?";
-            _currentQuestion = new Question { Text = currentQuestion };
+            // Use a fallback question (QuestionService now returns a Question object on fallback)
+            _currentQuestion = await QuestionService.GenerateQuestionAsync(); // Call again to get fallback Question object
+            currentQuestion = _currentQuestion.Text;
             game.Questions[game.CurrentRound].Question = currentQuestion;
             
+            // Update stats even for fallback question
+            _categoryStats ??= new Dictionary<QuestionCategory, int>();
+            if (_categoryStats.ContainsKey(_currentQuestion.Category)) _categoryStats[_currentQuestion.Category]++; else _categoryStats[_currentQuestion.Category] = 1;
+            Logger.LogInformation("Updated category stats for fallback question {Category}. Current stats: {StatsJson}", _currentQuestion.Category, JsonSerializer.Serialize(_categoryStats));
+
             // Start the timer for king's answer
             StartTimer(KingAnswerTime);
         }
@@ -591,11 +614,11 @@
             {
                 // Use AI to check for semantic similarity
                 isMatch = await QuestionService.CheckAnswerSimilarityAsync(currentGameQuestion.KingPlayerAnswer, currentPlayerAnswer);
-                Console.WriteLine($"Semantic similarity check for '{currentPlayerAnswer}' against '{currentGameQuestion.KingPlayerAnswer}': {isMatch}");
+                Logger.LogInformation("Semantic similarity check for '{PlayerAnswer}' against '{KingAnswer}': {IsMatch}", currentPlayerAnswer, currentGameQuestion.KingPlayerAnswer, isMatch);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error checking answer similarity: {ex.Message}. Falling back to simple comparison.");
+                Logger.LogError(ex, "Error checking answer similarity for '{PlayerAnswer}' vs '{KingAnswer}'. Falling back to simple comparison.", currentPlayerAnswer, currentGameQuestion.KingPlayerAnswer);
                 
                 // Fallback to simple contains check if API fails
                 isMatch = currentPlayerAnswer.ToLowerInvariant().Contains(currentGameQuestion.KingPlayerAnswer.ToLowerInvariant()) || 
@@ -607,12 +630,12 @@
         if (isMatch)
         {
             currentGameQuestion.MarkPlayerAsMatched(playerName);
-            Console.WriteLine($"Player {playerName}'s answer matches! Marked as matched.");
+            Logger.LogInformation("Player {PlayerName}'s answer matches! Marked as matched.", playerName);
             Snackbar.Add("Good guess! That matches the king's answer!", Severity.Success);
         }
         else
         {
-            Console.WriteLine($"Player {playerName}'s answer does not match.");
+            Logger.LogInformation("Player {PlayerName}'s answer does not match.", playerName);
             Snackbar.Add("Submitted your guess!", Severity.Info);
         }
         
@@ -623,7 +646,7 @@
         var allPlayersAnswered = game.AllPlayersAnswered(game.CurrentRound);
         if (allPlayersAnswered)
         {
-            await ProcessEndOfRound();
+            ProcessEndOfRound(); // Don't await void/synchronous logic
         }
         else
         {
@@ -636,9 +659,9 @@
         }
     }
     
-    private Task ProcessEndOfRound()
+    private async Task ProcessEndOfRound() // Revert signature back to async Task
     {
-        if (game == null) return Task.CompletedTask;
+        if (game == null) return; // Keep return for early exit
         
         try
         {
@@ -660,25 +683,25 @@
             }
             else
             {
-                Console.WriteLine($"Error in ProcessEndOfRound: Invalid round index: {game.CurrentRound}, Questions count: {game.Questions.Count}");
+                Logger.LogError("Error in ProcessEndOfRound: Invalid round index: {CurrentRound}, Questions count: {QuestionsCount}", game.CurrentRound, game.Questions.Count);
                 // Still proceed to show summary screen
                 showingRoundSummary = true;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error processing end of round: {ex.Message}");
+            Logger.LogError(ex, "Error processing end of round: {ErrorMessage}", ex.Message);
             // Still proceed to show summary screen
             showingRoundSummary = true;
         }
         
         StateHasChanged();
-        return Task.CompletedTask;
+        // No Task.CompletedTask needed here as it's implicitly returned for async Task
     }
     
-    private async Task SafeIncrementRound()
+    private async Task SafeIncrementRound() // Revert signature back to async Task
     {
-        if (game == null) return;
+        if (game == null) return; // Keep return for early exit
         
         // Increment round with bounds checking
         game.CurrentRound++;
@@ -690,29 +713,36 @@
         }
         
         // Log the round transition for debugging
-        Console.WriteLine($"Moving to round {game.CurrentRound + 1}. Total questions: {game.Questions.Count}, Max rounds: {game.MaxRounds}");
+        Logger.LogInformation("Moving to round {CurrentRoundPlusOne}. Total questions: {QuestionsCount}, Max rounds: {MaxRounds}", game.CurrentRound + 1, game.Questions.Count, game.MaxRounds);
     }
     
-    private Task ContinueToNextRound()
+    private async Task ContinueToNextRound()
     {
-        if (game == null) return Task.CompletedTask;
+        if (game == null) return;
         
         // Increment round safely
         SafeIncrementRound();
         
         if (game.IsGameOver)
         {
-            return EndGame();
+            await EndGame();
         }
         else
         {
-            return StartNewRound();
+            await StartNewRound();
         }
     }
     
     private async Task EndGame()
     {
-        if (game == null) return;
+        // Add explicit null checks for game and KingPlayer
+        if (game == null || game.KingPlayer == null) 
+        {
+            Logger.LogError("Error in EndGame: Game or KingPlayer is null. Cannot proceed.");
+            // Optionally navigate to an error page or home page
+            NavigationManager.NavigateTo("/"); 
+            return;
+        }
         
         // Save game history
         var history = new GameHistory
@@ -728,16 +758,41 @@
         };
         await GameHistoryService.SaveGameHistoryAsync(history);
 
-        // Save player stats
+        // Save player stats cumulatively
         foreach (var player in game.Players)
         {
-            await TeamService.SaveTeamAsync(new Team 
-            { 
-                Name = player.Name,
-                MultiplayerWins = player.Score > 0 ? 1 : 0,
-                TotalQuestionsAnswered = Math.Min(game.CurrentRound, game.Questions.Count),
-                CorrectAnswers = player.TotalCorrectGuesses
-            });
+            // Fetch existing team/player data
+            var existingTeam = await TeamService.GetTeamAsync(player.Name);
+            
+            Team teamToSave;
+            int questionsThisGame = Math.Min(game.CurrentRound, game.Questions.Count);
+            bool wonThisGame = player.Score > 0 && player == game.Players.OrderByDescending(p => p.Score).First(); // Check if this player is the winner
+
+            if (existingTeam != null)
+            {
+                // Update existing team stats
+                teamToSave = existingTeam;
+                teamToSave.MultiplayerWins += wonThisGame ? 1 : 0;
+                teamToSave.TotalQuestionsAnswered += questionsThisGame;
+                teamToSave.CorrectAnswers += player.TotalCorrectGuesses; // Assuming TotalCorrectGuesses is for the current game only
+                teamToSave.LastPlayed = DateTime.UtcNow;
+            }
+            else
+            {
+                // Create new team stats
+                teamToSave = new Team 
+                { 
+                    Name = player.Name,
+                    MultiplayerWins = wonThisGame ? 1 : 0,
+                    TotalQuestionsAnswered = questionsThisGame,
+                    CorrectAnswers = player.TotalCorrectGuesses,
+                    LastPlayed = DateTime.UtcNow
+                    // SinglePlayerHighScore remains default 0
+                };
+            }
+            
+            await TeamService.SaveTeamAsync(teamToSave);
+            Logger.LogInformation("Saved stats for player {PlayerName}: Wins={Wins}, Questions={Questions}, Correct={Correct}", player.Name, teamToSave.MultiplayerWins, teamToSave.TotalQuestionsAnswered, teamToSave.CorrectAnswers);
         }
 
         GameState.ClearGame();
@@ -762,6 +817,34 @@
         DifficultyLevel.Hard => Color.Error,
         _ => Color.Warning
     };
+    
+    // --- Timer UI Helper Methods ---
+    
+    private double GetTimerProgress()
+    {
+        if (!IsTimerActive) return 0;
+        
+        int totalTime = kingPlayerAnswered ? PlayerAnswerTime : KingAnswerTime;
+        if (totalTime <= 0) return 0; // Avoid division by zero
+        
+        // Calculate progress percentage (invert so it depletes)
+        double progress = ((double)RemainingSeconds / totalTime) * 100.0;
+        return Math.Max(0, Math.Min(100, progress)); // Clamp between 0 and 100
+    }
+
+    private Color GetTimerColor()
+    {
+        if (!IsTimerActive) return Color.Default;
+        
+        int totalTime = kingPlayerAnswered ? PlayerAnswerTime : KingAnswerTime;
+        double percentage = GetTimerProgress();
+
+        if (percentage <= 15) return Color.Error; // Last 15% is red
+        if (percentage <= 40) return Color.Warning; // Below 40% is yellow
+        return Color.Success; // Otherwise green
+    }
+
+    // --- End Timer UI Helper Methods ---
 
     public void Dispose()
     {

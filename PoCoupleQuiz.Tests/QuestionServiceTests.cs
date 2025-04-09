@@ -20,7 +20,8 @@ public class QuestionServiceTests
 
         // Assert
         Assert.NotNull(question);
-        Assert.NotEmpty(question);
+        Assert.NotNull(question.Text); // Check the object itself
+        Assert.NotEmpty(question.Text); // Check the Text property
     }
 
     [Theory]
@@ -52,9 +53,9 @@ public class QuestionServiceTests
         var question3 = await _questionService.GenerateQuestionAsync();
 
         // Assert
-        Assert.NotEqual(question1, question2);
-        Assert.NotEqual(question2, question3);
-        Assert.NotEqual(question1, question3);
+        Assert.NotEqual(question1.Text, question2.Text);
+        Assert.NotEqual(question2.Text, question3.Text);
+        Assert.NotEqual(question1.Text, question3.Text);
     }
 
     [Fact]
@@ -78,6 +79,7 @@ public class QuestionServiceTests
         };
 
         // Assert
-        Assert.Equal(firstRoundQuestions, secondRoundQuestions);
+        // Compare the Text property of the Question objects
+        Assert.Equal(firstRoundQuestions.Select(q => q.Text), secondRoundQuestions.Select(q => q.Text));
     }
-} 
+}

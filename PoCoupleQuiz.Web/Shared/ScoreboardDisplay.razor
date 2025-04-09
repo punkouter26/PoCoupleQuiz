@@ -1,0 +1,85 @@
+@using PoCoupleQuiz.Core.Models
+@using MudBlazor
+
+@if (GameInstance != null)
+{
+    <div class="scoreboard">
+        <MudText Typo="Typo.h5" Class="mb-4">Scoreboard 🏆</MudText>
+        @foreach (var score in GameInstance.GetScoreboard())
+        {
+            <MudText>@score.Key: @score.Value points ⭐</MudText>
+        }
+
+        <MudDivider Class="my-4" />
+
+        <MudText Typo="Typo.h6" Class="mb-2">Players who have answered:</MudText>
+        <div style="display: flex; flex-wrap: wrap;">
+            @foreach (var player in GameInstance.Players)
+            {
+                <MudChip T="string" 
+                         Color="@(SafeHasPlayerAnswered(player.Name) ? Color.Success : Color.Default)"
+                         Class="player-chip"
+                         Icon="@(player.IsKingPlayer ? Icons.Material.Filled.Stars : Icons.Material.Filled.Person)">
+                    @(player.Name + (player.IsKingPlayer ? " (King)" : ""))
+                </MudChip>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <MudText Color="Color.Error">Scoreboard cannot be displayed (Game data missing).</MudText>
+}
+
+@code {
+    [Parameter]
+    public Game? GameInstance { get; set; }
+
+    // Need to replicate or pass the SafeHasPlayerAnswered logic
+    // For simplicity now, let's pass it via a Func parameter or replicate
+    // Replicating for now, but Func parameter is cleaner for larger components
+    private bool SafeHasPlayerAnswered(string playerName)
+    {
+        if (GameInstance == null) return false;
+        
+        // Ensure Questions list is initialized
+        GameInstance.Questions ??= new List<GameQuestion>();
+        
+        // Check if CurrentRound is valid
+        if (GameInstance.CurrentRound < 0 || GameInstance.CurrentRound >= GameInstance.Questions.Count)
+        {
+            // Log the issue but don't crash
+            Console.WriteLine($"Warning in ScoreboardDisplay.SafeHasPlayerAnswered: Invalid CurrentRound index: {GameInstance.CurrentRound}, Questions count: {GameInstance.Questions.Count}");
+            return false;
+        }
+        
+        var currentGameQuestion = GameInstance.Questions[GameInstance.CurrentRound];
+        if (GameInstance.KingPlayer?.Name == playerName) // Added null check for KingPlayer
+            return !string.IsNullOrEmpty(currentGameQuestion.KingPlayerAnswer);
+            
+        return currentGameQuestion.HasPlayerAnswered(playerName);
+    }
+
+    // Replicate styles needed specifically for the scoreboard
+    // Alternatively, move shared styles to a global CSS file (e.g., site.css)
+    // For now, keeping styles local to the component for encapsulation.
+    // Note: Styles defined here won't automatically apply unless scoped or global.
+    // Let's assume styles from Game.razor are sufficient for now or move them later.
+    /*
+    <style>
+        .scoreboard {
+            background-color: #E1BEE7;
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-top: 1.5rem;
+        }
+        .player-chip {
+            margin: 0.5rem;
+            transition: transform 0.2s;
+        }
+        .player-chip:hover {
+            transform: scale(1.1);
+        }
+    </style>
+    */
+}

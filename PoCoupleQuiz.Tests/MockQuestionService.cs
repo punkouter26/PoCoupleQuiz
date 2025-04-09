@@ -1,4 +1,5 @@
 using PoCoupleQuiz.Core.Services;
+using PoCoupleQuiz.Core.Models; // Added using
 
 namespace PoCoupleQuiz.Tests;
 
@@ -36,7 +37,8 @@ public class MockQuestionService : IQuestionService
         { "What is your partner's dream vacation destination?", "Paris" }
     };
 
-    public Task<string> GenerateQuestionAsync(string? difficulty = null)
+    // Updated return type from Task<string> to Task<Question>
+    public Task<Question> GenerateQuestionAsync(string? difficulty = null)
     {
         string[] questionSet = difficulty?.ToLower() switch
         {
@@ -45,8 +47,10 @@ public class MockQuestionService : IQuestionService
             _ => _mediumQuestions
         };
         
-        var question = questionSet[_questionCounter % questionSet.Length];
+        var questionText = questionSet[_questionCounter % questionSet.Length];
         _questionCounter++;
+        // Return a Question object with a default category
+        var question = new Question { Text = questionText, Category = QuestionCategory.Preferences }; // Placeholder category
         return Task.FromResult(question);
     }
 

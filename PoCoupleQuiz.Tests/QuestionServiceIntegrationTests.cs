@@ -1,5 +1,6 @@
 using PoCoupleQuiz.Core.Services;
 using Xunit;
+using PoCoupleQuiz.Core.Models; // Added using
 
 namespace PoCoupleQuiz.Tests;
 
@@ -20,8 +21,9 @@ public class QuestionServiceIntegrationTests
 
         // Assert
         Assert.NotNull(question);
-        Assert.NotEmpty(question);
-        Assert.Contains("partner", question);
+        Assert.NotNull(question.Text); // Check the object
+        Assert.NotEmpty(question.Text); // Check the Text property
+        Assert.Contains("partner", question.Text); // Assert on the Text property
     }
 
     [Theory]
@@ -49,9 +51,9 @@ public class QuestionServiceIntegrationTests
         var question3 = await _questionService.GenerateQuestionAsync();
 
         // Assert
-        Assert.NotEqual(question1, question2);
-        Assert.NotEqual(question2, question3);
-        Assert.NotEqual(question1, question3);
+        Assert.NotEqual(question1.Text, question2.Text);
+        Assert.NotEqual(question2.Text, question3.Text);
+        Assert.NotEqual(question1.Text, question3.Text);
     }
 
     [Fact]
@@ -59,10 +61,13 @@ public class QuestionServiceIntegrationTests
     {
         // Act
         var question = await _questionService.GenerateQuestionAsync();
-        var questionLower = question.ToLower();
+        var questionLower = question.Text.ToLower(); // Use Text property
 
         // Assert
         Assert.Contains("partner", questionLower);
-        Assert.Contains("favorite", questionLower);
+        // Note: The mock service might not always return "favorite" questions, 
+        // this assertion might be too strict depending on the mock implementation.
+        // Keeping it for now, but might need adjustment if tests become flaky.
+        Assert.Contains("favorite", questionLower); 
     }
-} 
+}

@@ -2,6 +2,10 @@ using Azure;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.Configuration;
 using System.Net;
+using PoCoupleQuiz.Core.Models; // Added for Question model
+using Polly; // Added Polly
+using Polly.Retry; // Added Polly Retry
+using Microsoft.Extensions.Logging; // Added Logging
 
 namespace PoCoupleQuiz.Core.Services;
 
@@ -11,6 +15,8 @@ public class AzureOpenAIQuestionService : IQuestionService
     private readonly string _deploymentName;
     private string _lastQuestion = string.Empty; // Track the last question
     private readonly Dictionary<string, string> _promptCache = new(); // Cache for prompts
+    private readonly ResiliencePipeline _resiliencePipeline; // Added Polly v8 pipeline
+    private readonly ILogger<AzureOpenAIQuestionService> _logger; // Added Logger field
     private readonly string[] _fallbackQuestions = new[]
     {
         "What is their favorite food?",
@@ -26,29 +32,55 @@ public class AzureOpenAIQuestionService : IQuestionService
     };
     private readonly Random _random = new Random();
 
-    public AzureOpenAIQuestionService(IConfiguration configuration)
+    // Inject ILogger
+    public AzureOpenAIQuestionService(IConfiguration configuration, ILogger<AzureOpenAIQuestionService> logger)
     {
+        _logger = logger; // Assign logger
         var endpoint = configuration["AzureOpenAI:Endpoint"] ?? throw new ArgumentNullException("AzureOpenAI:Endpoint");
         var key = configuration["AzureOpenAI:Key"] ?? throw new ArgumentNullException("AzureOpenAI:Key");
         _deploymentName = configuration["AzureOpenAI:DeploymentName"] ?? throw new ArgumentNullException("AzureOpenAI:DeploymentName");
 
         _client = new OpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
         
-        Console.WriteLine($"AzureOpenAIQuestionService initialized with endpoint: {endpoint} and deployment: {_deploymentName}");
+        // Define Polly Resilience Pipeline (v8 syntax)
+        _resiliencePipeline = new ResiliencePipelineBuilder()
+            .AddRetry(new RetryStrategyOptions
+            {
+                ShouldHandle = new PredicateBuilder().Handle<RequestFailedException>(ex => 
+                    ex.Status == (int)HttpStatusCode.TooManyRequests || 
+                    ex.Status == (int)HttpStatusCode.InternalServerError ||
+                    ex.Status == (int)HttpStatusCode.ServiceUnavailable),
+                Delay = TimeSpan.FromSeconds(1),
+                MaxRetryAttempts = 3,
+                BackoffType = DelayBackoffType.Exponential,
+                UseJitter = true,
+                OnRetry = args =>
+                {
+                    // Use logger in OnRetry
+                    _logger.LogWarning(args.Outcome.Exception, "Polly: Retrying Azure OpenAI call due to {ExceptionType}. Attempt: {AttemptNumber}", args.Outcome.Exception?.GetType().Name, args.AttemptNumber);
+                    return default; // OnRetry requires ValueTask in v8
+                }
+            })
+            .Build();
+
+        // Use logger for initialization message
+        _logger.LogInformation("AzureOpenAIQuestionService initialized with endpoint: {Endpoint} and deployment: {DeploymentName}", endpoint, _deploymentName);
     }
 
-    public async Task<string> GenerateQuestionAsync(string? difficulty = null)
+    // Updated return type from Task<string> to Task<Question>
+    public async Task<Question> GenerateQuestionAsync(string? difficulty = null)
     {
-        // Create cache key
-        string cacheKey = $"question_{difficulty ?? "medium"}_{_lastQuestion}";
+        // Create cache key (still based on text for simplicity)
+        string cacheKey = $"question_text_{difficulty ?? "medium"}_{_lastQuestion}";
         
-        // Check if we have a cached prompt
+        // Check if we have cached question text
         if (_promptCache.ContainsKey(cacheKey))
         {
-            var cachedQuestion = _promptCache[cacheKey];
-            _lastQuestion = cachedQuestion;
-            Console.WriteLine($"Using cached question: {cachedQuestion}");
-            return cachedQuestion;
+            var cachedQuestionText = _promptCache[cacheKey];
+            _lastQuestion = cachedQuestionText;
+            _logger.LogInformation("Using cached question text: {QuestionText}", cachedQuestionText);
+            // Return a Question object with cached text and a default category
+            return new Question { Text = cachedQuestionText, Category = QuestionCategory.Preferences }; // Placeholder category
         }
 
         try 
@@ -71,58 +103,66 @@ public class AzureOpenAIQuestionService : IQuestionService
                 Temperature = 0.7f,
                 NucleusSamplingFactor = 0.95f,
                 FrequencyPenalty = 0.8f, 
-                PresencePenalty = 0.8f   
+                PresencePenalty = 0.8f
             };
 
-            Console.WriteLine($"Sending request to Azure OpenAI with deployment: {_deploymentName}");
-            var response = await _client.GetChatCompletionsAsync(_deploymentName, chatOptions);
-            var newQuestion = response.Value.Choices[0].Message.Content.Trim();
-            
+            _logger.LogInformation("Sending request to Azure OpenAI with deployment: {DeploymentName}", _deploymentName);
+
+            // Execute API call through Polly pipeline
+            var response = await _resiliencePipeline.ExecuteAsync(async token => 
+                await _client.GetChatCompletionsAsync(_deploymentName, chatOptions, token)
+            );
+
+            var newQuestionText = response.Value.Choices[0].Message.Content.Trim();
+
             // Log success
-            Console.WriteLine($"Successfully generated question via API: {newQuestion}");
+            _logger.LogInformation("Successfully generated question via API: {QuestionText}", newQuestionText);
+
+            // Cache the question text
+            _promptCache[cacheKey] = newQuestionText;
             
-            // Cache the result
-            _promptCache[cacheKey] = newQuestion;
+            _lastQuestion = newQuestionText; // Store the new question text
             
-            _lastQuestion = newQuestion; // Store the new question
-            return newQuestion;
+            // Return a new Question object
+            // TODO: Ideally, parse category from API response or prompt engineering
+            return new Question { Text = newQuestionText, Category = QuestionCategory.Preferences }; // Placeholder category
         }
         catch (RequestFailedException ex)
         {
-            // Log detailed error information
-            Console.WriteLine($"Azure OpenAI API Error: Status={ex.Status}, Message={ex.Message}");
-            
+            // Log detailed error information using logger
+            _logger.LogError(ex, "Azure OpenAI API Error: Status={Status}, Message={ErrorMessage}", ex.Status, ex.Message);
+
             // Provide more specific error handling based on status code
             if (ex.Status == (int)HttpStatusCode.TooManyRequests)
             {
-                Console.WriteLine("Rate limit exceeded. Using fallback question.");
+                _logger.LogWarning("Rate limit exceeded. Using fallback question.");
             }
             else if (ex.Status == (int)HttpStatusCode.Unauthorized)
             {
-                Console.WriteLine("Authentication failed. Check API key and endpoint.");
+                _logger.LogError("Authentication failed. Check API key and endpoint.");
             }
-            
+
             // Use a fallback question
-            var fallbackQuestion = GetFallbackQuestion();
-            _lastQuestion = fallbackQuestion;
-            return fallbackQuestion;
+            return GetFallbackQuestion();
         }
         catch (Exception ex)
         {
-            // Log general exception
-            Console.WriteLine($"Error generating question: {ex.GetType().Name}: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
-            
+            // Log general exception using logger
+            _logger.LogError(ex, "Error generating question: {ExceptionType}: {ErrorMessage}", ex.GetType().Name, ex.Message);
+
             // Use a fallback question
-            var fallbackQuestion = GetFallbackQuestion();
-            _lastQuestion = fallbackQuestion;
-            return fallbackQuestion;
+            return GetFallbackQuestion();
         }
     }
 
-    private string GetFallbackQuestion()
+    // Updated to return a Question object
+    private Question GetFallbackQuestion()
     {
-        return _fallbackQuestions[_random.Next(_fallbackQuestions.Length)];
+        var fallbackText = _fallbackQuestions[_random.Next(_fallbackQuestions.Length)];
+        _lastQuestion = fallbackText; // Update last question even for fallback
+        _logger.LogWarning("Using fallback question: {FallbackText}", fallbackText);
+        // Return a Question object with fallback text and a default category
+        return new Question { Text = fallbackText, Category = QuestionCategory.Preferences }; // Placeholder category
     }
 
     public async Task<bool> CheckAnswerSimilarityAsync(string answer1, string answer2)
@@ -158,7 +198,11 @@ public class AzureOpenAIQuestionService : IQuestionService
                 PresencePenalty = 0
             };
 
-            var response = await _client.GetChatCompletionsAsync(_deploymentName, chatOptions);
+            // Execute API call through Polly pipeline
+            var response = await _resiliencePipeline.ExecuteAsync(async token => 
+                await _client.GetChatCompletionsAsync(_deploymentName, chatOptions, token)
+            );
+            
             var result = response.Value.Choices[0].Message.Content.Trim().ToLower();
             var isMatch = result.Contains("yes");
             
@@ -169,9 +213,9 @@ public class AzureOpenAIQuestionService : IQuestionService
         }
         catch (Exception ex)
         {
-            // Log the error
-            Console.WriteLine($"Error checking answer similarity: {ex.Message}");
-            
+            // Log the error using logger
+            _logger.LogError(ex, "Error checking answer similarity: {ErrorMessage}", ex.Message);
+
             // Fallback to simple string comparison when API fails
             bool simpleMatch = answer1.ToLowerInvariant().Contains(answer2.ToLowerInvariant()) || 
                               answer2.ToLowerInvariant().Contains(answer1.ToLowerInvariant());
@@ -206,7 +250,11 @@ public class AzureOpenAIQuestionService : IQuestionService
                 PresencePenalty = 0
             };
 
-            var response = await _client.GetChatCompletionsAsync(_deploymentName, chatOptions);
+            // Execute API call through Polly pipeline
+            var response = await _resiliencePipeline.ExecuteAsync(async token => 
+                await _client.GetChatCompletionsAsync(_deploymentName, chatOptions, token)
+            );
+
             var answer = response.Value.Choices[0].Message.Content.Trim();
             
             // Cache the answer
@@ -216,9 +264,9 @@ public class AzureOpenAIQuestionService : IQuestionService
         }
         catch (Exception ex)
         {
-            // Log the error
-            Console.WriteLine($"Error generating answer: {ex.Message}");
-            
+            // Log the error using logger
+            _logger.LogError(ex, "Error generating answer: {ErrorMessage}", ex.Message);
+
             // Return fallback answers based on question type
             if (question.Contains("favorite"))
                 return "Chocolate ice cream";

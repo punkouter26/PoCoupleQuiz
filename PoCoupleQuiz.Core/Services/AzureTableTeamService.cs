@@ -4,20 +4,24 @@ using Microsoft.Extensions.Configuration;
 using PoCoupleQuiz.Core.Models;
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Microsoft.Extensions.Logging; // Added Logging
 
 namespace PoCoupleQuiz.Core.Services;
 
 public class AzureTableTeamService : ITeamService, IAzureTableTeamService
 {
-    private readonly TableClient _tableClient;
+    private readonly TableClient? _tableClient; // Made nullable for fallback scenario
     private readonly IConfiguration _configuration;
+    private readonly ILogger<AzureTableTeamService> _logger; // Added logger field
     // Fallback in-memory storage when Azure Storage is not available
     private static readonly ConcurrentDictionary<string, Team> _inMemoryTeams = new();
     private readonly bool _useInMemoryFallback;
 
-    public AzureTableTeamService(IConfiguration configuration)
+    // Inject ILogger
+    public AzureTableTeamService(IConfiguration configuration, ILogger<AzureTableTeamService> logger)
     {
         _configuration = configuration;
+        _logger = logger; // Assign logger
         _useInMemoryFallback = false;
 
         try
@@ -33,9 +37,9 @@ public class AzureTableTeamService : ITeamService, IAzureTableTeamService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to initialize Azure Table Storage: {ex.Message}");
+            _logger.LogError(ex, "Failed to initialize Azure Table Storage: {ErrorMessage}", ex.Message);
             _useInMemoryFallback = true;
-            Console.WriteLine("Falling back to in-memory storage for teams.");
+            _logger.LogWarning("Falling back to in-memory storage for teams.");
             throw; // Rethrow to ensure the application knows there's a configuration issue
         }
     }
@@ -61,7 +65,7 @@ public class AzureTableTeamService : ITeamService, IAzureTableTeamService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Azure Table Storage error: {ex.Message}");
+            _logger.LogError(ex, "Azure Table Storage error getting team {TeamName}: {ErrorMessage}", teamName, ex.Message);
             // Fallback to in-memory if Azure storage fails
             return _inMemoryTeams.TryGetValue(teamName.ToLowerInvariant(), out var team) ? team : null;
         }
@@ -88,7 +92,7 @@ public class AzureTableTeamService : ITeamService, IAzureTableTeamService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Azure Table Storage error: {ex.Message}");
+            _logger.LogError(ex, "Azure Table Storage error getting all teams: {ErrorMessage}", ex.Message);
             // Fallback to in-memory if Azure storage fails
             return _inMemoryTeams.Values.ToList();
         }
@@ -109,7 +113,7 @@ public class AzureTableTeamService : ITeamService, IAzureTableTeamService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Azure Table Storage error: {ex.Message}");
+            _logger.LogError(ex, "Azure Table Storage error saving team {TeamName}: {ErrorMessage}", team.Name, ex.Message);
             // Fallback to in-memory if Azure storage fails
             _inMemoryTeams[team.Name.ToLowerInvariant()] = team;
         }
