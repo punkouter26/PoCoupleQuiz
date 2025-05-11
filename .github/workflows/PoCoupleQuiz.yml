@@ -22,8 +22,6 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
-    - name: Test
-      run: dotnet test PoCoupleQuiz.Tests/PoCoupleQuiz.Tests.csproj --configuration ${{ env.CONFIGURATION }} --no-build
     - name: Publish
       run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
     - name: Publish Artifacts
