@@ -25,7 +25,7 @@ namespace PoCoupleQuiz.Tests
         private readonly Mock<IGameStateService> _mockGameStateService;
         private readonly Mock<NavigationManager> _mockNavigationManager;
         private readonly Mock<ISnackbar> _mockSnackbar;
-        private IAsyncDisposable _disposable;
+        private IServiceProvider _serviceProvider;
 
         public GameTests()
         {
@@ -64,7 +64,7 @@ namespace PoCoupleQuiz.Tests
             Services.AddSingleton<NavigationManager>(_mockNavigationManager.Object);
             Services.AddSingleton<ISnackbar>(_mockSnackbar.Object);
             
-            // Add MudBlazor services with proper disposal
+            // Add MudBlazor services
             Services.AddMudServices(options => 
             {
                 options.SnackbarConfiguration.ShowTransitionDuration = 10;
@@ -75,15 +75,8 @@ namespace PoCoupleQuiz.Tests
             JSInterop.SetupVoid("mudKeyInterceptor.connect", _ => true);
             JSInterop.SetupVoid("mudKeyInterceptor.disconnect", _ => true);
             
-            // Setup MudBlazor services and store disposable
-            var serviceProvider = Services.AddMudServices(options => 
-            {
-                options.SnackbarConfiguration.ShowTransitionDuration = 10;
-                options.SnackbarConfiguration.HideTransitionDuration = 10;
-            })
-            .BuildServiceProvider();
-            
-            _disposable = serviceProvider.GetRequiredService<MudBlazor.Services.KeyInterceptorService>();
+            // Store service provider for later cleanup
+            _serviceProvider = Services.BuildServiceProvider();
         }
 
         public async Task InitializeAsync()
@@ -94,9 +87,14 @@ namespace PoCoupleQuiz.Tests
 
         public async Task DisposeAsync()
         {
-            if (_disposable != null)
+            // Dispose of services if needed
+            if (_serviceProvider is IAsyncDisposable asyncDisposable)
             {
-                await _disposable.DisposeAsync();
+                await asyncDisposable.DisposeAsync();
+            }
+            else if (_serviceProvider is IDisposable disposable)
+            {
+                disposable.Dispose();
             }
         }
 
