@@ -1,0 +1,158 @@
+@page "/multiplayer"
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Threading.Tasks
+@implements IAsyncDisposable
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<div class="container">
+    <div class="quiz-card">
+        <h2>Multiplayer Quiz</h2>
+        
+        @if (!isConnected)
+        {
+            <div class="loading-spinner"></div>
+            <p>Connecting to game server...</p>
+        }
+        else if (string.IsNullOrEmpty(roomId))
+        {
+            <div class="join-room">
+                <input @bind="playerName" placeholder="Enter your name" />
+                <button class="btn" @onclick="CreateRoom">Create New Room</button>
+                <div class="or-divider">OR</div>
+                <input @bind="roomIdToJoin" placeholder="Enter room code" />
+                <button class="btn" @onclick="JoinExistingRoom">Join Room</button>
+            </div>
+        }
+        else
+        {
+            <div class="multiplayer-room">
+                <div class="room-info">
+                    <h3>Room Code: @roomId</h3>
+                    <button class="btn" @onclick="CopyRoomCode">Copy Room Code</button>
+                </div>
+
+                <div class="players-list">
+                    <h4>Players:</h4>
+                    @foreach (var player in players)
+                    {
+                        <div class="player-card">
+                            <span>@player</span>
+                            @if (player == playerName)
+                            {
+                                <span>(You)</span>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (isHost && players.Count >= 2)
+                {
+                    <button class="btn" @onclick="StartGame">Start Game</button>
+                }
+                else if (isHost)
+                {
+                    <p>Waiting for another player to join...</p>
+                }
+
+                @if (gameStarted)
+                {
+                    <div class="game-area">
+                        <!-- Game content will go here -->
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private HubConnection hubConnection;
+    private bool isConnected;
+    private string roomId;
+    private string roomIdToJoin;
+    private string playerName;
+    private List<string> players = new();
+    private bool isHost;
+    private bool gameStarted;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/gamehub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<string>("PlayerJoined", (name) =>
+        {
+            players.Add(name);
+            StateHasChanged();
+        });
+
+        hubConnection.On<string>("PlayerLeft", (name) =>
+        {
+            players.Remove(name);
+            StateHasChanged();
+        });
+
+        hubConnection.On("GameStarted", () =>
+        {
+            gameStarted = true;
+            StateHasChanged();
+        });
+
+        try
+        {
+            await hubConnection.StartAsync();
+            isConnected = true;
+        }
+        catch (Exception ex)
+        {
+            // Handle connection error
+            Console.WriteLine($"Error connecting to hub: {ex.Message}");
+        }
+    }
+
+    private async Task CreateRoom()
+    {
+        if (string.IsNullOrEmpty(playerName)) return;
+
+        roomId = Guid.NewGuid().ToString().Substring(0, 6);
+        isHost = true;
+        players.Add(playerName);
+        await hubConnection.SendAsync("JoinRoom", roomId, playerName);
+    }
+
+    private async Task JoinExistingRoom()
+    {
+        if (string.IsNullOrEmpty(playerName) || string.IsNullOrEmpty(roomIdToJoin)) return;
+
+        roomId = roomIdToJoin;
+        isHost = false;
+        players.Add(playerName);
+        await hubConnection.SendAsync("JoinRoom", roomId, playerName);
+    }
+
+    private async Task StartGame()
+    {
+        if (!isHost) return;
+        await hubConnection.SendAsync("StartGame", roomId);
+    }
+
+    private async Task CopyRoomCode()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", roomId);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            if (!string.IsNullOrEmpty(roomId))
+            {
+                await hubConnection.SendAsync("LeaveRoom", roomId, playerName);
+            }
+            await hubConnection.DisposeAsync();
+        }
+    }
+} 

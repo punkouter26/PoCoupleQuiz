@@ -1,0 +1,121 @@
+.game-container {
+    background: linear-gradient(135deg, #FFF8E1, #FFE0B2);
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.question-container {
+    background-color: #F8BBD0;
+    padding: 1.5rem;
+    border-radius: 15px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.answer-container {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.scoreboard {
+    background-color: #E1BEE7;
+    padding: 1.5rem;
+    border-radius: 15px;
+    margin-top: 1.5rem;
+}
+
+.player-chip {
+    margin: 0.5rem;
+    transition: transform 0.2s;
+}
+
+.player-chip:hover {
+    transform: scale(1.1);
+}
+
+.difficulty-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 12px;
+    font-weight: bold;
+}
+
+.easy-badge {
+    background-color: #A5D6A7;
+    color: #1B5E20;
+}
+
+.medium-badge {
+    background-color: #FFE082;
+    color: #FF6F00;
+}
+
+.hard-badge {
+    background-color: #EF9A9A;
+    color: #B71C1C;
+}
+
+.progress-container {
+    margin: 1rem 0;
+}
+
+.timer-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.timer {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 0 1rem;
+    min-width: 60px;
+}
+
+.timer-critical {
+    color: #B71C1C;
+}
+
+.matched-answer {
+    background-color: #DCEDC8;
+    border-left: 4px solid #8BC34A;
+}
+
+.unmatched-answer {
+    background-color: #FFECB3;
+    border-left: 4px solid #FFC107;
+}
+
+/* Consolidated styles */
+.game-card {
+    padding: 1.5rem;
+    border-radius: 15px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.game-card.question {
+    background-color: #F8BBD0;
+}
+
+.game-card.answer {
+    background-color: white;
+}
+
+.game-card.matched {
+    background-color: #DCEDC8;
+    border-left: 4px solid #8BC34A;
+}
+
+.game-card.unmatched {
+    background-color: #FFECB3;
+    border-left: 4px solid #FFC107;
+}

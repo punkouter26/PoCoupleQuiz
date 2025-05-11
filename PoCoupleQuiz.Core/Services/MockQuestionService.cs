@@ -1,7 +1,7 @@
 using PoCoupleQuiz.Core.Services;
-using PoCoupleQuiz.Core.Models; // Added using
+using PoCoupleQuiz.Core.Models;
 
-namespace PoCoupleQuiz.Tests;
+namespace PoCoupleQuiz.Core.Services;
 
 public class MockQuestionService : IQuestionService
 {
@@ -37,7 +37,6 @@ public class MockQuestionService : IQuestionService
         { "What is your partner's dream vacation destination?", "Paris" }
     };
 
-    // Updated return type from Task<string> to Task<Question>
     public Task<Question> GenerateQuestionAsync(string? difficulty = null)
     {
         string[] questionSet = difficulty?.ToLower() switch
@@ -49,30 +48,24 @@ public class MockQuestionService : IQuestionService
         
         var questionText = questionSet[_questionCounter % questionSet.Length];
         _questionCounter++;
-        // Return a Question object with a default category
-        var question = new Question { Text = questionText, Category = QuestionCategory.Preferences }; // Placeholder category
+        var question = new Question { Text = questionText, Category = QuestionCategory.Preferences };
         return Task.FromResult(question);
     }
 
     public Task<bool> CheckAnswerSimilarityAsync(string answer1, string answer2)
     {
-        // Simple string comparison rules for testing
         if (string.IsNullOrWhiteSpace(answer1) || string.IsNullOrWhiteSpace(answer2))
             return Task.FromResult(false);
 
-        // Exact match
         if (answer1.Equals(answer2, StringComparison.OrdinalIgnoreCase))
             return Task.FromResult(true);
 
-        // Known similar answers
         var normalizedAnswer1 = answer1.Trim().ToLower();
         var normalizedAnswer2 = answer2.Trim().ToLower();
 
-        // Handle date format variations
         if (normalizedAnswer1.Contains("january 1st") && normalizedAnswer2.Contains("1st of january"))
             return Task.FromResult(true);
 
-        // Handle pizza variations
         if (normalizedAnswer1.Contains("pizza") && normalizedAnswer2.Contains("pizza"))
             return Task.FromResult(true);
 
@@ -81,11 +74,10 @@ public class MockQuestionService : IQuestionService
 
     public Task<string> GenerateAnswerAsync(string question)
     {
-        // Return predefined answer if available, otherwise return a generic answer
         if (_predefinedAnswers.TryGetValue(question, out var answer))
         {
             return Task.FromResult(answer);
         }
         return Task.FromResult("I don't know");
     }
-}
+} 

@@ -7,7 +7,7 @@ env:
   AZURE_WEBAPP_NAME: PoCoupleQuiz
   AZURE_WEBAPP_PACKAGE_PATH: PoCoupleQuiz.Web\published
   CONFIGURATION: Release
-  DOTNET_CORE_VERSION: 8.0.x
+  DOTNET_CORE_VERSION: 9.0.x
   WORKING_DIRECTORY: PoCoupleQuiz.Web
 jobs:
   build:
@@ -19,11 +19,11 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
     - name: Restore
-      run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
+      run: dotnet restore
     - name: Build
-      run: dotnet build "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
+      run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
     - name: Test
-      run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build
+      run: dotnet test PoCoupleQuiz.Tests/PoCoupleQuiz.Tests.csproj --configuration ${{ env.CONFIGURATION }} --no-build
     - name: Publish
       run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
     - name: Publish Artifacts

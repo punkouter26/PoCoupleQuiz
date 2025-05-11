@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor.Services;
 using PoCoupleQuiz.Core.Services;
-using PoCoupleQuiz.Tests;
+using PoCoupleQuiz.Web.Hubs;
+// TODO: Move MockQuestionService to Shared/Core for proper reference
+// using PoCoupleQuiz.Tests; // Do not re-add this
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddMudServices();
+builder.Services.AddSignalR();
 
 // Add application services
 // Determine if we should use the mock service based on configuration
@@ -61,5 +64,6 @@ app.UseRouting();
 
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
+app.MapHub<GameHub>("/gamehub");
 
 app.Run();
