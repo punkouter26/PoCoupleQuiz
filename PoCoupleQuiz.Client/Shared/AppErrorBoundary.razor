@@ -1,0 +1,41 @@
+@inject ILogger<AppErrorBoundary> Logger
+@inject NavigationManager NavigationManager
+
+@ChildContent
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnRetry { get; set; }
+    [Parameter] public EventCallback OnGoHome { get; set; }
+    
+    private bool showDetails = false;
+    private string errorId = Guid.NewGuid().ToString("N")[..8];
+    
+    private void TryAgain()
+    {
+        showDetails = false;
+        errorId = Guid.NewGuid().ToString("N")[..8];
+        
+        if (OnRetry.HasDelegate)
+        {
+            OnRetry.InvokeAsync();
+        }
+    }
+    
+    private void GoHome()
+    {
+        if (OnGoHome.HasDelegate)
+        {
+            OnGoHome.InvokeAsync();
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/", forceLoad: true);
+        }
+    }
+    
+    private void ToggleDetails()
+    {
+        showDetails = !showDetails;
+    }
+}

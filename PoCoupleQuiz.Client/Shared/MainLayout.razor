@@ -8,16 +8,18 @@
 
 <PageTitle>PoCoupleQuiz</PageTitle>
 
-<div class="rz-layout">
-    <header style="background-color: #1976d2; color: white; padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-            <h5 style="margin: 0; margin-left: 1rem;">PoCoupleQuiz</h5>
-        </div>
-    </header>
-    <main style="padding: 1rem; max-width: 1200px; margin: 0 auto;">
-        @Body
-    </main>
-</div>
+<AppErrorBoundary>
+    <div class="rz-layout">
+        <header style="background-color: #1976d2; color: white; padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <h5 style="margin: 0; margin-left: 1rem;">PoCoupleQuiz</h5>
+            </div>
+        </header>
+        <main style="padding: 1rem; max-width: 1200px; margin: 0 auto;">
+            @Body
+        </main>
+    </div>
+</AppErrorBoundary>
 
 @code {
     bool _drawerOpen = true;

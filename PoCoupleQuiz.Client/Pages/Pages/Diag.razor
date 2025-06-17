@@ -8,6 +8,7 @@
 @inject IGameHistoryService GameHistoryService
 @inject ILogger<Diag> Logger
 @inject NavigationManager NavigationManager
+@inject HttpClient Http
 
 <PageTitle>PoCoupleQuiz - Diagnostics</PageTitle>
 
@@ -125,12 +126,9 @@
         {
             Logger.LogInformation("Checking internet connection");
             
-            using var client = new HttpClient();
-            client.Timeout = TimeSpan.FromSeconds(5);
-            
-            var response = await client.GetAsync("https://www.microsoft.com");
-            _internetConnected = response.IsSuccessStatusCode;
-            _internetDetails = $"Status code: {(int)response.StatusCode} {response.StatusCode}";
+            var response = await Http.GetAsync("api/Diagnostics/internet");
+            _internetConnected = await response.Content.ReadFromJsonAsync<bool>();
+            _internetDetails = _internetConnected ? "Successfully connected to internet via server proxy" : "Failed to connect to internet via server proxy";
             
             Logger.LogInformation("Internet connection status: {Status}, Details: {Details}", 
                 _internetConnected, _internetDetails);

@@ -2,65 +2,91 @@
 @using PoCoupleQuiz.Core.Models
 @using PoCoupleQuiz.Core.Services
 @inject ITeamService TeamService
+@inject NavigationManager NavigationManager
 
 <h3>Top 10 Teams Leaderboard</h3>
 
-<div class="container mt-4">
-    @if (_teams == null)
+<div class="container mt-4">    @if (_isLoading)
     {
-        <p>Loading...</p>
-    }
-    else if (!_teams.Any())
-    {
-        <p>No teams have played yet!</p>
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 200px;">
+            <div class="text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading leaderboard data...</p>
+            </div>
+        </div>
     }
     else
     {
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>Team Name</th>
-                        <th>Correct %</th>
-                        <th>Questions Answered</th>
-                        <th>Correct Answers</th>
-                        <th>Last Played</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @{
-                        var rank = 1;
-                        foreach (var team in _teams)
-                        {
-                            <tr>
-                                <td>@rank</td>
-                                <td>@team.Name</td>
-                                <td>@team.CorrectPercentage.ToString("F1")%</td>
-                                <td>@team.TotalQuestionsAnswered</td>
-                                <td>@team.CorrectAnswers</td>
-                                <td>@team.LastPlayed.ToLocalTime().ToString("g")</td>
-                            </tr>
-                            rank++;
+        @if (!_teams.Any())
+        {            <div class="alert alert-info text-center">
+                <h4>No Teams Yet!</h4>
+                <p>Be the first to play and appear on the leaderboard!</p>
+                <button class="btn btn-primary" @onclick="@(() => NavigationManager.NavigateTo("/"))">Start Playing</button>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Team Name</th>
+                            <th>Correct %</th>
+                            <th>Questions Answered</th>
+                            <th>Correct Answers</th>
+                            <th>Last Played</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var rank = 1;
+                            foreach (var team in _teams)
+                            {
+                                <tr>
+                                    <td>@rank</td>
+                                    <td>@team.Name</td>
+                                    <td>@team.CorrectPercentage.ToString("F1")%</td>
+                                    <td>@team.TotalQuestionsAnswered</td>
+                                    <td>@team.CorrectAnswers</td>
+                                    <td>@team.LastPlayed.ToLocalTime().ToString("g")</td>
+                                </tr>
+                                rank++;
+                            }
                         }
-                    }
-                </tbody>
-            </table>
-        </div>
+                    </tbody>                </table>
+            </div>
+        }
     }
 </div>
 
 @code {
-    private IEnumerable<Team>? _teams;
+    private IEnumerable<Team> _teams = Array.Empty<Team>();
+    private bool _isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
-        var allTeams = await TeamService.GetAllTeamsAsync();
-        _teams = allTeams
-            .Where(t => t.TotalQuestionsAnswered > 0)
-            .OrderByDescending(t => t.CorrectPercentage)
-            .ThenByDescending(t => t.TotalQuestionsAnswered)
-            .Take(10)
-            .ToList();
+        try
+        {
+            _isLoading = true;
+            var allTeams = await TeamService.GetAllTeamsAsync();
+            _teams = allTeams
+                .Where(t => t.TotalQuestionsAnswered > 0)
+                .OrderByDescending(t => t.CorrectPercentage)
+                .ThenByDescending(t => t.TotalQuestionsAnswered)
+                .Take(10)
+                .ToList();
+        }        catch (Exception)
+        {
+            // Handle error - could add error state here
+            _teams = Array.Empty<Team>();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
     }
-} 
+}

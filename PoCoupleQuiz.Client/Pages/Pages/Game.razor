@@ -1,0 +1,468 @@
+@page "/game/{playerType}"
+@using PoCoupleQuiz.Core.Models
+@using PoCoupleQuiz.Core.Services
+@inject IGameStateService GameState
+@inject IQuestionService QuestionService
+@inject ITeamService TeamService
+@inject IGameHistoryService GameHistoryService
+@inject NavigationManager NavigationManager
+@inject NotificationService NotificationService
+@inject ILogger<Pages.Game> Logger
+
+<PageTitle>PoCoupleQuiz - Game</PageTitle>
+
+<div class="container mt-4">
+    @if (currentGame == null)
+    {
+        <div class="alert alert-warning">
+            <h4>No Game Found</h4>
+            <p>Please start a new game from the home page.</p>
+            <RadzenButton Click="@(() => NavigationManager.NavigateTo("/"))" Text="Go Home" ButtonStyle="ButtonStyle.Primary" />
+        </div>
+    }
+    else if (currentGame.IsGameOver)
+    {
+        <div class="game-over-container">
+            <h2>🎉 Game Over! 🎉</h2>
+            <ScoreboardDisplay Scoreboard="@currentGame.GetScoreboard()" />
+            
+            <div class="mt-4">
+                <RadzenButton Click="@(() => NavigationManager.NavigateTo("/"))" Text="New Game" ButtonStyle="ButtonStyle.Primary" class="me-2" />
+                <RadzenButton Click="@(() => NavigationManager.NavigateTo("/leaderboard"))" Text="Leaderboard" ButtonStyle="ButtonStyle.Secondary" />
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="game-container">
+            <div class="row">
+                <div class="col-md-8">
+                    <RadzenCard class="game-card">
+                        <h3>Round @(currentGame.CurrentRound + 1) of @currentGame.MaxRounds</h3>
+                        
+                        @if (currentQuestion != null)
+                        {
+                            <div class="question-container">
+                                <h4 class="question-text">@currentQuestion.Question</h4>
+                                
+                                @if (IsKingPlayer)
+                                {
+                                    <!-- King Player Interface -->
+                                    <div class="king-interface">
+                                        <h5>👑 You are the King Player!</h5>
+                                        <p>Answer the question about yourself:</p>
+                                        
+                                        <RadzenTextArea @bind-Value="kingAnswer" 
+                                                       Placeholder="Your answer..." 
+                                                       Rows="3" 
+                                                       Style="width: 100%; margin-bottom: 1rem;" 
+                                                       Disabled="@hasAnswered" />
+                                        
+                                        <RadzenButton Click="SubmitKingAnswer" 
+                                                     Text="Submit Answer" 
+                                                     ButtonStyle="ButtonStyle.Primary" 
+                                                     Disabled="@(hasAnswered || string.IsNullOrWhiteSpace(kingAnswer))" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <!-- Guessing Player Interface -->
+                                    <div class="player-interface">
+                                        <h5>🎯 Your turn to guess!</h5>
+                                        <p>What do you think @currentGame.KingPlayer?.Name would answer?</p>
+                                        
+                                        <RadzenTextArea @bind-Value="playerAnswer" 
+                                                       Placeholder="Your guess..." 
+                                                       Rows="3" 
+                                                       Style="width: 100%; margin-bottom: 1rem;" 
+                                                       Disabled="@hasAnswered" />
+                                        
+                                        <RadzenButton Click="SubmitPlayerAnswer" 
+                                                     Text="Submit Guess" 
+                                                     ButtonStyle="ButtonStyle.Primary" 
+                                                     Disabled="@(hasAnswered || string.IsNullOrWhiteSpace(playerAnswer))" />
+                                    </div>
+                                }
+                                
+                                @if (hasAnswered)
+                                {
+                                    <div class="alert alert-info mt-3">
+                                        <strong>Answer submitted!</strong> Waiting for other players...
+                                    </div>
+                                }
+                                
+                                @if (showResults)
+                                {
+                                    <div class="results-container mt-4">
+                                        <h5>Round Results</h5>
+                                        <div class="alert alert-success">
+                                            <strong>King's Answer:</strong> @currentQuestion.KingPlayerAnswer
+                                        </div>
+                                        
+                                        @foreach (var playerAnswer in currentQuestion.PlayerAnswers)
+                                        {
+                                            var isMatch = currentQuestion.HasPlayerMatched(playerAnswer.Key);
+                                            <div class="alert @(isMatch ? "alert-success" : "alert-warning")">
+                                                <strong>@playerAnswer.Key:</strong> @playerAnswer.Value 
+                                                @if (isMatch) { <span class="badge bg-success ms-2">✓ Match!</span> }
+                                            </div>
+                                        }
+                                        
+                                        <RadzenButton Click="NextRound" Text="Next Round" ButtonStyle="ButtonStyle.Primary" class="mt-3" />
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-content-center">
+                                <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+                                <span class="ms-2">Loading question...</span>
+                            </div>
+                        }
+                    </RadzenCard>
+                </div>
+                
+                <div class="col-md-4">
+                    <RadzenCard class="scoreboard-card">
+                        <h5>Current Scores</h5>
+                        <ScoreboardDisplay Scoreboard="@currentGame.GetScoreboard()" />
+                    </RadzenCard>
+                    
+                    <RadzenCard class="progress-card mt-3">
+                        <h6>Game Progress</h6>
+                        <RadzenProgressBar Value="@gameProgress" Max="100" ShowValue="true" Unit="%" />
+                        <small class="text-muted">Round @(currentGame.CurrentRound + 1) of @currentGame.MaxRounds</small>
+                    </RadzenCard>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .game-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .game-card {
+        min-height: 400px;
+    }
+    
+    .question-text {
+        color: #1976d2;
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+    
+    .king-interface, .player-interface {
+        padding: 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        background: #fafafa;
+    }
+    
+    .results-container {
+        border-top: 2px solid #e0e0e0;
+        padding-top: 1rem;
+    }
+    
+    .game-over-container {
+        text-align: center;
+        padding: 2rem;
+    }
+</style>
+
+@code {
+    [Parameter] public string PlayerType { get; set; } = "";
+    
+    private PoCoupleQuiz.Core.Models.Game? currentGame;
+    private GameQuestion? currentQuestion;
+    private string kingAnswer = "";
+    private string playerAnswer = "";
+    private bool hasAnswered = false;
+    private bool showResults = false;
+    private double gameProgress = 0;
+    
+    private bool IsKingPlayer => PlayerType.Equals("king", StringComparison.OrdinalIgnoreCase);
+    private string CurrentPlayerName => GameState.CurrentPlayerName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            currentGame = GameState.CurrentGame;
+            
+            if (currentGame == null)
+            {
+                Logger.LogWarning("No current game found, redirecting to home");
+                return;
+            }
+            
+            await LoadCurrentQuestion();
+            UpdateGameProgress();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error initializing game page");
+            NotificationService.Notify(new NotificationMessage 
+            { 
+                Severity = NotificationSeverity.Error, 
+                Summary = "Error", 
+                Detail = "Failed to load game. Please try again." 
+            });
+        }
+    }
+
+    private async Task LoadCurrentQuestion()
+    {
+        try
+        {
+            if (currentGame == null) return;
+            
+            // If we don't have a question for current round, generate one
+            if (currentGame.CurrentRound >= currentGame.Questions.Count)
+            {
+                var question = await QuestionService.GenerateQuestionAsync(currentGame.Difficulty.ToString());
+                var gameQuestion = new GameQuestion
+                {
+                    Question = question.Text,
+                    Category = question.Category
+                };
+                currentGame.Questions.Add(gameQuestion);
+            }
+            
+            currentQuestion = currentGame.Questions[currentGame.CurrentRound];
+            
+            // Check if current player has already answered
+            if (IsKingPlayer)
+            {
+                hasAnswered = !string.IsNullOrEmpty(currentQuestion.KingPlayerAnswer);
+                kingAnswer = currentQuestion.KingPlayerAnswer;
+            }
+            else
+            {
+                hasAnswered = currentQuestion.HasPlayerAnswered(CurrentPlayerName);
+                if (hasAnswered && currentQuestion.PlayerAnswers.ContainsKey(CurrentPlayerName))
+                {
+                    playerAnswer = currentQuestion.PlayerAnswers[CurrentPlayerName];
+                }
+            }
+            
+            // Check if we should show results
+            showResults = !string.IsNullOrEmpty(currentQuestion.KingPlayerAnswer) && 
+                         currentGame.AllPlayersAnswered(currentGame.CurrentRound);
+                         
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading current question");
+            NotificationService.Notify(new NotificationMessage 
+            { 
+                Severity = NotificationSeverity.Error, 
+                Summary = "Error", 
+                Detail = "Failed to load question. Please try again." 
+            });
+        }
+    }
+
+    private async Task SubmitKingAnswer()
+    {
+        try
+        {
+            if (currentQuestion == null || string.IsNullOrWhiteSpace(kingAnswer)) return;
+            
+            currentQuestion.KingPlayerAnswer = kingAnswer.Trim();
+            hasAnswered = true;
+            
+            Logger.LogInformation("King player submitted answer for round {Round}", currentGame?.CurrentRound);
+            
+            // Check if we can evaluate answers now
+            await CheckForCompletion();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error submitting king answer");
+            NotificationService.Notify(new NotificationMessage 
+            { 
+                Severity = NotificationSeverity.Error, 
+                Summary = "Error", 
+                Detail = "Failed to submit answer. Please try again." 
+            });
+        }
+    }
+
+    private async Task SubmitPlayerAnswer()
+    {
+        try
+        {
+            if (currentQuestion == null || string.IsNullOrWhiteSpace(playerAnswer)) return;
+            
+            currentQuestion.RecordPlayerAnswer(CurrentPlayerName, playerAnswer.Trim());
+            hasAnswered = true;
+            
+            Logger.LogInformation("Player {PlayerName} submitted answer for round {Round}", CurrentPlayerName, currentGame?.CurrentRound);
+            
+            // Check if we can evaluate answers now
+            await CheckForCompletion();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error submitting player answer");
+            NotificationService.Notify(new NotificationMessage 
+            { 
+                Severity = NotificationSeverity.Error, 
+                Summary = "Error", 
+                Detail = "Failed to submit answer. Please try again." 
+            });
+        }
+    }
+
+    private async Task CheckForCompletion()
+    {
+        try
+        {
+            if (currentGame == null || currentQuestion == null) return;
+            
+            // If king has answered and all players have answered, evaluate
+            if (!string.IsNullOrEmpty(currentQuestion.KingPlayerAnswer) && 
+                currentGame.AllPlayersAnswered(currentGame.CurrentRound))
+            {
+                await EvaluateAnswers();
+                showResults = true;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error checking for completion");
+        }
+    }
+
+    private async Task EvaluateAnswers()
+    {
+        try
+        {
+            if (currentQuestion == null) return;
+            
+            // Compare each player's answer with king's answer
+            foreach (var playerAnswer in currentQuestion.PlayerAnswers)
+            {
+                bool isMatch = await QuestionService.CheckAnswerSimilarityAsync(
+                    currentQuestion.KingPlayerAnswer, 
+                    playerAnswer.Value);
+                
+                if (isMatch)
+                {
+                    currentQuestion.MarkPlayerAsMatched(playerAnswer.Key);
+                }
+            }
+            
+            // Update scores
+            currentGame?.UpdateScores(currentGame.CurrentRound);
+            
+            Logger.LogInformation("Evaluated answers for round {Round}", currentGame?.CurrentRound);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error evaluating answers");
+        }
+    }
+
+    private async Task NextRound()
+    {
+        try
+        {
+            if (currentGame == null) return;
+            
+            currentGame.CurrentRound++;
+            
+            if (currentGame.IsGameOver)
+            {
+                await SaveGameHistory();
+                await UpdatePlayerStats();
+            }
+            else
+            {
+                // Reset for next round
+                kingAnswer = "";
+                playerAnswer = "";
+                hasAnswered = false;
+                showResults = false;
+                
+                await LoadCurrentQuestion();
+            }
+            
+            UpdateGameProgress();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error proceeding to next round");
+            NotificationService.Notify(new NotificationMessage 
+            { 
+                Severity = NotificationSeverity.Error, 
+                Summary = "Error", 
+                Detail = "Failed to proceed to next round. Please try again." 
+            });
+        }
+    }
+
+    private async Task SaveGameHistory()
+    {
+        try
+        {
+            if (currentGame == null) return;
+            
+            var history = new GameHistory
+            {
+                Date = DateTime.UtcNow,
+                Team1Name = currentGame.KingPlayer?.Name ?? "Unknown",
+                Team2Name = string.Join(", ", currentGame.Players.Where(p => !p.IsKingPlayer).Select(p => p.Name)),
+                GameMode = GameMode.KingPlayer,
+                Team1Score = 0, // King doesn't get scored in this mode
+                Team2Score = currentGame.Players.Where(p => !p.IsKingPlayer).Sum(p => p.Score),
+                TotalQuestions = currentGame.Questions.Count,
+                AverageResponseTime = 30.0 // Default for now
+            };
+            
+            await GameHistoryService.SaveGameHistoryAsync(history);
+            Logger.LogInformation("Saved game history for game with king {KingName}", currentGame.KingPlayer?.Name);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving game history");
+        }
+    }
+
+    private async Task UpdatePlayerStats()
+    {
+        try
+        {
+            if (currentGame == null) return;
+            
+            foreach (var player in currentGame.Players)
+            {
+                await TeamService.UpdateTeamStatsAsync(player.Name, GameMode.KingPlayer, player.Score);
+            }
+            
+            Logger.LogInformation("Updated player statistics");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error updating player stats");
+        }
+    }
+
+    private void UpdateGameProgress()
+    {
+        if (currentGame != null)
+        {
+            gameProgress = ((double)(currentGame.CurrentRound + 1) / currentGame.MaxRounds) * 100;
+        }
+    }
+}

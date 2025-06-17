@@ -31,11 +31,11 @@ public static class ServiceCollectionExtensions
           // Register other services with consistent lifetimes
         if (ShouldUseInMemoryGameHistoryService(configuration))
         {
-            services.AddSingleton<IGameHistoryService, InMemoryGameHistoryService>();
+            services.AddScoped<IGameHistoryService, InMemoryGameHistoryService>();
         }
         else
         {
-            services.AddSingleton<IGameHistoryService, GameHistoryService>();
+            services.AddScoped<IGameHistoryService, GameHistoryService>();
         }
         services.AddScoped<IGameStateService, GameStateService>();
         
