@@ -1,59 +1,32 @@
 using Azure;
 using Azure.Data.Tables;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using PoCoupleQuiz.Core.Models;
-using System.Collections.Concurrent;
-using System.Text.Json;
-using Microsoft.Extensions.Logging; // Added Logging
 
 namespace PoCoupleQuiz.Core.Services;
 
-public class AzureTableTeamService : ITeamService, IAzureTableTeamService
+public class AzureTableTeamService : ITeamService
 {
-    private readonly TableClient? _tableClient; // Made nullable for fallback scenario
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<AzureTableTeamService> _logger; // Added logger field
-    // Fallback in-memory storage when Azure Storage is not available
-    private static readonly ConcurrentDictionary<string, Team> _inMemoryTeams = new();
-    private readonly bool _useInMemoryFallback;
+    private readonly TableClient _tableClient;
+    private readonly ILogger<AzureTableTeamService> _logger;
 
-    // Inject ILogger
     public AzureTableTeamService(IConfiguration configuration, ILogger<AzureTableTeamService> logger)
     {
-        _configuration = configuration;
-        _logger = logger; // Assign logger
-        _useInMemoryFallback = false;
+        _logger = logger;
+        
+        var connectionString = configuration["AzureStorage:ConnectionString"] 
+            ?? throw new ArgumentNullException("AzureStorage:ConnectionString", "Azure Storage connection string is required");
 
-        try
-        {
-            var connectionString = configuration["AzureStorage:ConnectionString"];
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                throw new ArgumentNullException(nameof(connectionString), "Azure Storage connection string is required");
-            }
-
-            _tableClient = new TableClient(connectionString, "Teams");
-            _tableClient.CreateIfNotExists();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to initialize Azure Table Storage: {ErrorMessage}", ex.Message);
-            _useInMemoryFallback = true;
-            _logger.LogWarning("Falling back to in-memory storage for teams.");
-            throw; // Rethrow to ensure the application knows there's a configuration issue
-        }
-    }
-
-    public async Task<Team?> GetTeamAsync(string teamName)
+        _tableClient = new TableClient(connectionString, "Teams");
+        _tableClient.CreateIfNotExists();
+        
+        _logger.LogInformation("AzureTableTeamService initialized successfully");
+    }    public async Task<Team?> GetTeamAsync(string teamName)
     {
-        if (_useInMemoryFallback)
-        {
-            return _inMemoryTeams.TryGetValue(teamName.ToLowerInvariant(), out var team) ? team : null;
-        }
-
         try
         {
-            var response = await _tableClient!.GetEntityAsync<TeamTableEntity>(
+            var response = await _tableClient.GetEntityAsync<TeamTableEntity>(
                 partitionKey: "Team",
                 rowKey: teamName.ToLowerInvariant()
             );
@@ -65,23 +38,15 @@ public class AzureTableTeamService : ITeamService, IAzureTableTeamService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Azure Table Storage error getting team {TeamName}: {ErrorMessage}", teamName, ex.Message);
-            // Fallback to in-memory if Azure storage fails
-            return _inMemoryTeams.TryGetValue(teamName.ToLowerInvariant(), out var team) ? team : null;
+            _logger.LogError(ex, "Error getting team {TeamName}: {ErrorMessage}", teamName, ex.Message);
+            throw;
         }
-    }
-
-    public async Task<IEnumerable<Team>> GetAllTeamsAsync()
+    }    public async Task<IEnumerable<Team>> GetAllTeamsAsync()
     {
-        if (_useInMemoryFallback)
-        {
-            return _inMemoryTeams.Values.ToList();
-        }
-
         try
         {
             var teams = new List<Team>();
-            var queryResults = _tableClient!.QueryAsync<TeamTableEntity>(filter: $"PartitionKey eq 'Team'");
+            var queryResults = _tableClient.QueryAsync<TeamTableEntity>(filter: $"PartitionKey eq 'Team'");
 
             await foreach (var entity in queryResults)
             {
@@ -92,41 +57,30 @@ public class AzureTableTeamService : ITeamService, IAzureTableTeamService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Azure Table Storage error getting all teams: {ErrorMessage}", ex.Message);
-            // Fallback to in-memory if Azure storage fails
-            return _inMemoryTeams.Values.ToList();
+            _logger.LogError(ex, "Error getting all teams: {ErrorMessage}", ex.Message);
+            throw;
         }
-    }
-
-    public async Task SaveTeamAsync(Team team)
+    }    public async Task SaveTeamAsync(Team team)
     {
-        if (_useInMemoryFallback)
-        {
-            _inMemoryTeams[team.Name.ToLowerInvariant()] = team;
-            return;
-        }
-
         try
         {
             var entity = new TeamTableEntity(team);
-            await _tableClient!.UpsertEntityAsync(entity);
+            await _tableClient.UpsertEntityAsync(entity);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Azure Table Storage error saving team {TeamName}: {ErrorMessage}", team.Name, ex.Message);
-            // Fallback to in-memory if Azure storage fails
-            _inMemoryTeams[team.Name.ToLowerInvariant()] = team;
+            _logger.LogError(ex, "Error saving team {TeamName}: {ErrorMessage}", team.Name, ex.Message);
+            throw;
         }
-    }
-
-    public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score)
+    }    public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score)
     {
         var team = await GetTeamAsync(teamName);
-        if (team == null) return;
-
-        if (gameMode == GameMode.KingPlayer)
+        if (team == null) return;        if (gameMode == GameMode.KingPlayer)
         {
-            team.MultiplayerWins += score > 0 ? 1 : 0;
+            if (score > team.HighScore)
+            {
+                team.HighScore = score;
+            }
         }
 
         await SaveTeamAsync(team);
@@ -137,15 +91,12 @@ public class TeamTableEntity : ITableEntity
 {
     public TeamTableEntity()
     {
-    }
-
-    public TeamTableEntity(Team team)
+    }    public TeamTableEntity(Team team)
     {
-        PartitionKey = team.PartitionKey;
-        RowKey = team.RowKey;
+        PartitionKey = "Team";
+        RowKey = team.Name.ToLowerInvariant();
         Name = team.Name;
-        MultiplayerWins = team.MultiplayerWins;
-        SinglePlayerHighScore = team.SinglePlayerHighScore;
+        HighScore = team.HighScore;
         LastPlayed = team.LastPlayed;
         TotalQuestionsAnswered = team.TotalQuestionsAnswered;
         CorrectAnswers = team.CorrectAnswers;
@@ -154,22 +105,17 @@ public class TeamTableEntity : ITableEntity
     public string PartitionKey { get; set; } = string.Empty;
     public string RowKey { get; set; } = string.Empty;
     public DateTimeOffset? Timestamp { get; set; }
-    public ETag ETag { get; set; }
-
-    public string Name { get; set; } = string.Empty;
-    public int MultiplayerWins { get; set; }
-    public int SinglePlayerHighScore { get; set; }
+    public ETag ETag { get; set; }    public string Name { get; set; } = string.Empty;
+    public int HighScore { get; set; }
     public DateTime LastPlayed { get; set; }
     public int TotalQuestionsAnswered { get; set; }
     public int CorrectAnswers { get; set; }
 
     public Team ToTeam()
-    {
-        return new Team
+    {        return new Team
         {
             Name = Name,
-            MultiplayerWins = MultiplayerWins,
-            SinglePlayerHighScore = SinglePlayerHighScore,
+            HighScore = HighScore,
             LastPlayed = LastPlayed,
             TotalQuestionsAnswered = TotalQuestionsAnswered,
             CorrectAnswers = CorrectAnswers

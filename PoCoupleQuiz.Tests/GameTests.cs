@@ -3,28 +3,25 @@ using Moq;
 using Microsoft.Extensions.Logging;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
-using PoCoupleQuiz.Web.Pages;
+using PoCoupleQuiz.Client.Pages.Pages;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Components;
 using Bunit;
-using MudBlazor;
-using MudBlazor.Services;
+using Radzen;
 using Microsoft.Extensions.DependencyInjection;
-using GamePage = PoCoupleQuiz.Web.Pages.Game;
 using GameModel = PoCoupleQuiz.Core.Models.Game;
 
 namespace PoCoupleQuiz.Tests
 {
-    public class GameTests : TestContext, IAsyncLifetime
+    public class GameTests : BunitContext, IAsyncLifetime
     {
-        private readonly Mock<IQuestionService> _mockQuestionService;
-        private readonly Mock<ITeamService> _mockTeamService;
+        private readonly Mock<IQuestionService> _mockQuestionService;        private readonly Mock<ITeamService> _mockTeamService;
         private readonly Mock<IGameHistoryService> _mockGameHistoryService;
-        private readonly Mock<ILogger<GamePage>> _mockLogger;
+        private readonly Mock<ILogger<PoCoupleQuiz.Client.Pages.Pages.Index>> _mockLogger;
         private readonly Mock<IGameStateService> _mockGameStateService;
         private readonly Mock<NavigationManager> _mockNavigationManager;
-        private readonly Mock<ISnackbar> _mockSnackbar;
+        private readonly Mock<NotificationService> _mockNotificationService;
         private IServiceProvider _serviceProvider;
 
         public GameTests()
@@ -32,10 +29,10 @@ namespace PoCoupleQuiz.Tests
             _mockQuestionService = new Mock<IQuestionService>();
             _mockTeamService = new Mock<ITeamService>();
             _mockGameHistoryService = new Mock<IGameHistoryService>();
-            _mockLogger = new Mock<ILogger<GamePage>>();
+            _mockLogger = new Mock<ILogger<PoCoupleQuiz.Client.Pages.Pages.Index>>();
             _mockGameStateService = new Mock<IGameStateService>();
             _mockNavigationManager = new Mock<NavigationManager>();
-            _mockSnackbar = new Mock<ISnackbar>();
+            _mockNotificationService = new Mock<NotificationService>();
 
             // Setup mock question
             _mockQuestionService.Setup(x => x.GenerateQuestionAsync(It.IsAny<string>()))
@@ -58,22 +55,22 @@ namespace PoCoupleQuiz.Tests
             // Register services
             Services.AddSingleton<IQuestionService>(_mockQuestionService.Object);
             Services.AddSingleton<ITeamService>(_mockTeamService.Object);
-            Services.AddSingleton<IGameHistoryService>(_mockGameHistoryService.Object);
-            Services.AddSingleton<ILogger<GamePage>>(_mockLogger.Object);
+            Services.AddSingleton<IGameHistoryService>(_mockGameHistoryService.Object);            Services.AddSingleton<ILogger<PoCoupleQuiz.Client.Pages.Pages.Index>>(_mockLogger.Object);
             Services.AddSingleton<IGameStateService>(_mockGameStateService.Object);
             Services.AddSingleton<NavigationManager>(_mockNavigationManager.Object);
-            Services.AddSingleton<ISnackbar>(_mockSnackbar.Object);
+            Services.AddSingleton<NotificationService>(_mockNotificationService.Object);
+              // Add Radzen services
+            Services.AddScoped<DialogService>();
+            Services.AddScoped<TooltipService>();
+            Services.AddScoped<ContextMenuService>();
             
-            // Add MudBlazor services
-            Services.AddMudServices(options => 
-            {
-                options.SnackbarConfiguration.ShowTransitionDuration = 10;
-                options.SnackbarConfiguration.HideTransitionDuration = 10;
-            });
-            
-            // Setup JSInterop for MudBlazor components
-            JSInterop.SetupVoid("mudKeyInterceptor.connect", _ => true);
-            JSInterop.SetupVoid("mudKeyInterceptor.disconnect", _ => true);
+            // Setup JSInterop for Radzen components
+            JSInterop.SetupVoid("Radzen.preventArrows", _ => true);
+            JSInterop.SetupVoid("Radzen.focusElement", _ => true);
+            JSInterop.SetupVoid("Radzen.selectTab", _ => true);
+            JSInterop.SetupVoid("Radzen.destroyTooltip", _ => true);
+            JSInterop.SetupVoid("Radzen.showTooltip", _ => true);
+            JSInterop.Setup<object>("Radzen.getProperty", _ => true).SetResult(new object());
             
             // Store service provider for later cleanup
             _serviceProvider = Services.BuildServiceProvider();
@@ -83,9 +80,7 @@ namespace PoCoupleQuiz.Tests
         {
             // No initialization needed
             await Task.CompletedTask;
-        }
-
-        public async Task DisposeAsync()
+        }        public new async Task DisposeAsync()
         {
             // Dispose of services if needed
             if (_serviceProvider is IAsyncDisposable asyncDisposable)
@@ -96,102 +91,119 @@ namespace PoCoupleQuiz.Tests
             {
                 disposable.Dispose();
             }
+            
+            // Call base dispose
+            base.Dispose();
+        }
+
+        #region UI Rendering Tests
+        [Fact]
+        public async Task Index_ShouldRenderCorrectly()
+        {
+            // Arrange
+            var cut = Render<PoCoupleQuiz.Client.Pages.Pages.Index>();
+
+            // Act - Allow time for component to initialize
+            await Task.Delay(100);
+
+            // Assert
+            var heading = cut.Find("h2");
+            Assert.Contains("PoCoupleQuiz", heading.TextContent);
         }
 
         [Fact]
-        public async Task Game_ShouldNotShowAnswersDuringRounds()
+        public async Task Leaderboard_ShouldRenderCorrectly()
         {
             // Arrange
-            var cut = Render<GamePage>();
+            var cut = Render<Leaderboard>();
 
-            // Act - use public methods instead of protected OnInitializedAsync
-            // Initialize the component through rendering
-            await Task.Delay(100); // Allow time for component to initialize
-            await cut.InvokeAsync(() => cut.Instance.SubmitKingAnswer());
-            await cut.InvokeAsync(() => cut.Instance.SubmitPlayerGuess("Player1"));
-            await cut.InvokeAsync(() => cut.Instance.SubmitPlayerGuess("Player2"));
+            // Act - Allow time for component to initialize
+            await Task.Delay(100);
 
             // Assert
-            var currentQuestion = cut.Instance.GetCurrentQuestion();
-            Assert.Empty(currentQuestion.PlayersMatched);
+            var heading = cut.Find("h3");
+            Assert.Contains("Leaderboard", heading.TextContent);
+        }
+        #endregion
+
+        #region Game Logic Unit Tests
+
+        [Fact]
+        public void CorrectAnswer_ShouldIncreaseScore()
+        {
+            // Arrange
+            var player = new Player { Name = "TestPlayer", Score = 0 };
+            var kingPlayer = new Player { Name = "King", IsKingPlayer = true };
+            var game = new GameModel
+            {
+                Players = new List<Player> { kingPlayer, player },
+                Questions = new List<GameQuestion>
+                {
+                    new GameQuestion { Question = "What is 2+2?", KingPlayerAnswer = "4" }
+                },
+                CurrentRound = 0
+            };
+            _mockGameStateService.Setup(s => s.CurrentGame).Returns(game);
+
+            // Act
+            // Simulate player answering
+            game.Questions[0].RecordPlayerAnswer(player.Name, "4");
+
+            // Simulate King Player answering (needed for matching)
+            game.Questions[0].RecordPlayerAnswer(kingPlayer.Name, "4");
+
+            // Simulate matching logic (if player answer matches king player answer)
+            if (game.Questions[0].PlayerAnswers[player.Name] == game.Questions[0].KingPlayerAnswer)
+            {
+                game.Questions[0].MarkPlayerAsMatched(player.Name);
+            }
+
+            // Simulate score update for the round
+            game.UpdateScores(game.CurrentRound);
+
+            // Assert
+            Assert.Equal(1, player.Score); // Score increases by 1 for each correct match
+            Assert.Equal(1, player.TotalCorrectGuesses);
         }
 
         [Fact]
-        public async Task Game_ShouldShowAllAnswersAtEnd()
+        public void IncorrectAnswer_ShouldNotChangeScore()
         {
             // Arrange
-            var cut = Render<GamePage>();
+            var player = new Player { Name = "TestPlayer", Score = 0 };
+            var kingPlayer = new Player { Name = "King", IsKingPlayer = true };
+            var game = new GameModel
+            {
+                Players = new List<Player> { kingPlayer, player },
+                Questions = new List<GameQuestion>
+                {
+                    new GameQuestion { Question = "What is 2+2?", KingPlayerAnswer = "4" }
+                },
+                CurrentRound = 0
+            };
+            _mockGameStateService.Setup(s => s.CurrentGame).Returns(game);
 
-            // Act - use public methods instead of protected OnInitializedAsync
-            // Initialize the component through rendering
-            await Task.Delay(100); // Allow time for component to initialize
-            await cut.InvokeAsync(() => cut.Instance.SubmitKingAnswer());
-            await cut.InvokeAsync(() => cut.Instance.SubmitPlayerGuess("Player1"));
-            await cut.InvokeAsync(() => cut.Instance.SubmitPlayerGuess("Player2"));
-            await cut.InvokeAsync(() => cut.Instance.EndGame());
+            // Act
+            // Simulate player answering incorrectly
+            game.Questions[0].RecordPlayerAnswer(player.Name, "5");
 
-            // Assert
-            var currentQuestion = cut.Instance.GetCurrentQuestion();
-            Assert.NotEmpty(currentQuestion.PlayersMatched);
-        }
+            // Simulate King Player answering
+            game.Questions[0].RecordPlayerAnswer(kingPlayer.Name, "4");
 
-        [Fact]
-        public async Task Game_ShouldMaintainAnswerHistory()
-        {
-            // Arrange
-            var cut = Render<GamePage>();
+            // Simulate matching logic (no match)
+            if (game.Questions[0].PlayerAnswers[player.Name] == game.Questions[0].KingPlayerAnswer)
+            {
+                game.Questions[0].MarkPlayerAsMatched(player.Name);
+            }
 
-            // Act - use public methods instead of protected OnInitializedAsync
-            // Initialize the component through rendering
-            await Task.Delay(100); // Allow time for component to initialize
-            await cut.InvokeAsync(() => cut.Instance.SubmitKingAnswer());
-            await cut.InvokeAsync(() => cut.Instance.SubmitPlayerGuess("Player1"));
-            await cut.InvokeAsync(() => cut.Instance.SubmitPlayerGuess("Player2"));
-            await cut.InvokeAsync(() => cut.Instance.EndGame());
-
-            // Assert
-            var currentQuestion = cut.Instance.GetCurrentQuestion();
-            Assert.NotNull(currentQuestion.KingPlayerAnswer);
-            Assert.NotEmpty(currentQuestion.PlayerAnswers);
-        }
-
-        [Fact]
-        public async Task Game_ShouldNotShowMatchingStatusDuringGame()
-        {
-            // Arrange
-            var cut = Render<GamePage>();
-
-            // Act - use public methods instead of protected OnInitializedAsync
-            // Initialize the component through rendering
-            await Task.Delay(100); // Allow time for component to initialize
-            await cut.InvokeAsync(() => cut.Instance.SubmitKingAnswer());
-            await cut.InvokeAsync(() => cut.Instance.SubmitPlayerGuess("Player1"));
-            await cut.InvokeAsync(() => cut.Instance.SubmitPlayerGuess("Player2"));
+            // Simulate score update for the round
+            game.UpdateScores(game.CurrentRound);
 
             // Assert
-            var currentQuestion = cut.Instance.GetCurrentQuestion();
-            Assert.False(currentQuestion.HasPlayerMatched("Player1"));
-            Assert.False(currentQuestion.HasPlayerMatched("Player2"));
+            Assert.Equal(0, player.Score); // Score should remain 0
+            Assert.Equal(0, player.TotalCorrectGuesses);
         }
 
-        [Fact]
-        public async Task Game_ShouldShowMatchingStatusAtEnd()
-        {
-            // Arrange
-            var cut = Render<GamePage>();
-
-            // Act - use public methods instead of protected OnInitializedAsync
-            // Initialize the component through rendering
-            await Task.Delay(100); // Allow time for component to initialize
-            await cut.InvokeAsync(() => cut.Instance.SubmitKingAnswer());
-            await cut.InvokeAsync(() => cut.Instance.SubmitPlayerGuess("Player1"));
-            await cut.InvokeAsync(() => cut.Instance.SubmitPlayerGuess("Player2"));
-            await cut.InvokeAsync(() => cut.Instance.EndGame());
-
-            // Assert
-            var currentQuestion = cut.Instance.GetCurrentQuestion();
-            Assert.True(currentQuestion.HasPlayerMatched("Player1"));
-            Assert.True(currentQuestion.HasPlayerMatched("Player2"));
-        }
+        #endregion
     }
 }

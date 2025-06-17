@@ -1,0 +1,174 @@
+@page "/"
+@using PoCoupleQuiz.Core.Models
+@using PoCoupleQuiz.Core.Services
+@inject ITeamService TeamService
+@inject NavigationManager NavigationManager
+@inject NotificationService NotificationService
+@inject IGameStateService GameState
+
+<style>
+    .title-container {
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+        padding: 2rem;
+        border-radius: 20px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        animation: bounce 2s infinite;
+    }
+
+    @@keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .game-title {
+        font-family: 'Comic Sans MS', cursive;
+        color: #FF4081;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .subtitle {
+        font-family: 'Comic Sans MS', cursive;
+        color: #673AB7;
+    }
+
+    .setup-container {
+        background-color: #F8BBD0;
+        border-radius: 15px;
+        padding: 2rem;
+    }
+</style>
+
+<div style="max-width: 800px; margin: 0 auto;">
+    <div class="title-container">
+        <h2 style="text-align: center;" class="game-title mb-4">PoCoupleQuiz</h2>
+        <h6 style="text-align: center;" class="subtitle">
+            The Fun Way to Test How Well You Know Each Other! 🧠 💕
+        </h6>
+    </div>
+
+    <RadzenCard class="setup-container" style="padding: 2rem; margin: 1rem;">
+        <p style="text-align: center; margin-bottom: 1rem;">
+            One player (the king) answers questions about themselves while others try to match their answers.
+            The player who knows the king player best wins! 🏆
+        </p>
+
+        <RadzenCard style="padding: 1rem; margin-bottom: 1rem;">
+            <h6 style="margin-bottom: 1rem;">Game Setup 🎲</h6>
+            
+            <RadzenNumeric @bind-Value="playerCount" 
+                          Placeholder="Number of Players (1-6 plus king)" 
+                          Min="1" 
+                          Max="6"
+                          Style="width: 100%; margin-bottom: 1rem;" />
+
+            <RadzenTextBox @bind-Value="kingPlayerName" 
+                          Placeholder="King Player Name" 
+                          Style="width: 100%; margin-bottom: 1rem;" />
+
+            @for (int i = 0; i < playerCount; i++)
+            {
+                var playerIndex = i;
+                <RadzenTextBox @bind-Value="@guessingPlayerNames[playerIndex]"
+                              Placeholder="@($"Player {playerIndex + 1} Name")"
+                              Style="width: 100%; margin-bottom: 0.5rem;" />
+            }
+            
+            <RadzenDropDown @bind-Value="selectedDifficulty" 
+                           Data="@difficultyOptions" 
+                           TextProperty="Text" 
+                           ValueProperty="Value"
+                           Placeholder="Difficulty Level" 
+                           Style="width: 100%; margin-top: 1rem;" />
+            
+            <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #666;">
+                @GetDifficultyDescription(selectedDifficulty)
+            </p>
+        </RadzenCard>
+
+        <div style="text-align: center;">
+            <RadzenButton ButtonType="ButtonType.Button" 
+                         ButtonStyle="ButtonStyle.Primary" 
+                         Click="StartGame" 
+                         Size="ButtonSize.Large" 
+                         Disabled="@(!CanStartGame)"
+                         Style="margin: 0 0.5rem;">
+                Start Game
+            </RadzenButton>
+        </div>
+    </RadzenCard>
+</div>
+
+@code {
+    private int playerCount = 1;
+    private string kingPlayerName = "";
+    private string[] guessingPlayerNames = new string[6];  // Max 6 players
+    private DifficultyLevel selectedDifficulty = DifficultyLevel.Medium;
+
+    private List<object> difficultyOptions = new List<object>
+    {
+        new { Text = "Easy (3 rounds)", Value = DifficultyLevel.Easy },
+        new { Text = "Medium (5 rounds)", Value = DifficultyLevel.Medium },
+        new { Text = "Hard (7 rounds)", Value = DifficultyLevel.Hard }
+    };
+
+    private bool CanStartGame => 
+        !string.IsNullOrWhiteSpace(kingPlayerName) && 
+        guessingPlayerNames.Take(playerCount).All(name => !string.IsNullOrWhiteSpace(name));
+        
+    private string GetDifficultyDescription(DifficultyLevel difficulty) => difficulty switch
+    {
+        DifficultyLevel.Easy => "Easier questions and fewer rounds for a quick game.",
+        DifficultyLevel.Medium => "Standard questions with a balanced game length.",
+        DifficultyLevel.Hard => "Challenging questions and more rounds for an in-depth game.",
+        _ => string.Empty
+    };
+
+    private async Task StartGame()
+    {
+        if (!CanStartGame) return;
+
+        // Check for duplicate names
+        var allNames = new List<string> { kingPlayerName };
+        allNames.AddRange(guessingPlayerNames.Take(playerCount));
+        if (allNames.Count != allNames.Distinct().Count())
+        {
+            NotificationService.Notify(new NotificationMessage 
+            { 
+                Severity = NotificationSeverity.Error, 
+                Summary = "Error", 
+                Detail = "Each player must have a unique name" 
+            });
+            return;
+        }
+
+        var game = new PoCoupleQuiz.Core.Models.Game
+        {
+            Difficulty = selectedDifficulty
+        };
+        
+        // Add king player
+        game.AddPlayer(new Player { Name = kingPlayerName, IsKingPlayer = true });
+        
+        // Add guessing players
+        foreach (var playerName in guessingPlayerNames.Take(playerCount))
+        {
+            game.AddPlayer(new Player { Name = playerName, IsKingPlayer = false });
+        }
+
+        // Save initial player stats
+        foreach (var player in game.Players)
+        {
+            await TeamService.SaveTeamAsync(new Team 
+            { 
+                Name = player.Name,
+                LastPlayed = DateTime.UtcNow
+            });
+        }
+
+        // Initialize game state with king player
+        GameState.InitializeGame(game, kingPlayerName);
+
+        NavigationManager.NavigateTo("/game/king");
+    }
+}

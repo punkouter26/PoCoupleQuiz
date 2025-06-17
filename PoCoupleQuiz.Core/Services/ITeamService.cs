@@ -5,6 +5,7 @@ namespace PoCoupleQuiz.Core.Services;
 public interface ITeamService
 {
     Task<Team?> GetTeamAsync(string teamName);
+    Task<IEnumerable<Team>> GetAllTeamsAsync();
     Task SaveTeamAsync(Team team);
     Task UpdateTeamStatsAsync(string teamName, GameMode mode, int score);
-} 
+}

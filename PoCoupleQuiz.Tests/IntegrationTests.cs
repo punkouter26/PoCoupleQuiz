@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using System.Threading.Tasks;
@@ -6,260 +5,126 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text;
+using PoCoupleQuiz.Tests.Utilities; // Added for CustomWebApplicationFactory
+using PoCoupleQuiz.Core.Models;
+using PoCoupleQuiz.Core.Services;
 
 namespace PoCoupleQuiz.Tests
 {
     public class IntegrationTests : IAsyncLifetime
     {
+        private readonly CustomWebApplicationFactory _factory;
         private readonly HttpClient _httpClient;
-        private HubConnection? _hubConnection1;
-        private HubConnection? _hubConnection2;
-        private string _roomId = string.Empty;
-        private List<string> _receivedMessages1 = new();
-        private List<string> _receivedMessages2 = new();
 
         public IntegrationTests()
         {
-            _httpClient = new HttpClient
-            {
-                BaseAddress = new Uri("http://localhost:5295") // Using the HTTP port from the running server
-            };
+            _factory = new CustomWebApplicationFactory();
+            _httpClient = _factory.CreateClient();
+            _httpClient.BaseAddress = _factory.Server.BaseAddress;
         }
 
-        public async Task InitializeAsync()
+        public Task InitializeAsync()
         {
-            _receivedMessages1 = new List<string>();
-            _receivedMessages2 = new List<string>();
-
-            // Create two hub connections to simulate two players
-            _hubConnection1 = new HubConnectionBuilder()
-                .WithUrl("http://localhost:5295/gamehub") // Using the HTTP port from the running server
-                .WithAutomaticReconnect()
-                .Build();
-
-            _hubConnection2 = new HubConnectionBuilder()
-                .WithUrl("http://localhost:5295/gamehub") // Using the HTTP port from the running server
-                .WithAutomaticReconnect()
-                .Build();
-
-            // Set up message handlers
-            _hubConnection1.On<string>("PlayerJoined", (name) =>
-            {
-                _receivedMessages1.Add($"PlayerJoined: {name}");
-            });
-
-            _hubConnection2.On<string>("PlayerJoined", (name) =>
-            {
-                _receivedMessages2.Add($"PlayerJoined: {name}");
-            });
-
-            _hubConnection1.On<string>("PlayerLeft", (name) =>
-            {
-                _receivedMessages1.Add($"PlayerLeft: {name}");
-            });
-
-            _hubConnection2.On<string>("PlayerLeft", (name) =>
-            {
-                _receivedMessages2.Add($"PlayerLeft: {name}");
-            });
-
-            _hubConnection1.On("GameStarted", () =>
-            {
-                _receivedMessages1.Add("GameStarted");
-            });
-
-            _hubConnection2.On("GameStarted", () =>
-            {
-                _receivedMessages2.Add("GameStarted");
-            });
-
-            // Start connections
-            await _hubConnection1.StartAsync();
-            await _hubConnection2.StartAsync();
-
-            // Generate a test room ID
-            _roomId = "test123";
+            return Task.CompletedTask;
         }
 
         public async Task DisposeAsync()
         {
-            if (_hubConnection1 != null)
-                await _hubConnection1.DisposeAsync();
-            if (_hubConnection2 != null)
-                await _hubConnection2.DisposeAsync();
             _httpClient.Dispose();
+            _factory.Dispose();
         }
 
         [Fact]
-        public async Task MultiplayerGameIsResponsive()
+        public async Task HomePage_LoadsSuccessfully()
         {
-            // Arrange
-            string player1 = "Player1";
-            string player2 = "Player2";
-
             // Act
-            // 1. Join room and verify responsive layout
-            if (_hubConnection1 != null && _hubConnection2 != null)
-            {
-                await _hubConnection1.SendAsync("JoinRoom", _roomId, player1);
-                await _hubConnection2.SendAsync("JoinRoom", _roomId, player2);
+            var response = await _httpClient.GetAsync("/");
+            var content = await response.Content.ReadAsStringAsync();
 
-                // Get the multiplayer page content
-                var response = await _httpClient.GetAsync("/multiplayer");
-                var content = await response.Content.ReadAsStringAsync();
-
-                // Assert
-                // Verify responsive classes are present
-                Assert.Contains("container", content);
-                Assert.Contains("quiz-card", content);
-                Assert.Contains("multiplayer-room", content);
-                Assert.Contains("player-card", content);
-
-                // Verify players are connected
-                Assert.Contains($"PlayerJoined: {player1}", _receivedMessages1);
-                Assert.Contains($"PlayerJoined: {player2}", _receivedMessages1);
-            }
-            else
-            {
-                Assert.Fail("Hub connections were not properly initialized");
-            }
+            // Assert
+            response.EnsureSuccessStatusCode();
+            Assert.Contains("PoCoupleQuiz", content);
+            Assert.Contains("container", content);
         }
 
         [Fact]
-        public async Task GameStateUpdatesAreResponsive()
+        public async Task GamePage_LoadsSuccessfully()
         {
-            // Arrange
-            string player1 = "Player1";
-            string player2 = "Player2";
-
             // Act
-            if (_hubConnection1 != null && _hubConnection2 != null)
-            {
-                // 1. Join room
-                await _hubConnection1.SendAsync("JoinRoom", _roomId, player1);
-                await _hubConnection2.SendAsync("JoinRoom", _roomId, player2);
+            var response = await _httpClient.GetAsync("/game/king");
+            var content = await response.Content.ReadAsStringAsync();
 
-                // 2. Start game
-                await _hubConnection1.SendAsync("StartGame", _roomId);
-
-                // 3. Submit answers
-                await _hubConnection1.SendAsync("SubmitAnswer", _roomId, player1, 1, "Answer1");
-                await _hubConnection2.SendAsync("SubmitAnswer", _roomId, player2, 1, "Answer2");
-
-                // Get the game state
-                var response = await _httpClient.GetAsync($"/api/game/{_roomId}");
-                var content = await response.Content.ReadAsStringAsync();
-
-                // Assert
-                // Verify game state is updated and responsive
-                Assert.Contains("game-area", content);
-                Assert.Contains("GameStarted", _receivedMessages1);
-                Assert.Contains("GameStarted", _receivedMessages2);
-            }
-            else
-            {
-                Assert.Fail("Hub connections were not properly initialized");
-            }
+            // Assert
+            response.EnsureSuccessStatusCode();
+            Assert.Contains("game", content);
         }
 
         [Fact]
-        public async Task MobileNavigationWorksWithMultiplayer()
+        public async Task LeaderboardPage_LoadsSuccessfully()
         {
-            // Arrange
-            string player1 = "Player1";
-
             // Act
-            if (_hubConnection1 != null)
-            {
-                // 1. Join room
-                await _hubConnection1.SendAsync("JoinRoom", _roomId, player1);
+            var response = await _httpClient.GetAsync("/leaderboard");
+            var content = await response.Content.ReadAsStringAsync();
 
-                // 2. Navigate through different views
-                var responses = new List<HttpResponseMessage>
-                {
-                    await _httpClient.GetAsync("/multiplayer"),
-                    await _httpClient.GetAsync($"/multiplayer/{_roomId}"),
-                    await _httpClient.GetAsync("/")
-                };
-
-                // Assert
-                foreach (var response in responses)
-                {
-                    var content = await response.Content.ReadAsStringAsync();
-                    // Verify responsive navigation elements
-                    Assert.Contains("container", content);
-                    Assert.Contains("btn", content);
-                }
-            }
-            else
-            {
-                Assert.Fail("Hub connections were not properly initialized");
-            }
+            // Assert
+            response.EnsureSuccessStatusCode();
+            Assert.Contains("Leaderboard", content);
         }
 
         [Fact]
-        public async Task ResponsiveLayoutUpdatesWithPlayerCount()
+        public async Task DiagnosticsPage_LoadsSuccessfully()
         {
-            // Arrange
-            string player1 = "Player1";
-            string player2 = "Player2";
-            string player3 = "Player3"; // Unused variable, but keeping for clarity
-
             // Act
-            if (_hubConnection1 != null && _hubConnection2 != null)
-            {
-                // 1. Join with first player
-                await _hubConnection1.SendAsync("JoinRoom", _roomId, player1);
+            var response = await _httpClient.GetAsync("/diag");
+            var content = await response.Content.ReadAsStringAsync();
 
-                // Get initial layout
-                var initialResponse = await _httpClient.GetAsync($"/multiplayer/{_roomId}");
-                var initialContent = await initialResponse.Content.ReadAsStringAsync();
-
-                // 2. Join with second player
-                await _hubConnection2.SendAsync("JoinRoom", _roomId, player2);
-
-                // Get updated layout
-                var updatedResponse = await _httpClient.GetAsync($"/multiplayer/{_roomId}");
-                var updatedContent = await updatedResponse.Content.ReadAsStringAsync();
-
-                // Assert
-                // Verify layout adapts to player count
-                Assert.Contains("player-card", initialContent);
-                Assert.Contains("player-card", updatedContent);
-                Assert.Contains($"PlayerJoined: {player1}", _receivedMessages1);
-                Assert.Contains($"PlayerJoined: {player2}", _receivedMessages1);
-            }
-            else
-            {
-                Assert.Fail("Hub connections were not properly initialized");
-            }
+            // Assert
+            response.EnsureSuccessStatusCode();
+            Assert.Contains("Diagnostics", content);
         }
 
         [Fact]
-        public async Task ResponsiveErrorHandling()
+        public async Task TeamsApi_WorksCorrectly()
         {
             // Arrange
-            string player1 = "Player1";
+            var team = new Team
+            {
+                Name = "TestTeam",
+                TotalQuestionsAnswered = 10,
+                CorrectAnswers = 8
+            };
+
+            var json = JsonSerializer.Serialize(team);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             // Act
-            if (_hubConnection1 != null)
-            {
-                // 1. Try to join invalid room
-                await _hubConnection1.SendAsync("JoinRoom", "invalid-room", player1);
+            var createResponse = await _httpClient.PostAsync("/api/teams", content);
+            createResponse.EnsureSuccessStatusCode();
 
-                // 2. Get error page
-                var response = await _httpClient.GetAsync("/multiplayer/invalid-room");
-                var content = await response.Content.ReadAsStringAsync();
-
-                // Assert
-                // Verify error handling is responsive
-                Assert.Contains("container", content);
-                Assert.Contains("quiz-card", content);
-            }
-            else
+            var getResponse = await _httpClient.GetAsync("/api/teams");
+            var teamsJson = await getResponse.Content.ReadAsStringAsync();
+            var teams = JsonSerializer.Deserialize<List<Team>>(teamsJson, new JsonSerializerOptions
             {
-                Assert.Fail("Hub connections were not properly initialized");
-            }
+                PropertyNameCaseInsensitive = true
+            });
+
+            // Assert
+            Assert.NotNull(teams);
+            Assert.Contains(teams, t => t.Name == "TestTeam");
+        }
+
+        [Fact]
+        public async Task ResponsiveLayoutElements_ArePresent()
+        {
+            // Act
+            var response = await _httpClient.GetAsync("/");
+            var content = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            // Verify responsive design elements are present
+            Assert.Contains("container", content);
+            Assert.Contains("btn", content);
+            Assert.Contains("quiz-card", content);
         }
     }
 }
