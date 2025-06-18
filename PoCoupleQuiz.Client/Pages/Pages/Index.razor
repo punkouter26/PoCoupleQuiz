@@ -3,8 +3,8 @@
 @using PoCoupleQuiz.Core.Services
 @inject ITeamService TeamService
 @inject NavigationManager NavigationManager
-@inject NotificationService NotificationService
 @inject IGameStateService GameState
+@inject IJSRuntime JSRuntime
 
 <style>
     .title-container {
@@ -37,6 +37,40 @@
         border-radius: 15px;
         padding: 2rem;
     }
+
+    .form-control {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 5px;
+        border: none;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+    }
+
+    .card {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
 </style>
 
 <div style="max-width: 800px; margin: 0 auto;">
@@ -47,74 +81,95 @@
         </h6>
     </div>
 
-    <RadzenCard class="setup-container" style="padding: 2rem; margin: 1rem;">
+    <div class="setup-container" style="padding: 2rem; margin: 1rem;">
         <p style="text-align: center; margin-bottom: 1rem;">
             One player (the king) answers questions about themselves while others try to match their answers.
             The player who knows the king player best wins! 🏆
-        </p>
-
-        <RadzenCard style="padding: 1rem; margin-bottom: 1rem;">
+        </p>        
+        
+        <div class="card">
             <h6 style="margin-bottom: 1rem;">Game Setup 🎲</h6>
-            
-            <RadzenNumeric @bind-Value="playerCount" 
-                          Placeholder="Number of Players (1-6 plus king)" 
-                          Min="1" 
-                          Max="6"
-                          Style="width: 100%; margin-bottom: 1rem;" />
+                <!-- Number of Players -->
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Number of Players:</label>
+                <select @onchange="OnPlayerCountChanged" class="form-control" value="@numberOfPlayers">
+                    <option value="3">3 Players (1 King + 2 Guessers)</option>
+                    <option value="4">4 Players (1 King + 3 Guessers)</option>
+                    <option value="5">5 Players (1 King + 4 Guessers)</option>
+                    <option value="6">6 Players (1 King + 5 Guessers)</option>
+                </select>
+            </div>
 
-            <RadzenTextBox @bind-Value="kingPlayerName" 
-                          Placeholder="King Player Name" 
-                          Style="width: 100%; margin-bottom: 1rem;" />
-
-            @for (int i = 0; i < playerCount; i++)
-            {
-                var playerIndex = i;
-                <RadzenTextBox @bind-Value="@guessingPlayerNames[playerIndex]"
-                              Placeholder="@($"Player {playerIndex + 1} Name")"
-                              Style="width: 100%; margin-bottom: 0.5rem;" />
-            }
+            <!-- Player Names -->
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Player Names:</label>
+                @for (int i = 0; i < numberOfPlayers; i++)
+                {
+                    int index = i; // Capture for lambda
+                    <div style="margin-bottom: 0.5rem;">
+                        <input @bind="playerNames[index]" 
+                               placeholder="@(index == 0 ? "King Player Name" : $"Player {index + 1} Name")" 
+                               class="form-control" />
+                        @if (index == 0)
+                        {
+                            <small style="color: #666; font-style: italic;">This player will be the "King" who answers questions</small>
+                        }
+                    </div>
+                }
+            </div>
             
-            <RadzenDropDown @bind-Value="selectedDifficulty" 
-                           Data="@difficultyOptions" 
-                           TextProperty="Text" 
-                           ValueProperty="Value"
-                           Placeholder="Difficulty Level" 
-                           Style="width: 100%; margin-top: 1rem;" />
-            
-            <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #666;">
-                @GetDifficultyDescription(selectedDifficulty)
-            </p>
-        </RadzenCard>
+            <!-- Difficulty -->
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Difficulty Level:</label>
+                <select @bind="selectedDifficulty" class="form-control">
+                    <option value="@DifficultyLevel.Easy">Easy (3 rounds)</option>
+                    <option value="@DifficultyLevel.Medium">Medium (5 rounds)</option>
+                    <option value="@DifficultyLevel.Hard">Hard (7 rounds)</option>
+                </select>
+                
+                <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #666;">
+                    @GetDifficultyDescription(selectedDifficulty)
+                </p>
+            </div>
+        </div>
 
         <div style="text-align: center;">
-            <RadzenButton ButtonType="ButtonType.Button" 
-                         ButtonStyle="ButtonStyle.Primary" 
-                         Click="StartGame" 
-                         Size="ButtonSize.Large" 
-                         Disabled="@(!CanStartGame)"
-                         Style="margin: 0 0.5rem;">
-                Start Game
-            </RadzenButton>
+            <button type="button" class="btn-primary" @onclick="StartGame">
+                START GAME
+            </button>
         </div>
-    </RadzenCard>
+    </div>
 </div>
 
 @code {
-    private int playerCount = 1;
-    private string kingPlayerName = "";
-    private string[] guessingPlayerNames = new string[6];  // Max 6 players
     private DifficultyLevel selectedDifficulty = DifficultyLevel.Medium;
+    private int numberOfPlayers = 3;
+    private string[] playerNames = new string[10]; // Support up to 10 players
 
-    private List<object> difficultyOptions = new List<object>
+    protected override void OnInitialized()
     {
-        new { Text = "Easy (3 rounds)", Value = DifficultyLevel.Easy },
-        new { Text = "Medium (5 rounds)", Value = DifficultyLevel.Medium },
-        new { Text = "Hard (7 rounds)", Value = DifficultyLevel.Hard }
-    };
+        // Initialize with default names
+        UpdatePlayerNamesArray();
+    }
 
-    private bool CanStartGame => 
-        !string.IsNullOrWhiteSpace(kingPlayerName) && 
-        guessingPlayerNames.Take(playerCount).All(name => !string.IsNullOrWhiteSpace(name));
+    private void UpdatePlayerNamesArray()
+    {
+        for (int i = 0; i < numberOfPlayers; i++)
+        {
+            if (string.IsNullOrEmpty(playerNames[i]))
+            {
+                playerNames[i] = i == 0 ? "King Player" : $"Player {i + 1}";
+            }
+        }
+    }    private void OnPlayerCountChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newCount))
+        {
+            numberOfPlayers = newCount;
+            UpdatePlayerNamesArray();
+            StateHasChanged();
+        }
+    }
         
     private string GetDifficultyDescription(DifficultyLevel difficulty) => difficulty switch
     {
@@ -122,23 +177,27 @@
         DifficultyLevel.Medium => "Standard questions with a balanced game length.",
         DifficultyLevel.Hard => "Challenging questions and more rounds for an in-depth game.",
         _ => string.Empty
-    };
-
-    private async Task StartGame()
+    };    private async Task StartGame()
     {
-        if (!CanStartGame) return;
+        // Validate that all player names are filled
+        for (int i = 0; i < numberOfPlayers; i++)
+        {
+            if (string.IsNullOrWhiteSpace(playerNames[i]))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Please enter a name for {(i == 0 ? "the King player" : $"Player {i + 1}")}");
+                return;
+            }
+        }
 
         // Check for duplicate names
-        var allNames = new List<string> { kingPlayerName };
-        allNames.AddRange(guessingPlayerNames.Take(playerCount));
-        if (allNames.Count != allNames.Distinct().Count())
+        var duplicateNames = playerNames.Take(numberOfPlayers)
+            .GroupBy(name => name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key);
+
+        if (duplicateNames.Any())
         {
-            NotificationService.Notify(new NotificationMessage 
-            { 
-                Severity = NotificationSeverity.Error, 
-                Summary = "Error", 
-                Detail = "Each player must have a unique name" 
-            });
+            await JSRuntime.InvokeVoidAsync("alert", "Player names must be unique. Please choose different names.");
             return;
         }
 
@@ -147,13 +206,13 @@
             Difficulty = selectedDifficulty
         };
         
-        // Add king player
-        game.AddPlayer(new Player { Name = kingPlayerName, IsKingPlayer = true });
+        // Add king player (first player)
+        game.AddPlayer(new Player { Name = playerNames[0].Trim(), IsKingPlayer = true });
         
         // Add guessing players
-        foreach (var playerName in guessingPlayerNames.Take(playerCount))
+        for (int i = 1; i < numberOfPlayers; i++)
         {
-            game.AddPlayer(new Player { Name = playerName, IsKingPlayer = false });
+            game.AddPlayer(new Player { Name = playerNames[i].Trim(), IsKingPlayer = false });
         }
 
         // Save initial player stats
@@ -167,8 +226,8 @@
         }
 
         // Initialize game state with king player
-        GameState.InitializeGame(game, kingPlayerName);
+        GameState.InitializeGame(game, playerNames[0].Trim());
 
-        NavigationManager.NavigateTo("/game/king");
+        NavigationManager.NavigateTo("/game");
     }
 }

@@ -1,0 +1,33 @@
+.scoreboard-display {
+    padding: 1rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+
+.scoreboard-display h4 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.scoreboard-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed #eee;
+}
+
+.scoreboard-item:last-child {
+    border-bottom: none;
+}
+
+.player-name {
+    font-weight: bold;
+    color: #555;
+}
+
+.player-score {
+    color: #007bff;
+    font-weight: bold;
+}

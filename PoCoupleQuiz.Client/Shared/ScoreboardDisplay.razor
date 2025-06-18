@@ -1,0 +1,23 @@
+@* ScoreboardDisplay.razor *@
+@if (Scoreboard != null && Scoreboard.Any())
+{
+    <div class="scoreboard-display">
+        <h4>Current Scores</h4>
+        @foreach (var entry in Scoreboard.OrderByDescending(s => s.Value))
+        {
+            <div class="scoreboard-item">
+                <span class="player-name">@entry.Key</span>
+                <span class="player-score">@entry.Value</span>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <p>No scoreboard data available.</p>
+}
+
+@code {
+    [Parameter]
+    public Dictionary<string, int> Scoreboard { get; set; } = new Dictionary<string, int>();
+}

@@ -10,7 +10,8 @@ public enum DifficultyLevel
 public class Game
 {
     public List<Player> Players { get; set; } = new();
-    public Player? KingPlayer => Players.FirstOrDefault(p => p.IsKingPlayer);
+    public int CurrentKingPlayerIndex { get; set; } = 0; // New property to track current king player
+    public Player? KingPlayer => Players.Any() ? Players[CurrentKingPlayerIndex] : null; // Use index for KingPlayer
     public List<GameQuestion> Questions { get; set; } = new();
     public int CurrentRound { get; set; }
     public DifficultyLevel Difficulty { get; set; } = DifficultyLevel.Medium;
@@ -40,12 +41,23 @@ public class Game
 
     public void AddPlayer(Player player)
     {
-        // Ensure only one king player
-        if (player.IsKingPlayer && HasKingPlayer)
-        {
-            throw new InvalidOperationException("Game already has a king player");
-        }
         Players.Add(player);
+        // If this is the first player added and they are designated as king, set them as the initial king
+        if (Players.Count == 1 && player.IsKingPlayer)
+        {
+            CurrentKingPlayerIndex = 0;
+        }
+    }
+
+    public void SetNextKingPlayer()
+    {
+        // Move to the next player in the list to be the king
+        CurrentKingPlayerIndex = (CurrentKingPlayerIndex + 1) % Players.Count;
+        // Ensure the new king player is marked as such, and others are not
+        foreach (var player in Players)
+        {
+            player.IsKingPlayer = (player == KingPlayer);
+        }
     }
 
     public bool AllPlayersAnswered(int roundIndex)

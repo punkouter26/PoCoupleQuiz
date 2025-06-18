@@ -1,3 +1,4 @@
+@page "/game"
 @page "/game/{playerType}"
 @using PoCoupleQuiz.Core.Models
 @using PoCoupleQuiz.Core.Services
@@ -39,60 +40,50 @@
                 <div class="col-md-8">
                     <RadzenCard class="game-card">
                         <h3>Round @(currentGame.CurrentRound + 1) of @currentGame.MaxRounds</h3>
-                        
-                        @if (currentQuestion != null)
+                          @if (currentQuestion != null)
                         {
                             <div class="question-container">
                                 <h4 class="question-text">@currentQuestion.Question</h4>
                                 
-                                @if (IsKingPlayer)
+                                @if (!showResults)
                                 {
-                                    <!-- King Player Interface -->
-                                    <div class="king-interface">
-                                        <h5>👑 You are the King Player!</h5>
-                                        <p>Answer the question about yourself:</p>
+                                    <!-- Current Player Interface -->
+                                    <div class="@(isKingPlayerTurn ? "king-interface" : "player-interface")">
+                                        @if (isKingPlayerTurn)
+                                        {
+                                            <h5>👑 @currentPlayerName's Turn (King Player)</h5>
+                                            <p>Answer the question about yourself:</p>
+                                        }
+                                        else
+                                        {
+                                            <h5>🎯 @currentPlayerName's Turn</h5>
+                                            <p>What do you think @currentGame.KingPlayer?.Name would answer?</p>
+                                        }
                                         
-                                        <RadzenTextArea @bind-Value="kingAnswer" 
-                                                       Placeholder="Your answer..." 
+                                        <RadzenTextArea @bind-Value="currentAnswer" 
+                                                       Placeholder="@(isKingPlayerTurn ? "Your answer..." : "Your guess...")" 
                                                        Rows="3" 
-                                                       Style="width: 100%; margin-bottom: 1rem;" 
-                                                       Disabled="@hasAnswered" />
+                                                       Style="width: 100%; margin-bottom: 1rem;" />
                                         
-                                        <RadzenButton Click="SubmitKingAnswer" 
-                                                     Text="Submit Answer" 
+                                        <RadzenButton Click="SubmitAnswer" 
+                                                     Text="@(isKingPlayerTurn ? "Submit Answer" : "Submit Guess")" 
                                                      ButtonStyle="ButtonStyle.Primary" 
-                                                     Disabled="@(hasAnswered || string.IsNullOrWhiteSpace(kingAnswer))" />
+                                                     Disabled="@string.IsNullOrWhiteSpace(currentAnswer)" />
                                     </div>
+                                    
+                                    <!-- Show progress -->
+                                    @if (!isKingPlayerTurn)
+                                    {
+                                        <div class="mt-3">
+                                            <small class="text-muted">
+                                                Player @(currentGuessingPlayerIndex + 1) of @guessingPlayers.Count guessing players
+                                            </small>
+                                        </div>
+                                    }
                                 }
                                 else
                                 {
-                                    <!-- Guessing Player Interface -->
-                                    <div class="player-interface">
-                                        <h5>🎯 Your turn to guess!</h5>
-                                        <p>What do you think @currentGame.KingPlayer?.Name would answer?</p>
-                                        
-                                        <RadzenTextArea @bind-Value="playerAnswer" 
-                                                       Placeholder="Your guess..." 
-                                                       Rows="3" 
-                                                       Style="width: 100%; margin-bottom: 1rem;" 
-                                                       Disabled="@hasAnswered" />
-                                        
-                                        <RadzenButton Click="SubmitPlayerAnswer" 
-                                                     Text="Submit Guess" 
-                                                     ButtonStyle="ButtonStyle.Primary" 
-                                                     Disabled="@(hasAnswered || string.IsNullOrWhiteSpace(playerAnswer))" />
-                                    </div>
-                                }
-                                
-                                @if (hasAnswered)
-                                {
-                                    <div class="alert alert-info mt-3">
-                                        <strong>Answer submitted!</strong> Waiting for other players...
-                                    </div>
-                                }
-                                
-                                @if (showResults)
-                                {
+                                    <!-- Results Interface -->
                                     <div class="results-container mt-4">
                                         <h5>Round Results</h5>
                                         <div class="alert alert-success">
@@ -125,7 +116,6 @@
                 
                 <div class="col-md-4">
                     <RadzenCard class="scoreboard-card">
-                        <h5>Current Scores</h5>
                         <ScoreboardDisplay Scoreboard="@currentGame.GetScoreboard()" />
                     </RadzenCard>
                     
@@ -177,18 +167,19 @@
 </style>
 
 @code {
-    [Parameter] public string PlayerType { get; set; } = "";
+    [Parameter] public string? PlayerType { get; set; }
     
     private PoCoupleQuiz.Core.Models.Game? currentGame;
     private GameQuestion? currentQuestion;
-    private string kingAnswer = "";
-    private string playerAnswer = "";
-    private bool hasAnswered = false;
+    private string currentAnswer = "";
     private bool showResults = false;
     private double gameProgress = 0;
     
-    private bool IsKingPlayer => PlayerType.Equals("king", StringComparison.OrdinalIgnoreCase);
-    private string CurrentPlayerName => GameState.CurrentPlayerName;
+    // Turn management
+    private string currentPlayerName = "";
+    private bool isKingPlayerTurn = true;
+    private int currentGuessingPlayerIndex = 0;
+    private List<string> guessingPlayers = new List<string>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -201,6 +192,13 @@
                 Logger.LogWarning("No current game found, redirecting to home");
                 return;
             }
+            
+            // Initialize the guessing players list
+            guessingPlayers = currentGame.Players.Where(p => !p.IsKingPlayer).Select(p => p.Name).ToList();
+            
+            // Start with the king player based on the game's current king player
+            currentPlayerName = currentGame.KingPlayer?.Name ?? "";
+            isKingPlayerTurn = true; // Always start a new round with the king player's turn
             
             await LoadCurrentQuestion();
             UpdateGameProgress();
@@ -215,9 +213,7 @@
                 Detail = "Failed to load game. Please try again." 
             });
         }
-    }
-
-    private async Task LoadCurrentQuestion()
+    }    private async Task LoadCurrentQuestion()
     {
         try
         {
@@ -237,24 +233,28 @@
             
             currentQuestion = currentGame.Questions[currentGame.CurrentRound];
             
-            // Check if current player has already answered
-            if (IsKingPlayer)
+            // Reset turn state for this round
+            isKingPlayerTurn = string.IsNullOrEmpty(currentQuestion.KingPlayerAnswer);
+            currentGuessingPlayerIndex = 0;
+            
+            if (isKingPlayerTurn)
             {
-                hasAnswered = !string.IsNullOrEmpty(currentQuestion.KingPlayerAnswer);
-                kingAnswer = currentQuestion.KingPlayerAnswer;
+                currentPlayerName = currentGame.KingPlayer?.Name ?? "";
             }
             else
             {
-                hasAnswered = currentQuestion.HasPlayerAnswered(CurrentPlayerName);
-                if (hasAnswered && currentQuestion.PlayerAnswers.ContainsKey(CurrentPlayerName))
+                // King has already answered, check which guessing players still need to answer
+                var unansweredPlayers = guessingPlayers.Where(p => !currentQuestion.HasPlayerAnswered(p)).ToList();
+                if (unansweredPlayers.Any())
                 {
-                    playerAnswer = currentQuestion.PlayerAnswers[CurrentPlayerName];
+                    currentPlayerName = unansweredPlayers.First();
+                    currentGuessingPlayerIndex = guessingPlayers.IndexOf(currentPlayerName);
                 }
             }
             
             // Check if we should show results
             showResults = !string.IsNullOrEmpty(currentQuestion.KingPlayerAnswer) && 
-                         currentGame.AllPlayersAnswered(currentGame.CurrentRound);
+                         GameState.AllGuessingPlayersAnswered(currentGame.CurrentRound);
                          
             StateHasChanged();
         }
@@ -268,112 +268,62 @@
                 Detail = "Failed to load question. Please try again." 
             });
         }
-    }
-
-    private async Task SubmitKingAnswer()
+    }private async Task SubmitAnswer()
     {
         try
         {
-            if (currentQuestion == null || string.IsNullOrWhiteSpace(kingAnswer)) return;
-            
-            currentQuestion.KingPlayerAnswer = kingAnswer.Trim();
-            hasAnswered = true;
-            
-            Logger.LogInformation("King player submitted answer for round {Round}", currentGame?.CurrentRound);
-            
-            // Check if we can evaluate answers now
-            await CheckForCompletion();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error submitting king answer");
-            NotificationService.Notify(new NotificationMessage 
-            { 
-                Severity = NotificationSeverity.Error, 
-                Summary = "Error", 
-                Detail = "Failed to submit answer. Please try again." 
-            });
-        }
-    }
+            if (currentQuestion == null || string.IsNullOrWhiteSpace(currentAnswer)) return;
 
-    private async Task SubmitPlayerAnswer()
-    {
-        try
-        {
-            if (currentQuestion == null || string.IsNullOrWhiteSpace(playerAnswer)) return;
-            
-            currentQuestion.RecordPlayerAnswer(CurrentPlayerName, playerAnswer.Trim());
-            hasAnswered = true;
-            
-            Logger.LogInformation("Player {PlayerName} submitted answer for round {Round}", CurrentPlayerName, currentGame?.CurrentRound);
-            
-            // Check if we can evaluate answers now
-            await CheckForCompletion();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error submitting player answer");
-            NotificationService.Notify(new NotificationMessage 
-            { 
-                Severity = NotificationSeverity.Error, 
-                Summary = "Error", 
-                Detail = "Failed to submit answer. Please try again." 
-            });
-        }
-    }
-
-    private async Task CheckForCompletion()
-    {
-        try
-        {
-            if (currentGame == null || currentQuestion == null) return;
-            
-            // If king has answered and all players have answered, evaluate
-            if (!string.IsNullOrEmpty(currentQuestion.KingPlayerAnswer) && 
-                currentGame.AllPlayersAnswered(currentGame.CurrentRound))
+            if (isKingPlayerTurn)
             {
-                await EvaluateAnswers();
-                showResults = true;
-                StateHasChanged();
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error checking for completion");
-        }
-    }
-
-    private async Task EvaluateAnswers()
-    {
-        try
-        {
-            if (currentQuestion == null) return;
-            
-            // Compare each player's answer with king's answer
-            foreach (var playerAnswer in currentQuestion.PlayerAnswers)
-            {
-                bool isMatch = await QuestionService.CheckAnswerSimilarityAsync(
-                    currentQuestion.KingPlayerAnswer, 
-                    playerAnswer.Value);
+                // King player submitting their answer
+                currentQuestion.KingPlayerAnswer = currentAnswer.Trim();
+                Logger.LogInformation("King player {KingName} submitted answer for round {Round}", currentPlayerName, currentGame?.CurrentRound);
                 
-                if (isMatch)
+                // Move to first guessing player
+                if (guessingPlayers.Any())
                 {
-                    currentQuestion.MarkPlayerAsMatched(playerAnswer.Key);
+                    currentGuessingPlayerIndex = 0;
+                    currentPlayerName = guessingPlayers[currentGuessingPlayerIndex];
+                    isKingPlayerTurn = false;
+                }
+            }
+            else
+            {
+                // Guessing player submitting their answer
+                currentQuestion.RecordPlayerAnswer(currentPlayerName, currentAnswer.Trim());
+                Logger.LogInformation("Player {PlayerName} submitted answer for round {Round}", currentPlayerName, currentGame?.CurrentRound);
+                
+                // Move to next guessing player or show results
+                currentGuessingPlayerIndex++;
+                if (currentGuessingPlayerIndex < guessingPlayers.Count)
+                {
+                    // Next guessing player
+                    currentPlayerName = guessingPlayers[currentGuessingPlayerIndex];
+                }
+                else
+                {
+                    // All players have answered, evaluate and show results
+                    await EvaluateAnswers();
+                    showResults = true;
                 }
             }
             
-            // Update scores
-            currentGame?.UpdateScores(currentGame.CurrentRound);
-            
-            Logger.LogInformation("Evaluated answers for round {Round}", currentGame?.CurrentRound);
+            // Clear the answer for the next player
+            currentAnswer = "";
+            StateHasChanged();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error evaluating answers");
+            Logger.LogError(ex, "Error submitting answer");
+            NotificationService.Notify(new NotificationMessage 
+            { 
+                Severity = NotificationSeverity.Error, 
+                Summary = "Error", 
+                Detail = "Failed to submit answer. Please try again." 
+            });
         }
-    }
-
-    private async Task NextRound()
+    }    private async Task NextRound()
     {
         try
         {
@@ -388,12 +338,16 @@
             }
             else
             {
+                // Rotate the king player for the next round
+                currentGame.SetNextKingPlayer();
+
                 // Reset for next round
-                kingAnswer = "";
-                playerAnswer = "";
-                hasAnswered = false;
+                currentAnswer = "";
                 showResults = false;
-                
+                isKingPlayerTurn = true; // Always start a new round with the king player's turn
+                currentGuessingPlayerIndex = 0;
+                currentPlayerName = currentGame.KingPlayer?.Name ?? ""; // Update current player name to the new king
+
                 await LoadCurrentQuestion();
             }
             
@@ -463,6 +417,36 @@
         if (currentGame != null)
         {
             gameProgress = ((double)(currentGame.CurrentRound + 1) / currentGame.MaxRounds) * 100;
+        }
+    }
+
+    private async Task EvaluateAnswers()
+    {
+        try
+        {
+            if (currentQuestion == null) return;
+            
+            // Compare each player's answer with king's answer
+            foreach (var playerAnswer in currentQuestion.PlayerAnswers)
+            {
+                bool isMatch = await QuestionService.CheckAnswerSimilarityAsync(
+                    currentQuestion.KingPlayerAnswer, 
+                    playerAnswer.Value);
+                
+                if (isMatch)
+                {
+                    currentQuestion.MarkPlayerAsMatched(playerAnswer.Key);
+                }
+            }
+            
+            // Update scores
+            currentGame?.UpdateScores(currentGame.CurrentRound);
+            
+            Logger.LogInformation("Evaluated answers for round {Round}", currentGame?.CurrentRound);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error evaluating answers");
         }
     }
 }
