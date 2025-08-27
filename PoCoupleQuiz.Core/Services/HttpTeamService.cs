@@ -13,7 +13,8 @@ public class HttpTeamService : ITeamService
     {
         _httpClient = httpClient;
         _logger = logger;
-    }    public async Task<Team?> GetTeamAsync(string teamName)
+    }
+    public async Task<Team?> GetTeamAsync(string teamName)
     {
         try
         {

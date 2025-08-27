@@ -6,14 +6,14 @@ namespace PoCoupleQuiz.Core.Services;
 public class MockQuestionService : IQuestionService
 {
     private int _questionCounter = 0;
-    
+
     private readonly string[] _easyQuestions = new[]
     {
         "What is your partner's favorite color?",
         "Do they prefer coffee or tea?",
         "What is their favorite season?"
     };
-    
+
     private readonly string[] _mediumQuestions = new[]
     {
         "What is your partner's favorite food?",
@@ -21,7 +21,7 @@ public class MockQuestionService : IQuestionService
         "What is your partner's dream vacation destination?",
         "What time do they usually go to bed?"
     };
-    
+
     private readonly string[] _hardQuestions = new[]
     {
         "What was their most defining life experience?",
@@ -45,7 +45,7 @@ public class MockQuestionService : IQuestionService
             "hard" => _hardQuestions,
             _ => _mediumQuestions
         };
-        
+
         var questionText = questionSet[_questionCounter % questionSet.Length];
         _questionCounter++;
         var question = new Question { Text = questionText, Category = QuestionCategory.Preferences };
@@ -80,4 +80,4 @@ public class MockQuestionService : IQuestionService
         }
         return Task.FromResult("I don't know");
     }
-} 
+}

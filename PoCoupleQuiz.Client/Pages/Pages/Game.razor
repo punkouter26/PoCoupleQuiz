@@ -61,6 +61,7 @@
                                         }
                                         
                                         <RadzenTextArea @bind-Value="currentAnswer" 
+                                                       @oninput="@((ChangeEventArgs e) => OnAnswerInput(e))"
                                                        Placeholder="@(isKingPlayerTurn ? "Your answer..." : "Your guess...")" 
                                                        Rows="3" 
                                                        Style="width: 100%; margin-bottom: 1rem;" />
@@ -372,6 +373,27 @@
         {
             if (currentGame == null) return;
             
+            // Calculate actual category stats and matched answers
+            var categoryStats = new Dictionary<QuestionCategory, int>();
+            var matchedAnswers = new List<string>();
+            
+            foreach (var question in currentGame.Questions)
+            {
+                // Count questions by category
+                if (!categoryStats.ContainsKey(question.Category))
+                    categoryStats[question.Category] = 0;
+                categoryStats[question.Category]++;
+                
+                // Collect matched answers
+                foreach (var playerAnswer in question.PlayerAnswers)
+                {
+                    if (question.HasPlayerMatched(playerAnswer.Key))
+                    {
+                        matchedAnswers.Add(playerAnswer.Value);
+                    }
+                }
+            }
+            
             var history = new GameHistory
             {
                 Date = DateTime.UtcNow,
@@ -381,7 +403,9 @@
                 Team1Score = 0, // King doesn't get scored in this mode
                 Team2Score = currentGame.Players.Where(p => !p.IsKingPlayer).Sum(p => p.Score),
                 TotalQuestions = currentGame.Questions.Count,
-                AverageResponseTime = 30.0 // Default for now
+                AverageResponseTime = 30.0, // Default for now
+                CategoryStats = System.Text.Json.JsonSerializer.Serialize(categoryStats),
+                MatchedAnswers = System.Text.Json.JsonSerializer.Serialize(matchedAnswers)
             };
             
             await GameHistoryService.SaveGameHistoryAsync(history);
@@ -418,6 +442,12 @@
         {
             gameProgress = ((double)(currentGame.CurrentRound + 1) / currentGame.MaxRounds) * 100;
         }
+    }
+
+    private void OnAnswerInput(ChangeEventArgs e)
+    {
+        currentAnswer = e.Value?.ToString() ?? "";
+        StateHasChanged(); // Force UI update to enable/disable button immediately
     }
 
     private async Task EvaluateAnswers()

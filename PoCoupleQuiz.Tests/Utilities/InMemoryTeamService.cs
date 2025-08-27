@@ -28,7 +28,8 @@ namespace PoCoupleQuiz.Tests.Utilities
         public Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score)
         {
             if (_teams.TryGetValue(teamName, out var team))
-            {                team.TotalQuestionsAnswered++;
+            {
+                team.TotalQuestionsAnswered++;
                 if (score > 0)
                 {
                     team.CorrectAnswers++;

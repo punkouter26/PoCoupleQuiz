@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using PoCoupleQuiz.Client;
 using PoCoupleQuiz.Client.Extensions;
+using PoCoupleQuiz.Client.Services;
 using Radzen;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -12,4 +13,13 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddRadzenComponents();
 builder.Services.AddClientServices();
 
-await builder.Build().RunAsync();
+// Add browser diagnostics service
+builder.Services.AddScoped<BrowserDiagnosticsService>();
+
+var app = builder.Build();
+
+// Initialize browser diagnostics
+var diagnosticsService = app.Services.GetRequiredService<BrowserDiagnosticsService>();
+await diagnosticsService.InitializeAsync();
+
+await app.RunAsync();

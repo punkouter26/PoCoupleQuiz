@@ -7,7 +7,7 @@ namespace PoCoupleQuiz.Tests
 {
     public class ResponsiveDesignTests
     {
-        private readonly string _cssContent;        public ResponsiveDesignTests()
+        private readonly string _cssContent; public ResponsiveDesignTests()
         {
             // Use an absolute path based on the solution directory
             string solutionDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", ".."));
@@ -36,7 +36,8 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains(".container", _cssContent);
             Assert.Contains("width: 100%", _cssContent);
             Assert.Contains("max-width:", _cssContent);
-        }        [Fact]
+        }
+        [Fact]
         public void HasResponsiveGrid()
         {
             // Check for responsive layout elements
@@ -95,4 +96,4 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("line-height:", _cssContent);
         }
     }
-} 
+}

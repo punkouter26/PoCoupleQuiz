@@ -1,5 +1,6 @@
 using Azure;
 using Azure.AI.OpenAI;
+using OpenAI.Chat;
 using Microsoft.Extensions.Configuration;
 using System.Net;
 using PoCoupleQuiz.Core.Models; // Added for Question model
@@ -11,7 +12,7 @@ namespace PoCoupleQuiz.Core.Services;
 
 public class AzureOpenAIQuestionService : IQuestionService
 {
-    private readonly OpenAIClient _client;
+    private readonly AzureOpenAIClient _client;
     private readonly string _deploymentName;
     private string _lastQuestion = string.Empty; // Track the last question
     private readonly Dictionary<string, string> _promptCache = new(); // Cache for prompts
@@ -40,14 +41,14 @@ public class AzureOpenAIQuestionService : IQuestionService
         var key = configuration["AzureOpenAI:Key"] ?? throw new ArgumentNullException("AzureOpenAI:Key");
         _deploymentName = configuration["AzureOpenAI:DeploymentName"] ?? throw new ArgumentNullException("AzureOpenAI:DeploymentName");
 
-        _client = new OpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
-        
+        _client = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
+
         // Define Polly Resilience Pipeline (v8 syntax)
         _resiliencePipeline = new ResiliencePipelineBuilder()
             .AddRetry(new RetryStrategyOptions
             {
-                ShouldHandle = new PredicateBuilder().Handle<RequestFailedException>(ex => 
-                    ex.Status == (int)HttpStatusCode.TooManyRequests || 
+                ShouldHandle = new PredicateBuilder().Handle<RequestFailedException>(ex =>
+                    ex.Status == (int)HttpStatusCode.TooManyRequests ||
                     ex.Status == (int)HttpStatusCode.InternalServerError ||
                     ex.Status == (int)HttpStatusCode.ServiceUnavailable),
                 Delay = TimeSpan.FromSeconds(1),
@@ -72,7 +73,7 @@ public class AzureOpenAIQuestionService : IQuestionService
     {
         // Create cache key (still based on text for simplicity)
         string cacheKey = $"question_text_{difficulty ?? "medium"}_{_lastQuestion}";
-        
+
         // Check if we have cached question text
         if (_promptCache.ContainsKey(cacheKey))
         {
@@ -83,7 +84,7 @@ public class AzureOpenAIQuestionService : IQuestionService
             return new Question { Text = cachedQuestionText, Category = QuestionCategory.Preferences }; // Placeholder category
         }
 
-        try 
+        try
         {
             var systemPrompt = difficulty?.ToLower() switch
             {
@@ -92,37 +93,38 @@ public class AzureOpenAIQuestionService : IQuestionService
                 _ => "You are a quiz game host. Generate fun, appropriate questions about someone's personal habits, preferences, and daily routines. These questions should help determine how well others know this person. Questions should be specific and have clear answers. For example: 'What is their favorite breakfast food?', 'What time do they usually go to bed?', 'What's their most used app on their phone?'"
             };
 
-            var chatOptions = new ChatCompletionsOptions
+            var messages = new List<ChatMessage>
             {
-                Messages =
-                {
-                    new ChatMessage(ChatRole.System, systemPrompt),
-                    new ChatMessage(ChatRole.User, $"Generate a single question that would reveal how well someone knows the person being asked about. Do not generate this question: {_lastQuestion}")
-                },
-                MaxTokens = 100,
-                Temperature = 0.7f,
-                NucleusSamplingFactor = 0.95f,
-                FrequencyPenalty = 0.8f, 
-                PresencePenalty = 0.8f
+                new SystemChatMessage(systemPrompt),
+                new UserChatMessage($"Generate a single question that would reveal how well someone knows the person being asked about. Do not generate this question: {_lastQuestion}")
             };
 
             _logger.LogInformation("Sending request to Azure OpenAI with deployment: {DeploymentName}", _deploymentName);
 
             // Execute API call through Polly pipeline
-            var response = await _resiliencePipeline.ExecuteAsync(async token => 
-                await _client.GetChatCompletionsAsync(_deploymentName, chatOptions, token)
-            );
+            var response = await _resiliencePipeline.ExecuteAsync(async token =>
+            {
+                var chatClient = _client.GetChatClient(_deploymentName);
+                return await chatClient.CompleteChatAsync(messages, new ChatCompletionOptions
+                {
+                    MaxOutputTokenCount = 100,
+                    Temperature = 0.7f,
+                    TopP = 0.95f,
+                    FrequencyPenalty = 0.8f,
+                    PresencePenalty = 0.8f
+                }, token);
+            });
 
-            var newQuestionText = response.Value.Choices[0].Message.Content.Trim();
+            var newQuestionText = response.Value.Content[0].Text.Trim();
 
             // Log success
             _logger.LogInformation("Successfully generated question via API: {QuestionText}", newQuestionText);
 
             // Cache the question text
             _promptCache[cacheKey] = newQuestionText;
-            
+
             _lastQuestion = newQuestionText; // Store the new question text
-            
+
             // Return a new Question object
             // TODO: Ideally, parse category from API response or prompt engineering
             return new Question { Text = newQuestionText, Category = QuestionCategory.Preferences }; // Placeholder category
@@ -172,10 +174,10 @@ public class AzureOpenAIQuestionService : IQuestionService
         {
             return true;
         }
-        
+
         // Create cache key
         string cacheKey = $"similarity_{answer1}_{answer2}".ToLowerInvariant();
-        
+
         // Check if we have a cached result
         if (_promptCache.ContainsKey(cacheKey))
         {
@@ -184,31 +186,32 @@ public class AzureOpenAIQuestionService : IQuestionService
 
         try
         {
-            var chatOptions = new ChatCompletionsOptions
+            var messages = new List<ChatMessage>
             {
-                Messages =
-                {
-                    new ChatMessage(ChatRole.System, "You are a quiz game judge. Your task is to determine if a player's guess matches what the main player answered about themselves. Consider semantic similarity and be somewhat lenient - answers don't need to be word-for-word identical to be considered a match. Answer with just 'yes' or 'no'."),
-                    new ChatMessage(ChatRole.User, $"Do these answers match?\nMain player's answer: {answer1}\nGuessing player's answer: {answer2}")
-                },
-                MaxTokens = 10,
-                Temperature = 0.3f,
-                NucleusSamplingFactor = 0.5f,
-                FrequencyPenalty = 0,
-                PresencePenalty = 0
+                new SystemChatMessage("You are a quiz game judge. Your task is to determine if a player's guess matches what the main player answered about themselves. Consider semantic similarity and be somewhat lenient - answers don't need to be word-for-word identical to be considered a match. Answer with just 'yes' or 'no'."),
+                new UserChatMessage($"Do these answers match?\nMain player's answer: {answer1}\nGuessing player's answer: {answer2}")
             };
 
             // Execute API call through Polly pipeline
-            var response = await _resiliencePipeline.ExecuteAsync(async token => 
-                await _client.GetChatCompletionsAsync(_deploymentName, chatOptions, token)
-            );
-            
-            var result = response.Value.Choices[0].Message.Content.Trim().ToLower();
+            var response = await _resiliencePipeline.ExecuteAsync(async token =>
+            {
+                var chatClient = _client.GetChatClient(_deploymentName);
+                return await chatClient.CompleteChatAsync(messages, new ChatCompletionOptions
+                {
+                    MaxOutputTokenCount = 10,
+                    Temperature = 0.3f,
+                    TopP = 0.5f,
+                    FrequencyPenalty = 0,
+                    PresencePenalty = 0
+                }, token);
+            });
+
+            var result = response.Value.Content[0].Text.Trim().ToLower();
             var isMatch = result.Contains("yes");
-            
+
             // Cache the result
             _promptCache[cacheKey] = isMatch.ToString();
-            
+
             return isMatch;
         }
         catch (Exception ex)
@@ -217,7 +220,7 @@ public class AzureOpenAIQuestionService : IQuestionService
             _logger.LogError(ex, "Error checking answer similarity: {ErrorMessage}", ex.Message);
 
             // Fallback to simple string comparison when API fails
-            bool simpleMatch = answer1.ToLowerInvariant().Contains(answer2.ToLowerInvariant()) || 
+            bool simpleMatch = answer1.ToLowerInvariant().Contains(answer2.ToLowerInvariant()) ||
                               answer2.ToLowerInvariant().Contains(answer1.ToLowerInvariant());
             return simpleMatch;
         }
@@ -227,7 +230,7 @@ public class AzureOpenAIQuestionService : IQuestionService
     {
         // Create cache key
         string cacheKey = $"answer_{question}";
-        
+
         // Check if we have a cached answer
         if (_promptCache.ContainsKey(cacheKey))
         {
@@ -236,30 +239,31 @@ public class AzureOpenAIQuestionService : IQuestionService
 
         try
         {
-            var chatOptions = new ChatCompletionsOptions
+            var messages = new List<ChatMessage>
             {
-                Messages =
-                {
-                    new ChatMessage(ChatRole.System, "You are an AI player in a quiz game. Generate a plausible and realistic answer about someone's personal habits or preferences. Keep answers concise and specific."),
-                    new ChatMessage(ChatRole.User, $"Generate an answer to this question: {question}")
-                },
-                MaxTokens = 50,
-                Temperature = 0.6f,
-                NucleusSamplingFactor = 0.9f,
-                FrequencyPenalty = 0,
-                PresencePenalty = 0
+                new SystemChatMessage("You are an AI player in a quiz game. Generate a plausible and realistic answer about someone's personal habits or preferences. Keep answers concise and specific."),
+                new UserChatMessage($"Generate an answer to this question: {question}")
             };
 
             // Execute API call through Polly pipeline
-            var response = await _resiliencePipeline.ExecuteAsync(async token => 
-                await _client.GetChatCompletionsAsync(_deploymentName, chatOptions, token)
-            );
+            var response = await _resiliencePipeline.ExecuteAsync(async token =>
+            {
+                var chatClient = _client.GetChatClient(_deploymentName);
+                return await chatClient.CompleteChatAsync(messages, new ChatCompletionOptions
+                {
+                    MaxOutputTokenCount = 50,
+                    Temperature = 0.6f,
+                    TopP = 0.9f,
+                    FrequencyPenalty = 0,
+                    PresencePenalty = 0
+                }, token);
+            });
 
-            var answer = response.Value.Choices[0].Message.Content.Trim();
-            
+            var answer = response.Value.Content[0].Text.Trim();
+
             // Cache the answer
             _promptCache[cacheKey] = answer;
-            
+
             return answer;
         }
         catch (Exception ex)

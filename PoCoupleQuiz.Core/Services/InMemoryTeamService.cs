@@ -27,7 +27,8 @@ public class InMemoryTeamService : ITeamService
     public Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score)
     {
         if (_teams.TryGetValue(teamName.ToLowerInvariant(), out var team))
-        {            if (gameMode == GameMode.KingPlayer)
+        {
+            if (gameMode == GameMode.KingPlayer)
             {
                 if (score > team.HighScore)
                 {

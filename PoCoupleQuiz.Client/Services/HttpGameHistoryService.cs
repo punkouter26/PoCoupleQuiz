@@ -15,7 +15,21 @@ public class HttpGameHistoryService : IGameHistoryService
 
     public async Task SaveGameHistoryAsync(GameHistory history)
     {
-        await _httpClient.PostAsJsonAsync("api/GameHistory", history);
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/GameHistory", history);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Failed to save game history. Status: {response.StatusCode}, Error: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving game history: {ex.Message}");
+            throw;
+        }
     }
 
     public async Task<IEnumerable<GameHistory>> GetTeamHistoryAsync(string teamName)

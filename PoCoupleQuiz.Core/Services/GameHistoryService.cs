@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Azure.Data.Tables;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using PoCoupleQuiz.Core.Models;
 
 namespace PoCoupleQuiz.Core.Services;
@@ -8,88 +9,166 @@ namespace PoCoupleQuiz.Core.Services;
 public class GameHistoryService : IGameHistoryService
 {
     private readonly TableClient _tableClient;
+    private readonly ILogger<GameHistoryService> _logger;
 
-    public GameHistoryService(IConfiguration configuration)
+    public GameHistoryService(IConfiguration configuration, ILogger<GameHistoryService> logger)
     {
+        _logger = logger;
         var connectionString = configuration["AzureStorage:ConnectionString"] ?? throw new ArgumentNullException("AzureStorage:ConnectionString");
+        
+        // Safely get the first 50 characters or the entire string if shorter
+        var connectionStringPrefix = connectionString.Length <= 50 ? connectionString : connectionString[..50];
+        _logger.LogDebug("Initializing GameHistoryService with connection string: {ConnectionStringPrefix}...", connectionStringPrefix);
+        
         _tableClient = new TableClient(connectionString, "GameHistory");
         _tableClient.CreateIfNotExists();
+        
+        _logger.LogInformation("GameHistoryService initialized successfully");
     }
 
     public async Task SaveGameHistoryAsync(GameHistory history)
     {
-        history.PartitionKey = "GameHistory";
-        history.RowKey = GameHistory.GenerateRowKey();
-        await _tableClient.AddEntityAsync(history);
+        try
+        {
+            history.PartitionKey = "GameHistory";
+            history.RowKey = GameHistory.GenerateRowKey();
+            
+            _logger.LogInformation("Saving game history for teams {Team1} vs {Team2}, Score: {Score1}-{Score2}", 
+                history.Team1Name, history.Team2Name, history.Team1Score, history.Team2Score);
+            
+            await _tableClient.AddEntityAsync(history);
+            
+            _logger.LogDebug("Game history saved successfully with RowKey: {RowKey}", history.RowKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save game history for teams {Team1} vs {Team2}", 
+                history.Team1Name, history.Team2Name);
+            throw;
+        }
     }
 
     public async Task<IEnumerable<GameHistory>> GetTeamHistoryAsync(string teamName)
     {
-        var histories = new List<GameHistory>();
-        var filter = $"(Team1Name eq '{teamName}' or Team2Name eq '{teamName}')";
-        var queryResults = _tableClient.QueryAsync<GameHistory>(filter);
-
-        await foreach (var history in queryResults)
+        try
         {
-            histories.Add(history);
-        }
+            _logger.LogDebug("Retrieving history for team: {TeamName}", teamName);
+            
+            var histories = new List<GameHistory>();
+            var filter = $"(Team1Name eq '{teamName}' or Team2Name eq '{teamName}')";
+            var queryResults = _tableClient.QueryAsync<GameHistory>(filter);
 
-        return histories.OrderByDescending(h => h.Timestamp);
+            await foreach (var history in queryResults)
+            {
+                histories.Add(history);
+            }
+
+            _logger.LogInformation("Retrieved {Count} history records for team: {TeamName}", histories.Count, teamName);
+            return histories.OrderByDescending(h => h.Timestamp);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve history for team: {TeamName}", teamName);
+            throw;
+        }
     }
 
     public async Task<Dictionary<QuestionCategory, int>> GetTeamCategoryStatsAsync(string teamName)
     {
-        var histories = await GetTeamHistoryAsync(teamName);
-        var categoryStats = new Dictionary<QuestionCategory, int>();
-
-        foreach (var history in histories)
+        try
         {
-            var stats = JsonSerializer.Deserialize<Dictionary<QuestionCategory, int>>(history.CategoryStats);
-            if (stats != null)
+            _logger.LogDebug("Calculating category stats for team: {TeamName}", teamName);
+            
+            var histories = await GetTeamHistoryAsync(teamName);
+            var categoryStats = new Dictionary<QuestionCategory, int>();
+
+            foreach (var history in histories)
             {
-                foreach (var (category, count) in stats)
+                var stats = JsonSerializer.Deserialize<Dictionary<QuestionCategory, int>>(history.CategoryStats);
+                if (stats != null)
                 {
-                    if (!categoryStats.ContainsKey(category))
-                        categoryStats[category] = 0;
-                    categoryStats[category] += count;
+                    foreach (var (category, count) in stats)
+                    {
+                        if (!categoryStats.ContainsKey(category))
+                            categoryStats[category] = 0;
+                        categoryStats[category] += count;
+                    }
                 }
             }
-        }
 
-        return categoryStats;
+            _logger.LogInformation("Calculated category stats for team {TeamName}: {Stats}", 
+                teamName, string.Join(", ", categoryStats.Select(kvp => $"{kvp.Key}:{kvp.Value}")));
+            
+            return categoryStats;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to calculate category stats for team: {TeamName}", teamName);
+            throw;
+        }
     }
 
     public async Task<List<string>> GetTopMatchedAnswersAsync(string teamName, int count = 10)
     {
-        var histories = await GetTeamHistoryAsync(teamName);
-        var answerCounts = new Dictionary<string, int>();
-
-        foreach (var history in histories)
+        try
         {
-            var answers = JsonSerializer.Deserialize<List<string>>(history.MatchedAnswers);
-            if (answers != null)
+            _logger.LogDebug("Getting top {Count} matched answers for team: {TeamName}", count, teamName);
+            
+            var histories = await GetTeamHistoryAsync(teamName);
+            var answerCounts = new Dictionary<string, int>();
+
+            foreach (var history in histories)
             {
-                foreach (var answer in answers)
+                var answers = JsonSerializer.Deserialize<List<string>>(history.MatchedAnswers);
+                if (answers != null)
                 {
-                    if (!answerCounts.ContainsKey(answer))
-                        answerCounts[answer] = 0;
-                    answerCounts[answer]++;
+                    foreach (var answer in answers)
+                    {
+                        if (!answerCounts.ContainsKey(answer))
+                            answerCounts[answer] = 0;
+                        answerCounts[answer]++;
+                    }
                 }
             }
-        }
 
-        return answerCounts
-            .OrderByDescending(x => x.Value)
-            .Take(count)
-            .Select(x => x.Key)
-            .ToList();
+            var topAnswers = answerCounts
+                .OrderByDescending(x => x.Value)
+                .Take(count)
+                .Select(x => x.Key)
+                .ToList();
+
+            _logger.LogInformation("Retrieved {Count} top matched answers for team: {TeamName}", topAnswers.Count, teamName);
+            return topAnswers;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get top matched answers for team: {TeamName}", teamName);
+            throw;
+        }
     }
 
     public async Task<double> GetAverageResponseTimeAsync(string teamName)
     {
-        var histories = await GetTeamHistoryAsync(teamName);
-        if (!histories.Any()) return 0;
+        try
+        {
+            _logger.LogDebug("Calculating average response time for team: {TeamName}", teamName);
+            
+            var histories = await GetTeamHistoryAsync(teamName);
+            if (!histories.Any()) 
+            {
+                _logger.LogWarning("No history found for team: {TeamName}, returning 0 average response time", teamName);
+                return 0;
+            }
 
-        return histories.Average(h => h.AverageResponseTime);
+            var averageTime = histories.Average(h => h.AverageResponseTime);
+            
+            _logger.LogInformation("Average response time for team {TeamName}: {AverageTime:F2}ms", teamName, averageTime);
+            return averageTime;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to calculate average response time for team: {TeamName}", teamName);
+            throw;
+        }
     }
 }

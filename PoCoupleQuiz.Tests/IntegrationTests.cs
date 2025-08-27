@@ -16,7 +16,7 @@ namespace PoCoupleQuiz.Tests
     public class IntegrationTests : IAsyncLifetime
     {
         private readonly CustomWebApplicationFactory _factory;
-        private readonly HttpClient _httpClient;        public IntegrationTests()
+        private readonly HttpClient _httpClient; public IntegrationTests()
         {
             _factory = new CustomWebApplicationFactory();
             _httpClient = _factory.CreateClient();

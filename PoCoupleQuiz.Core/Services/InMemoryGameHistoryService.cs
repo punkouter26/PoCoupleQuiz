@@ -22,14 +22,14 @@ public class InMemoryGameHistoryService : IGameHistoryService
             .Where(h => h.Team1Name == teamName || h.Team2Name == teamName)
             .OrderByDescending(h => h.Timestamp)
             .ToList();
-        
+
         return Task.FromResult<IEnumerable<GameHistory>>(histories);
     }
 
     public Task<Dictionary<QuestionCategory, int>> GetTeamCategoryStatsAsync(string teamName)
     {
         var categoryStats = new Dictionary<QuestionCategory, int>();
-        
+
         var histories = _gameHistories
             .Where(h => h.Team1Name == teamName || h.Team2Name == teamName);
 
@@ -63,7 +63,7 @@ public class InMemoryGameHistoryService : IGameHistoryService
     public Task<List<string>> GetTopMatchedAnswersAsync(string teamName, int count = 10)
     {
         var answerCounts = new Dictionary<string, int>();
-        
+
         var histories = _gameHistories
             .Where(h => h.Team1Name == teamName || h.Team2Name == teamName);
 
@@ -105,8 +105,8 @@ public class InMemoryGameHistoryService : IGameHistoryService
         var histories = _gameHistories
             .Where(h => h.Team1Name == teamName || h.Team2Name == teamName)
             .ToList();
-        
-        if (!histories.Any()) 
+
+        if (!histories.Any())
             return Task.FromResult(0.0);
 
         var averageTime = histories.Average(h => h.AverageResponseTime);

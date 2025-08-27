@@ -13,7 +13,7 @@ public static class ClientServiceExtensions
         services.AddScoped<ITeamService, HttpTeamService>();
         services.AddScoped<IQuestionService, MockQuestionService>(); // Client uses mock for simplicity
         services.AddScoped<IGameHistoryService, HttpGameHistoryService>();
-        
+
         return services;
     }
 }

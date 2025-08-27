@@ -1,0 +1,50 @@
+graph TD
+    subgraph "Page Hierarchy"
+        App[App.razor<br/>Application Root]
+        
+        subgraph "Layout Layer"
+            MainLayout[MainLayout.razor<br/>Primary Layout]
+        end
+        
+        subgraph "Page Components"
+            Index[Index.razor<br/>Home Page]
+            Game[Game.razor<br/>Game Page]
+            Leaderboard[Leaderboard.razor<br/>Scores Page]
+            Statistics[Statistics.razor<br/>Stats Page]
+            Diag[Diag.razor<br/>Diagnostics Page]
+        end
+        
+        subgraph "Shared Components"
+            NavMenu[NavMenu.razor<br/>Navigation Menu]
+            ScoreDisplay[ScoreboardDisplay.razor<br/>Score Visualization]
+            GameTimer[GameTimer.razor<br/>Round Timer]
+            LoadingState[LoadingState.razor<br/>Loading Indicators]
+            ErrorBoundary[AppErrorBoundary.razor<br/>Error Handling]
+        end
+        
+        subgraph "Services"
+            GameService[HttpGameHistoryService<br/>API Communication]
+            DiagService[BrowserDiagnosticsService<br/>System Checks]
+        end
+    end
+    
+    App --> MainLayout
+    MainLayout --> NavMenu
+    MainLayout --> Index
+    MainLayout --> Game
+    MainLayout --> Leaderboard
+    MainLayout --> Statistics
+    MainLayout --> Diag
+    
+    Game --> ScoreDisplay
+    Game --> GameTimer
+    Game --> LoadingState
+    Game --> ErrorBoundary
+    
+    Leaderboard --> ScoreDisplay
+    Statistics --> LoadingState
+    Diag --> LoadingState
+    
+    Game --> GameService
+    Statistics --> GameService
+    Diag --> DiagService

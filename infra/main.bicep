@@ -1,55 +1,39 @@
-@description('The name of the application')
-param applicationName string = 'pocouplequiz'
+targetScope = 'subscription'
 
-@description('The location for all resources')
-param location string = resourceGroup().location
+@minLength(1)
+@maxLength(64)
+@description('Name of the environment that can be used as part of naming resource convention')
+param environmentName string
 
-@description('The SKU of the App Service Plan')
-param appServicePlanSku string = 'B1'
+@minLength(1)
+@description('Primary location for all resources')
+param location string
 
-@description('The SKU of the Storage Account')
-param storageAccountSku string = 'Standard_LRS'
+// Tags that should be applied to all resources.
+// 
+// Note that 'azd-service-name' tags should be applied separately to service host resources.
+// Example usage:
+//   tags: union(tags, { 'azd-service-name': <service name in azure.yaml> })
+var tags = {
+  'azd-env-name': environmentName
+}
 
-// App Service Plan
-resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
-  name: '${applicationName}-plan'
+// Organize resources in a resource group
+resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+  name: 'rg-${environmentName}'
   location: location
-  sku: {
-    name: appServicePlanSku
+  tags: tags
+}
+
+module resources 'resources.bicep' = {
+  scope: rg
+  name: 'resources'
+  params: {
+    location: location
+    tags: tags
   }
 }
 
-// App Service
-resource appService 'Microsoft.Web/sites@2023-01-01' = {
-  name: applicationName
-  location: location
-  properties: {
-    serverFarmId: appServicePlan.id
-    siteConfig: {
-      netFrameworkVersion: 'v9.0'
-      appSettings: [
-        {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: '1'
-        }
-      ]
-    }
-  }
-}
-
-// Storage Account
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: '${applicationName}storage'
-  location: location
-  sku: {
-    name: storageAccountSku
-  }
-  kind: 'StorageV2'
-  properties: {
-    supportsHttpsTrafficOnly: true
-    minimumTlsVersion: 'TLS1_2'
-  }
-}
-
-// Output the storage account connection string
-output storageConnectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${listKeys(storageAccount.id, storageAccount.apiVersion).keys[0].value}' 
+output AZURE_APP_SERVICE_NAME string = resources.outputs.AZURE_APP_SERVICE_NAME
+output AZURE_APP_SERVICE_URI string = resources.outputs.AZURE_APP_SERVICE_URI
+output AZURE_RESOURCE_POCOUPLEQUIZ_SERVER_ID string = resources.outputs.AZURE_RESOURCE_POCOUPLEQUIZ_SERVER_ID

@@ -16,7 +16,7 @@ namespace PoCoupleQuiz.Tests
 {
     public class GameTests : BunitContext, IAsyncLifetime
     {
-        private readonly Mock<IQuestionService> _mockQuestionService;        private readonly Mock<ITeamService> _mockTeamService;
+        private readonly Mock<IQuestionService> _mockQuestionService; private readonly Mock<ITeamService> _mockTeamService;
         private readonly Mock<IGameHistoryService> _mockGameHistoryService;
         private readonly Mock<ILogger<PoCoupleQuiz.Client.Pages.Pages.Index>> _mockLogger;
         private readonly Mock<IGameStateService> _mockGameStateService;
@@ -55,15 +55,15 @@ namespace PoCoupleQuiz.Tests
             // Register services
             Services.AddSingleton<IQuestionService>(_mockQuestionService.Object);
             Services.AddSingleton<ITeamService>(_mockTeamService.Object);
-            Services.AddSingleton<IGameHistoryService>(_mockGameHistoryService.Object);            Services.AddSingleton<ILogger<PoCoupleQuiz.Client.Pages.Pages.Index>>(_mockLogger.Object);
+            Services.AddSingleton<IGameHistoryService>(_mockGameHistoryService.Object); Services.AddSingleton<ILogger<PoCoupleQuiz.Client.Pages.Pages.Index>>(_mockLogger.Object);
             Services.AddSingleton<IGameStateService>(_mockGameStateService.Object);
             Services.AddSingleton<NavigationManager>(_mockNavigationManager.Object);
             Services.AddSingleton<NotificationService>(_mockNotificationService.Object);
-              // Add Radzen services
+            // Add Radzen services
             Services.AddScoped<DialogService>();
             Services.AddScoped<TooltipService>();
             Services.AddScoped<ContextMenuService>();
-            
+
             // Setup JSInterop for Radzen components
             JSInterop.SetupVoid("Radzen.preventArrows", _ => true);
             JSInterop.SetupVoid("Radzen.focusElement", _ => true);
@@ -71,7 +71,7 @@ namespace PoCoupleQuiz.Tests
             JSInterop.SetupVoid("Radzen.destroyTooltip", _ => true);
             JSInterop.SetupVoid("Radzen.showTooltip", _ => true);
             JSInterop.Setup<object>("Radzen.getProperty", _ => true).SetResult(new object());
-            
+
             // Store service provider for later cleanup
             _serviceProvider = Services.BuildServiceProvider();
         }
@@ -80,7 +80,8 @@ namespace PoCoupleQuiz.Tests
         {
             // No initialization needed
             await Task.CompletedTask;
-        }        public new async Task DisposeAsync()
+        }
+        public new async Task DisposeAsync()
         {
             // Dispose of services if needed
             if (_serviceProvider is IAsyncDisposable asyncDisposable)
@@ -91,7 +92,7 @@ namespace PoCoupleQuiz.Tests
             {
                 disposable.Dispose();
             }
-            
+
             // Call base dispose
             base.Dispose();
         }

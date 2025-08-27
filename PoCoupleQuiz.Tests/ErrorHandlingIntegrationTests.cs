@@ -33,12 +33,13 @@ namespace PoCoupleQuiz.Tests
         {
             _httpClient.Dispose();
             await _factory.DisposeAsync();
-        }        [Fact]
+        }
+        [Fact]
         public async Task TeamsController_GetTeam_InvalidName_ReturnsBadRequest()
         {
             // Act - Use URL encoded space which should be trimmed to empty
             var response = await _httpClient.GetAsync("/api/teams/%20");
-            
+
             // Assert
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
@@ -48,10 +49,10 @@ namespace PoCoupleQuiz.Tests
         {
             // Arrange
             var longName = new string('a', 200); // Exceeds 100 character limit
-            
+
             // Act
             var response = await _httpClient.GetAsync($"/api/teams/{longName}");
-            
+
             // Assert
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
@@ -119,10 +120,10 @@ namespace PoCoupleQuiz.Tests
             // This test would require a controller action that throws an exception
             // For now, we'll test that the middleware is registered correctly
             // by ensuring normal requests still work
-            
+
             // Act
             var response = await _httpClient.GetAsync("/api/teams");
-            
+
             // Assert
             Assert.True(response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound);
         }

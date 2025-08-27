@@ -32,7 +32,7 @@ public class QuestionServiceIntegrationTests
         Assert.NotNull(question.Text);
         Assert.NotEmpty(question.Text);
         // The content of the question will vary, so a general assertion is better
-        Assert.True(question.Text.Length > 10); 
+        Assert.True(question.Text.Length > 10);
     }
 
     [Theory(Skip = "Requires Azure OpenAI API Key and Endpoint. Remove Skip to run.")]

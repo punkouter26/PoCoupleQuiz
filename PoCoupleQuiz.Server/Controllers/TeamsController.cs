@@ -21,7 +21,8 @@ public class TeamsController : ControllerBase
     {
         var teams = await _teamService.GetAllTeamsAsync();
         return Ok(teams);
-    }    [HttpGet("{teamName}")]
+    }
+    [HttpGet("{teamName}")]
     public async Task<ActionResult<Team>> GetTeam(string teamName)
     {
         if (string.IsNullOrWhiteSpace(teamName))
@@ -85,7 +86,8 @@ public class TeamsController : ControllerBase
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
-        }        if (request.Score < 0)
+        }
+        if (request.Score < 0)
         {
             return BadRequest("Score cannot be negative.");
         }
@@ -105,7 +107,7 @@ public class UpdateStatsRequest
 {
     [Required]
     public GameMode GameMode { get; set; }
-    
+
     [Range(0, int.MaxValue, ErrorMessage = "Score must be non-negative")]
     public int Score { get; set; }
 }

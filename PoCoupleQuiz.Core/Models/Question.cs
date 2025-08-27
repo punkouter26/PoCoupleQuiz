@@ -28,4 +28,4 @@ public enum QuestionCategory
 
     [JsonPropertyName("values")]
     Values
-} 
+}

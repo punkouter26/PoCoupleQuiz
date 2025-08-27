@@ -59,5 +59,15 @@ Properties/PublishProfiles/
 ## Secrets
 appsettings.*.json
 !appsettings.example.json
+!appsettings.Development.json
 *.Development.json
-local.settings.json 
+local.settings.json
+
+## Azurite Data
+AzuriteData/
+
+## Debug logs and diagnostic files
+DEBUG/
+log.txt
+*.log 
+.azure

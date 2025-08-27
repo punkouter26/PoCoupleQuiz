@@ -10,7 +10,8 @@ using Bunit;
 namespace PoCoupleQuiz.Tests.Utilities;
 
 public static class TestServiceExtensions
-{    public static void ConfigureTestServices(this IServiceCollection services)
+{
+    public static void ConfigureTestServices(this IServiceCollection services)
     {
         // Add Radzen services
         services.AddScoped<DialogService>();
@@ -41,26 +42,26 @@ public class TestGameBuilder
             Questions = new List<GameQuestion>(),
             CurrentRound = 0
         };
-        
+
         // Setup default mock behavior
         _mockQuestionService.Setup(x => x.GenerateQuestionAsync(It.IsAny<string>()))
             .ReturnsAsync(new Question { Text = "Test question", Category = QuestionCategory.Relationships });
-        
+
         _mockGameStateService.Setup(x => x.CurrentGame).Returns(_game);
     }
-    
+
     public TestGameBuilder WithPlayer(string name, bool isKing = false)
     {
         _game.AddPlayer(new Player { Name = name, IsKingPlayer = isKing });
         return this;
     }
-    
+
     public TestGameBuilder WithRound(int round)
     {
         _game.CurrentRound = round;
         return this;
     }
-    
+
     public (Game game, Dictionary<Type, Mock> mocks) Build()
     {
         return (_game, new Dictionary<Type, Mock>
@@ -71,7 +72,7 @@ public class TestGameBuilder
             { typeof(IGameStateService), _mockGameStateService }
         });
     }
-      public void RegisterServices(IServiceCollection services)
+    public void RegisterServices(IServiceCollection services)
     {
         services.AddSingleton(_mockQuestionService.Object);
         services.AddSingleton(_mockTeamService.Object);

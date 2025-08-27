@@ -1,12 +1,65 @@
 ﻿@inherits LayoutComponentBase
-<div class="page">
-    <main>
-        <NavMenu />
-        <div class="top-row px-4">
+<div class="app-container">
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <h2>🎯 PoCoupleQuiz</h2>
         </div>
+        <nav class="sidebar-nav">
+            <NavLink class="nav-item" href="" Match="NavLinkMatch.All">
+                <i class="nav-icon">🏠</i>
+                <span class="nav-text">Home</span>
+            </NavLink>
+            <NavLink class="nav-item" href="leaderboard">
+                <i class="nav-icon">🏆</i>
+                <span class="nav-text">Leaderboard</span>
+            </NavLink>
+            <NavLink class="nav-item" href="diag">
+                <i class="nav-icon">🔧</i>
+                <span class="nav-text">Diagnostics</span>
+            </NavLink>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="app-version">
+                <small>v1.0.0</small>
+            </div>
+        </div>
+    </div>
 
-        <article class="content px-4">
+    <div class="main-content">
+        <header class="top-header">
+            <div class="header-content">
+                <button class="mobile-menu-toggle" onclick="toggleSidebar()" style="display: none;">
+                    ☰
+                </button>
+                <h1 class="page-title">Couple Quiz Game</h1>
+                <div class="header-actions">
+                    <span class="status-indicator">🟢 Online</span>
+                </div>
+            </div>
+        </header>
+        
+        <main class="content-area">
             @Body
-        </article>
-    </main>
+        </main>
+    </div>
 </div>
+
+<script>
+    window.toggleSidebar = function() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('open');
+    };
+    
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.querySelector('.mobile-menu-toggle');
+        
+        if (window.innerWidth <= 768 && 
+            !sidebar.contains(event.target) && 
+            !toggle.contains(event.target) && 
+            sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+        }
+    });
+</script>

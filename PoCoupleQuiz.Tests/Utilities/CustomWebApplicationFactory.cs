@@ -17,7 +17,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<PoCoupleQuiz.Se
         var clientAppContentRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "PoCoupleQuiz.Client", "wwwroot"));
 
         builder.UseContentRoot(projectDir);
-        builder.UseWebRoot(clientAppContentRoot);        builder.ConfigureAppConfiguration((context, config) =>
+        builder.UseWebRoot(clientAppContentRoot); builder.ConfigureAppConfiguration((context, config) =>
         {
             // Use in-memory configuration for testing
             config.AddInMemoryCollection(new Dictionary<string, string?>
@@ -34,7 +34,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<PoCoupleQuiz.Se
         builder.ConfigureServices(services =>
         {
             // Remove existing services and replace with test implementations
-            var descriptorsToRemove = services.Where(d => 
+            var descriptorsToRemove = services.Where(d =>
                 d.ServiceType == typeof(IQuestionService) ||
                 d.ServiceType == typeof(ITeamService) ||
                 d.ServiceType == typeof(IGameHistoryService) ||

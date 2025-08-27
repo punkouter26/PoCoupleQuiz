@@ -1,0 +1,36 @@
+graph TB
+    subgraph "Infrastructure Layer"
+        subgraph "Azure Cloud Environment"
+            AppService[Azure App Service<br/>PoCoupleQuiz Web App]
+            TableStorage[Azure Table Storage<br/>Game Data & History]
+            BlobStorage[Azure Blob Storage<br/>Static Files & Logs]
+            AppInsights[Application Insights<br/>Telemetry & Performance]
+            KeyVault[Azure Key Vault<br/>Secrets & Connection Strings]
+        end
+        
+        subgraph "Development Environment"
+            LocalDev[Local Development<br/>VS Code / Visual Studio]
+            Azurite[Azurite Emulator<br/>Local Table Storage]
+        end
+        
+        subgraph "External Services"
+            GitHub[GitHub Repository<br/>Source Code]
+            Browser[Web Browser<br/>Client Runtime]
+        end
+    end
+    
+    %% User Interactions
+    Browser --> AppService
+    
+    %% Application Dependencies
+    AppService --> TableStorage
+    AppService --> BlobStorage
+    AppService --> AppInsights
+    AppService --> KeyVault
+    
+    %% Development Flow
+    LocalDev --> Azurite
+    LocalDev --> GitHub
+    
+    %% CI/CD Flow
+    GitHub --> AppService

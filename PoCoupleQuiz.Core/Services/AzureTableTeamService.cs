@@ -14,15 +14,16 @@ public class AzureTableTeamService : ITeamService
     public AzureTableTeamService(IConfiguration configuration, ILogger<AzureTableTeamService> logger)
     {
         _logger = logger;
-        
-        var connectionString = configuration["AzureStorage:ConnectionString"] 
+
+        var connectionString = configuration["AzureStorage:ConnectionString"]
             ?? throw new ArgumentNullException("AzureStorage:ConnectionString", "Azure Storage connection string is required");
 
         _tableClient = new TableClient(connectionString, "Teams");
         _tableClient.CreateIfNotExists();
-        
+
         _logger.LogInformation("AzureTableTeamService initialized successfully");
-    }    public async Task<Team?> GetTeamAsync(string teamName)
+    }
+    public async Task<Team?> GetTeamAsync(string teamName)
     {
         try
         {
@@ -41,7 +42,8 @@ public class AzureTableTeamService : ITeamService
             _logger.LogError(ex, "Error getting team {TeamName}: {ErrorMessage}", teamName, ex.Message);
             throw;
         }
-    }    public async Task<IEnumerable<Team>> GetAllTeamsAsync()
+    }
+    public async Task<IEnumerable<Team>> GetAllTeamsAsync()
     {
         try
         {
@@ -60,7 +62,8 @@ public class AzureTableTeamService : ITeamService
             _logger.LogError(ex, "Error getting all teams: {ErrorMessage}", ex.Message);
             throw;
         }
-    }    public async Task SaveTeamAsync(Team team)
+    }
+    public async Task SaveTeamAsync(Team team)
     {
         try
         {
@@ -72,10 +75,11 @@ public class AzureTableTeamService : ITeamService
             _logger.LogError(ex, "Error saving team {TeamName}: {ErrorMessage}", team.Name, ex.Message);
             throw;
         }
-    }    public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score)
+    }
+    public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score)
     {
         var team = await GetTeamAsync(teamName);
-        if (team == null) return;        if (gameMode == GameMode.KingPlayer)
+        if (team == null) return; if (gameMode == GameMode.KingPlayer)
         {
             if (score > team.HighScore)
             {
@@ -91,7 +95,8 @@ public class TeamTableEntity : ITableEntity
 {
     public TeamTableEntity()
     {
-    }    public TeamTableEntity(Team team)
+    }
+    public TeamTableEntity(Team team)
     {
         PartitionKey = "Team";
         RowKey = team.Name.ToLowerInvariant();
@@ -105,14 +110,16 @@ public class TeamTableEntity : ITableEntity
     public string PartitionKey { get; set; } = string.Empty;
     public string RowKey { get; set; } = string.Empty;
     public DateTimeOffset? Timestamp { get; set; }
-    public ETag ETag { get; set; }    public string Name { get; set; } = string.Empty;
+    public ETag ETag { get; set; }
+    public string Name { get; set; } = string.Empty;
     public int HighScore { get; set; }
     public DateTime LastPlayed { get; set; }
     public int TotalQuestionsAnswered { get; set; }
     public int CorrectAnswers { get; set; }
 
     public Team ToTeam()
-    {        return new Team
+    {
+        return new Team
         {
             Name = Name,
             HighScore = HighScore,
