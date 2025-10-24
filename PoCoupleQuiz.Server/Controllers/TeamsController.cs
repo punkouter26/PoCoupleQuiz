@@ -10,16 +10,25 @@ namespace PoCoupleQuiz.Server.Controllers;
 public class TeamsController : ControllerBase
 {
     private readonly ITeamService _teamService;
+    private readonly ILogger<TeamsController> _logger;
 
-    public TeamsController(ITeamService teamService)
+    public TeamsController(ITeamService teamService, ILogger<TeamsController> logger)
     {
         _teamService = teamService;
+        _logger = logger;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Team>>> GetAllTeams()
     {
+        _logger.LogInformation("Retrieving all teams");
         var teams = await _teamService.GetAllTeamsAsync();
+        
+        using (_logger.BeginScope(new Dictionary<string, object?> { ["TeamCount"] = teams.Count() }))
+        {
+            _logger.LogInformation("Retrieved {TeamCount} teams", teams.Count());
+        }
+        
         return Ok(teams);
     }
     [HttpGet("{teamName}")]

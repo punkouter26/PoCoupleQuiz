@@ -34,9 +34,9 @@ public class HealthController : ControllerBase
         // Check Azure Table Storage
         try
         {
-            var connectionString = _configuration.GetConnectionString("DefaultConnection") ?? 
+            var connectionString = _configuration.GetConnectionString("DefaultConnection") ??
                                  _configuration["AzureStorage:ConnectionString"];
-            
+
             if (!string.IsNullOrEmpty(connectionString))
             {
                 var tableClient = new TableServiceClient(connectionString);
@@ -60,7 +60,7 @@ public class HealthController : ControllerBase
         {
             var endpoint = _configuration["AzureOpenAI:Endpoint"];
             var key = _configuration["AzureOpenAI:Key"];
-            
+
             if (!string.IsNullOrEmpty(endpoint) && !string.IsNullOrEmpty(key))
             {
                 var client = new AzureOpenAIClient(new Uri(endpoint), new Azure.AzureKeyCredential(key));

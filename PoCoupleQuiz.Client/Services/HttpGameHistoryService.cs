@@ -18,7 +18,7 @@ public class HttpGameHistoryService : IGameHistoryService
         try
         {
             var response = await _httpClient.PostAsJsonAsync("api/GameHistory", history);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();

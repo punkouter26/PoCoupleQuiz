@@ -1,0 +1,224 @@
+// ==============================================================================
+// PoCoupleQuiz - Essential KQL Queries for Application Insights
+// ==============================================================================
+// These queries provide fundamental insights into app usage, performance, and health.
+// Run these queries in Azure Portal > Application Insights > Logs
+// ==============================================================================
+
+// ==============================================================================
+// QUERY 1: User Activity - Active Users and Sessions (Last 7 Days)
+// ==============================================================================
+// Purpose: Measure user engagement by counting unique users and sessions
+// Metrics: Daily active users, total sessions, average session duration
+// Use Case: Track growth, identify usage patterns, measure engagement trends
+// ==============================================================================
+
+requests
+| where timestamp > ago(7d)
+| where name !contains "health" and name !contains "diagnostics/network"  // Exclude health checks
+| summarize 
+    Sessions = dcount(session_Id),
+    UniqueUsers = dcount(user_Id),
+    TotalRequests = count(),
+    AvgDuration = avg(duration)
+    by bin(timestamp, 1d)
+| project 
+    Date = format_datetime(timestamp, 'yyyy-MM-dd'),
+    DailyActiveUsers = UniqueUsers,
+    DailySessions = Sessions,
+    TotalRequests,
+    AvgSessionDurationMs = round(AvgDuration, 2)
+| order by Date desc
+
+// Alternative: Hourly breakdown for detailed analysis
+// requests
+// | where timestamp > ago(7d)
+// | where name !contains "health"
+// | summarize UniqueUsers = dcount(user_Id), Sessions = dcount(session_Id) by bin(timestamp, 1h)
+// | render timechart
+
+// ==============================================================================
+// QUERY 2: Top 10 Slowest Requests - Performance Bottlenecks
+// ==============================================================================
+// Purpose: Identify slow API endpoints that need optimization
+// Metrics: Request name, average duration, max duration, request count
+// Use Case: Pinpoint performance issues, prioritize optimization efforts
+// Threshold: Requests taking > 1000ms are considered slow
+// ==============================================================================
+
+requests
+| where timestamp > ago(24h)
+| where name !contains "health" and name !contains "diagnostics"  // Exclude monitoring endpoints
+| summarize 
+    RequestCount = count(),
+    AvgDurationMs = round(avg(duration), 2),
+    MaxDurationMs = round(max(duration), 2),
+    P95DurationMs = round(percentile(duration, 95), 2),
+    P99DurationMs = round(percentile(duration, 99), 2)
+    by name
+| where AvgDurationMs > 100  // Filter requests slower than 100ms
+| top 10 by AvgDurationMs desc
+| project 
+    Endpoint = name,
+    AvgDurationMs,
+    P95DurationMs,
+    P99DurationMs,
+    MaxDurationMs,
+    RequestCount,
+    PerformanceRating = case(
+        AvgDurationMs < 200, "✅ Good",
+        AvgDurationMs < 500, "⚠️ Moderate",
+        AvgDurationMs < 1000, "⚠️ Slow",
+        "❌ Critical"
+    )
+| order by AvgDurationMs desc
+
+// Alternative: Show slowest individual requests with details
+// requests
+// | where timestamp > ago(24h) and duration > 1000
+// | top 20 by duration desc
+// | project timestamp, name, duration, resultCode, url, customDimensions
+
+// ==============================================================================
+// QUERY 3: Error Rate - Application Health Monitor (Last 24 Hours)
+// ==============================================================================
+// Purpose: Monitor overall application health by tracking failed requests
+// Metrics: Total requests, failed requests, error rate percentage, error types
+// Use Case: Detect outages, monitor SLA compliance, alert on anomalies
+// Threshold: Error rate > 5% indicates potential issues
+// ==============================================================================
+
+requests
+| where timestamp > ago(24h)
+| summarize 
+    TotalRequests = count(),
+    FailedRequests = countif(success == false),
+    SuccessRequests = countif(success == true)
+| extend 
+    ErrorRatePercent = round((FailedRequests * 100.0) / TotalRequests, 2),
+    SuccessRatePercent = round((SuccessRequests * 100.0) / TotalRequests, 2),
+    HealthStatus = case(
+        (FailedRequests * 100.0) / TotalRequests < 1.0, "✅ Healthy",
+        (FailedRequests * 100.0) / TotalRequests < 5.0, "⚠️ Warning",
+        "❌ Critical"
+    )
+| project 
+    TotalRequests,
+    SuccessRequests,
+    FailedRequests,
+    SuccessRatePercent,
+    ErrorRatePercent,
+    HealthStatus
+
+// Breakdown by error type and endpoint
+// requests
+// | where timestamp > ago(24h) and success == false
+// | summarize ErrorCount = count() by name, resultCode
+// | top 10 by ErrorCount desc
+// | project Endpoint = name, StatusCode = resultCode, ErrorCount
+// | order by ErrorCount desc
+
+// Hourly error rate trend
+// requests
+// | where timestamp > ago(24h)
+// | summarize 
+//     Total = count(),
+//     Failed = countif(success == false)
+//     by bin(timestamp, 1h)
+// | extend ErrorRate = round((Failed * 100.0) / Total, 2)
+// | project timestamp, ErrorRate, Total, Failed
+// | render timechart
+
+// ==============================================================================
+// BONUS QUERIES - Additional Insights
+// ==============================================================================
+
+// ------------------------------------------------------------------------------
+// API Endpoint Usage - Most Called Endpoints
+// ------------------------------------------------------------------------------
+// requests
+// | where timestamp > ago(7d)
+// | summarize CallCount = count() by name
+// | top 20 by CallCount desc
+// | project Endpoint = name, CallCount
+// | render barchart
+
+// ------------------------------------------------------------------------------
+// Game Activity - Game Modes and Scores
+// ------------------------------------------------------------------------------
+// traces
+// | where timestamp > ago(7d)
+// | where message contains "Saving game history"
+// | extend GameMode = tostring(customDimensions.GameMode)
+// | extend Team1Score = toint(customDimensions.Team1Score)
+// | extend Team2Score = toint(customDimensions.Team2Score)
+// | summarize 
+//     GamesPlayed = count(),
+//     AvgTeam1Score = avg(Team1Score),
+//     AvgTeam2Score = avg(Team2Score)
+//     by GameMode
+// | project GameMode, GamesPlayed, AvgTeam1Score, AvgTeam2Score
+
+// ------------------------------------------------------------------------------
+// Client-Side Errors - Browser Errors
+// ------------------------------------------------------------------------------
+// traces
+// | where timestamp > ago(24h)
+// | where customDimensions.ClientSource == "BlazorWASM"
+// | where severityLevel >= 3  // Warning and above
+// | summarize ErrorCount = count() by message, tostring(customDimensions.ClientUrl)
+// | top 10 by ErrorCount desc
+// | project Message = message, ClientUrl = customDimensions_ClientUrl, ErrorCount
+
+// ------------------------------------------------------------------------------
+// Performance by Geography - Regional Performance
+// ------------------------------------------------------------------------------
+// requests
+// | where timestamp > ago(7d)
+// | summarize 
+//     Requests = count(),
+//     AvgDuration = avg(duration)
+//     by client_City, client_CountryOrRegion
+// | where Requests > 10
+// | top 20 by Requests desc
+// | project City = client_City, Country = client_CountryOrRegion, Requests, AvgDurationMs = round(AvgDuration, 2)
+
+// ------------------------------------------------------------------------------
+// Dependencies - External Service Performance
+// ------------------------------------------------------------------------------
+// dependencies
+// | where timestamp > ago(24h)
+// | summarize 
+//     Calls = count(),
+//     AvgDuration = avg(duration),
+//     FailureCount = countif(success == false)
+//     by name, type
+// | extend FailureRate = round((FailureCount * 100.0) / Calls, 2)
+// | project Dependency = name, Type = type, Calls, AvgDurationMs = round(AvgDuration, 2), FailureRate
+// | order by Calls desc
+
+// ==============================================================================
+// ALERTING RECOMMENDATIONS
+// ==============================================================================
+// Set up alerts in Azure Portal > Application Insights > Alerts for:
+//
+// 1. High Error Rate Alert
+//    - Condition: Error rate > 5% for 5 consecutive minutes
+//    - Severity: High
+//    - Action: Email/SMS to on-call team
+//
+// 2. Slow Response Time Alert
+//    - Condition: P95 response time > 2000ms for 10 minutes
+//    - Severity: Medium
+//    - Action: Email to dev team
+//
+// 3. Availability Alert
+//    - Condition: No requests received for 5 minutes during business hours
+//    - Severity: Critical
+//    - Action: Page on-call engineer
+//
+// 4. Dependency Failure Alert
+//    - Condition: Azure Storage or OpenAI dependency failure rate > 10%
+//    - Severity: High
+//    - Action: Email to ops team
+// ==============================================================================

@@ -25,9 +25,9 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "=== UNHANDLED EXCEPTION === RequestId: {RequestId}, Path: {Path}, Method: {Method}, User: {User}", 
-                context.TraceIdentifier, 
-                context.Request.Path, 
+            _logger.LogError(ex, "=== UNHANDLED EXCEPTION === RequestId: {RequestId}, Path: {Path}, Method: {Method}, User: {User}",
+                context.TraceIdentifier,
+                context.Request.Path,
                 context.Request.Method,
                 context.User?.Identity?.Name ?? "Anonymous");
             await HandleExceptionAsync(context, ex);

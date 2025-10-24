@@ -40,9 +40,29 @@ public class GameHistoryController : ControllerBase
                 return BadRequest("TotalQuestions must be non-negative");
             }
 
-            _logger.LogInformation("Saving game history for teams: {Team1} vs {Team2}", history.Team1Name, history.Team2Name);
+            // Log telemetry with structured properties
+            using (_logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["Team1Name"] = history.Team1Name,
+                ["Team2Name"] = history.Team2Name,
+                ["TotalQuestions"] = history.TotalQuestions,
+                ["Team1Score"] = history.Team1Score,
+                ["Team2Score"] = history.Team2Score,
+                ["GameMode"] = history.GameMode.ToString()
+            }))
+            {
+                _logger.LogInformation(
+                    "Saving game history: {Team1} ({Team1Score}) vs {Team2} ({Team2Score}), Mode: {GameMode}, Questions: {TotalQuestions}",
+                    history.Team1Name,
+                    history.Team1Score,
+                    history.Team2Name,
+                    history.Team2Score,
+                    history.GameMode,
+                    history.TotalQuestions);
+            }
+
             await _gameHistoryService.SaveGameHistoryAsync(history);
-            
+
             _logger.LogInformation("Successfully saved game history");
             return Ok();
         }

@@ -104,7 +104,7 @@ public class BrowserDiagnosticsService : IAsyncDisposable
         {
             var json = JsonSerializer.Serialize(logEntry);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-            
+
             // Fire and forget - don't wait for response to avoid blocking UI
             _ = Task.Run(async () =>
             {

@@ -1,0 +1,18 @@
+# Playwright Test Reports
+playwright-report/
+test-results/
+
+# Node modules
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*

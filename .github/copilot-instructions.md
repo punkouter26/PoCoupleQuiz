@@ -1,173 +1,66 @@
-AI Assistant Development Rules
-Section 1: General Principles & Core Workflow
-Step-Driven Process: Strictly adhere to the ~10 high-level steps defined in steps.md if it exists (if it does not exist then follow only user prompts)
-Progress Tracking: Mark completed steps in steps.md using the format: - [x] Step X: Description.
-Product Requirements: Reference prd.md in the root directory for all product requirements. Never modify prd.md. (if prd.md does not exist then just do the work the user prompts)
-Design Philosophy: Prioritize simplicity, functional correctness, and future expandability in all design decisions. Avoid premature optimization.
-Proactive Suggestions: After completing the assigned task, offer 5 relevant and helpful subsequent tasks that could be performed.
-File Cleanup: When encountering unused files or code, list all potentially removable items at once and ask for user confirmation before deleting them.
-Logging & Diagnostics Workflow
-Comprehensive Logging: Implement a robust logging strategy that outputs to the Console, Serilog, and Application Insights.
- File:
-A single log.txt file must be created or overwritten in the root project directory on each application run.
-It must contain the most recent, detailed information from both the server and client (if feasible) to aid in debugging.
-All log entries must include timestamps, component/class names, and operational context. Log key decisions, state changes, and detailed information for critical events like database calls and API requests.
-User Confirmation: Request user confirmation before proceeding to the next step with a clear summary:
-I've completed Step X: [Step Description].
-The code compiles, all relevant tests pass, and the log file shows no errors.
-Would you like me to:
-Make adjustments to the current step
-Proceed to Step Y: [Next Step Description]
-Section 2: Project & Solution Structure
-Solution Naming: The solution name will be derived from prd.md Title and must start with Po (e.g., PoYourSolutionName).
-Root Directory: All project files and folders will be contained within a root directory named after the solution (e.g., PoYourSolutionName/).
-Solution File: The solution file (PoYourSolutionName.sln) will be located in the root directory.
-Core Files: The following files might exist in the root directory:
-steps.md: For tracking high-level development progress 
-prd.md: Contains the product requirements and solution name.
-log.txt: A single debug log file, overwritten on each run.
-Project Organization: Each project must reside in its own folder at the root level, named appropriately (e.g., PoYourSolutionName.Api/, PoYourSolutionName.Client/). The corresponding .csproj file will be inside its respective folder.
-Standard Folders:
-.github/workflows/: Contains all CI/CD GitHub Action workflow files.
-.vscode/: Contains launch.json and tasks.json configured for local F5 debugging.
-AzuriteData/: For local Azurite table storage data (must be added to .gitignore).
-Version Control: Create a standard .gitignore file for .NET projects at the root.
+Quick Reference
+SDK: .NET 9.0 latest patch.
+Ports: API must bind to HTTP 5000 and HTTPS 5001 only.
+Project layout: /src, /tests, /docs, /scripts at repo root.
+Project name prefix: Po.AppName.*.
+Storage: Azure Table Storage by default using Azurite locally; other stores require spec.
+Error handling: RFC 7807 Problem Details via Serilog; never expose raw exceptions.
+Testing: xUnit for unit and integration; Playwright MCP TypeScript for E2E run manually.
+UI focus: Excellent mobile portrait UX and responsive layout.
+
+Guiding Philosophy & Standards
+Enforce .NET 9.0 only. Builds must fail if a different SDK major is used.
+Use imperative, minimal rules: Required rules take precedence. All other rules are Preferred or Informational to be decided later.
+Enforce SOLID and appropriate GoF patterns; prefer simple, small, well-factored code.
+Automate operations using CLI commands only; one-line commands at a time for human execution.
+Do not create extra markdown or PowerShell files during conversations. Azure deployment files are the only exception.
+
+Architecture & Maintenance
+Use Vertical Slice Architecture with Clean Architecture boundaries where complexity requires separation.
+Limit files to ≤500 lines. Enforce via linters or pre-commit checks.
+Repository layout at root:
+/src/Po.AppName.Api
+/src/Po.AppName.Client (Blazor Wasm)
+/src/Po.AppName.Shared
+/tests/Po.AppName.UnitTests
+/tests/Po.AppName.IntegrationTests
+/docs containing PRD.MD, STEPS.MD, README.MD only
+/scripts for CLI helpers only
+Naming: project and table names must follow Po.AppName pattern exactly.
+Provide small canonical examples and one-line anti-patterns inline in code comments where rules are non-obvious.
+
+API Observability Error Handling
+Expose Swagger/OpenAPI from project start and document endpoints used for manual testing.
+Expose mandatory /api/health with readiness and liveness semantics.
+Implement global exception handling middleware that transforms all errors into RFC 7807 Problem Details responses. Never return raw exception messages or stack traces.
+Use Serilog for structured logging and configure sensible local sinks; follow .NET best practices for telemetry integration.
+Add automated checks in CI for presence of Swagger, /api/health, and Problem Details middleware.
+
+
+
+Data Persistence Frontend
+Default persistence: Azure Table Storage. Use Azurite for local development. Alternative stores require explicit specification and approval.
+Table naming pattern: PoAppName[TableName].
+Blazor Client: start with built-in components; adopt Radzen.Blazor only for advanced scenarios justified by UX need.
+Ensure responsive design that prioritizes mobile portrait experience: fluid grid, touch-friendly controls, readable typography, appropriate breakpoints.
+Test main flows on desktop and narrow-screen mobile emulation to validate layout and interactions.
+
+Testing Workflow
+Follow TDD: write a failing xUnit test first then implement code. Maintain unit and integration tests separately.
+xUnit for unit and integration tests. Integration tests must include setup and teardown to leave no lingering data.
+E2E: Playwright MCP with TypeScript; E2E tests are executed manually by you and are not included in CI.
+Create a minimal, easy-to-invoke set of API methods surfaced in Swagger for manual verification during development and QA.
+Ensure database-using tests run isolated instances against Azurite or disposable test tables and clean up after themselves.
+
+Tooling Checks and Enforcement
+Enforce formatting with dotnet format as a pre-commit or CI gate; fail builds on format errors.
+Add CI checks to validate: .NET SDK major version is 9, required ports are configured, project prefix conforms to Po.AppName, /api/health exists, and Problem Details middleware is present.
+Provide one-line CLI commands in comments for required tasks only; avoid multi-step scripts in conversation.
+Keep rules concise and machine-checkable; tag rules as Required, Preferred, or Informational where helpful for future edits.
+
+Implementation Notes
+All actionable examples must be one-line CLI commands unless an Azure deployment file is required.
+Do not create additional documentation files beyond PRD.MD, STEPS.MD, and README.MD.
+I will accept edits to enforcement levels and preferred tools later; current document encodes your responses and strict constraints provided.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Section 3: C#/.NET & API Development
-General C#/.NET Principles
-Framework: Target the .NET 9.x framework (or the latest stable version).
-Architecture:
-Decide between Vertical Slice Architecture (feature folders/CQRS) or Onion Architecture based on prd.md and complexity.
-If the application is simple and these patterns are overkill, implement a simpler, well-organized structure.
-Coding Standards:
-Use SOLID principles and C# Design Patterns.
-Add comments in class files to explain the specific SOLID principle or GoF design pattern being used (e.g., // Using Repository Pattern to abstract data access).
-Keep classes under 500 lines where possible.
-Dependency Injection (DI): Follow standard DI practices (Transient, Scoped, Singleton) and register all services in Program.cs or a dedicated extension method.
-Localization: All UI text, logs, and messages must be in English unless explicitly required by prd.md.
-API-Specific Implementation (.NET Core Web API)
-Project Setup: Create a .NET Core Web API project using dotnet new webapi.
-Error Handling & Reliability:
-Implement a global exception handler middleware to catch unhandled exceptions.
-Use try/catch blocks at service boundaries (e.g., database calls, external API calls).
-Return appropriate and consistent HTTP status codes from API endpoints.
-Consider implementing the Circuit Breaker pattern for calls to external services that may be unreliable.
-Feature Toggles: Consider using configuration-based feature toggles (appsettings.json or Azure configuration) for enabling/disabling features without redeploying.
-
-
-
-
-
-
-Section 4: Testing
-Framework: Use XUnit for all unit and integration tests.
-Workflow: Create services and their corresponding integration tests first. Verify that all tests pass before beginning UI implementation.
-Test Coverage: Write tests for all new business logic and core functionality in the API (controllers, services, data access).
-Connection Tests: Create dedicated tests to verify connections to external services (like Azure Table Storage) using test data and credentials.
-Debugging: Include descriptive debug statements in test methods to aid in troubleshooting.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Section B1: Blazor Development (Web UI)
-Project Setup: Create a hosted Blazor WebAssembly project, where the client app is hosted by the ASP.NET Core server app.
-Page Configuration: Set the application name (from prd.md) as the <title> for all pages, so it appears correctly in browser tabs and bookmarks.
-UI/UX:
-Implement a responsive design that works on various screen sizes.
-The Home.razor component should serve as the primary landing page.
-Use the Radzen Blazor UI library if the application's complexity warrants enhanced controls.
-Mandatory Diagnostics Page (
-Create a Diag.razor page accessible at the /diag route.
-The page must communicate with the server project to verify all critical connections.
-Display the status of each check in a clear grid format (e.g., Green for OK, Red for Error).
-Verify and display the status of:
-Data connections (Azure Table Storage / Azurite).
-API health checks.
-Internet connectivity.
-Authentication services (if used).
-Any other critical external dependencies.
-Log all diagnostic results to all configured logging targets.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Section B2: Azure Deployment & Implementation
-Phasing: Develop and verify all functionality locally first. Azure deployment is a final step.
-Resource Groups:
-Use the existing PoShared resource group for shared Azure resources (App Service Plan, Azure OpenAI, Log Analytics etc).
-Use azd up for the initial deployment, which will create a new, application-specific resource group named after the solution.
-Deployment Workflow (CI/CD):
-Create a YAML file in the root for azd to define the App Service and other app-specific resources (Azure Table Storage)
-After the initial azd up, use GitHub Actions for all subsequent CI/CD deployments to the application's resource group.
-Management & Best Practices:
-Prefer using the Azure CLI (az) and GitHub CLI (gh) for all configuration and information retrieval over the Azure Portal UI manual config
-Select the minimum viable Azure resource tier to manage costs.
-Tag all created Azure resources for identification and cost tracking. Implement retry policies and use connection pooling for interactions with Azure services.
-Data & Configuration
-Primary Database: Use Azure Table Storage as the primary database.
-Local Development: Use the Azurite emulator for local table storage development.
-Configuration & Secrets:
-Local: Store development-specific connection strings (e.g., for Azurite, SAS tokens) in appsettings.Development.json.
-Azure: Store production secrets and connection strings in Azure App Service Configuration (as environment variables). General settings can remain in appsettings.json.
-Monitoring (Application Insights)
-Integration: Use the shared Application Insights resource in the PoShared resource group.
-Telemetry: Track requests, dependencies, exceptions, and performance metrics.
-Analytics: Connect Application Insights to the existing Log Analytics resource in the PoShared resource group for advanced querying.

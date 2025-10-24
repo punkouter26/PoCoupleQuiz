@@ -22,7 +22,7 @@ namespace PoCoupleQuiz.Server.Controllers
             _httpClient = httpClient;
             _logger = logger;
             _debugPath = Path.Combine(env.ContentRootPath, "DEBUG");
-            
+
             // Ensure DEBUG directory exists
             if (!Directory.Exists(_debugPath))
                 Directory.CreateDirectory(_debugPath);
@@ -92,7 +92,7 @@ namespace PoCoupleQuiz.Server.Controllers
             // TEMPORARILY DISABLED: Network activity logging disabled to reduce log noise
             // This endpoint was causing cascading diagnostic requests flooding the console
             return Ok();
-            
+
             /*
             try
             {
@@ -129,7 +129,7 @@ namespace PoCoupleQuiz.Server.Controllers
                 var elementId = logData.TryGetProperty("elementId", out var idProp) ? idProp.GetString() : null;
                 var url = logData.GetProperty("url").GetString() ?? "";
 
-                _logger.LogInformation("CLIENT ACTION {Action} on {ElementType} {ElementId} at {Url}", 
+                _logger.LogInformation("CLIENT ACTION {Action} on {ElementType} {ElementId} at {Url}",
                     action, elementType, elementId ?? "unnamed", url);
 
                 // Write to dedicated user action log file
@@ -150,10 +150,10 @@ namespace PoCoupleQuiz.Server.Controllers
             {
                 var fileName = $"browser-{logType}.log";
                 var filePath = Path.Combine(_debugPath, fileName);
-                
-                var logEntry = JsonSerializer.Serialize(logData, new JsonSerializerOptions 
-                { 
-                    WriteIndented = false 
+
+                var logEntry = JsonSerializer.Serialize(logData, new JsonSerializerOptions
+                {
+                    WriteIndented = false
                 }) + Environment.NewLine;
 
                 // Append to file (create if doesn't exist)
@@ -171,7 +171,7 @@ namespace PoCoupleQuiz.Server.Controllers
             try
             {
                 var files = new[] { "browser-console.log", "browser-network.log", "browser-user-actions.log" };
-                
+
                 foreach (var file in files)
                 {
                     var filePath = Path.Combine(_debugPath, file);

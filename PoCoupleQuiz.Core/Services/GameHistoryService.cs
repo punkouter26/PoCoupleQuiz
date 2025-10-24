@@ -15,14 +15,14 @@ public class GameHistoryService : IGameHistoryService
     {
         _logger = logger;
         var connectionString = configuration["AzureStorage:ConnectionString"] ?? throw new ArgumentNullException("AzureStorage:ConnectionString");
-        
+
         // Safely get the first 50 characters or the entire string if shorter
         var connectionStringPrefix = connectionString.Length <= 50 ? connectionString : connectionString[..50];
         _logger.LogDebug("Initializing GameHistoryService with connection string: {ConnectionStringPrefix}...", connectionStringPrefix);
-        
+
         _tableClient = new TableClient(connectionString, "GameHistory");
         _tableClient.CreateIfNotExists();
-        
+
         _logger.LogInformation("GameHistoryService initialized successfully");
     }
 
@@ -32,17 +32,17 @@ public class GameHistoryService : IGameHistoryService
         {
             history.PartitionKey = "GameHistory";
             history.RowKey = GameHistory.GenerateRowKey();
-            
-            _logger.LogInformation("Saving game history for teams {Team1} vs {Team2}, Score: {Score1}-{Score2}", 
+
+            _logger.LogInformation("Saving game history for teams {Team1} vs {Team2}, Score: {Score1}-{Score2}",
                 history.Team1Name, history.Team2Name, history.Team1Score, history.Team2Score);
-            
+
             await _tableClient.AddEntityAsync(history);
-            
+
             _logger.LogDebug("Game history saved successfully with RowKey: {RowKey}", history.RowKey);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save game history for teams {Team1} vs {Team2}", 
+            _logger.LogError(ex, "Failed to save game history for teams {Team1} vs {Team2}",
                 history.Team1Name, history.Team2Name);
             throw;
         }
@@ -53,7 +53,7 @@ public class GameHistoryService : IGameHistoryService
         try
         {
             _logger.LogDebug("Retrieving history for team: {TeamName}", teamName);
-            
+
             var histories = new List<GameHistory>();
             var filter = $"(Team1Name eq '{teamName}' or Team2Name eq '{teamName}')";
             var queryResults = _tableClient.QueryAsync<GameHistory>(filter);
@@ -78,7 +78,7 @@ public class GameHistoryService : IGameHistoryService
         try
         {
             _logger.LogDebug("Calculating category stats for team: {TeamName}", teamName);
-            
+
             var histories = await GetTeamHistoryAsync(teamName);
             var categoryStats = new Dictionary<QuestionCategory, int>();
 
@@ -96,9 +96,9 @@ public class GameHistoryService : IGameHistoryService
                 }
             }
 
-            _logger.LogInformation("Calculated category stats for team {TeamName}: {Stats}", 
+            _logger.LogInformation("Calculated category stats for team {TeamName}: {Stats}",
                 teamName, string.Join(", ", categoryStats.Select(kvp => $"{kvp.Key}:{kvp.Value}")));
-            
+
             return categoryStats;
         }
         catch (Exception ex)
@@ -113,7 +113,7 @@ public class GameHistoryService : IGameHistoryService
         try
         {
             _logger.LogDebug("Getting top {Count} matched answers for team: {TeamName}", count, teamName);
-            
+
             var histories = await GetTeamHistoryAsync(teamName);
             var answerCounts = new Dictionary<string, int>();
 
@@ -152,16 +152,16 @@ public class GameHistoryService : IGameHistoryService
         try
         {
             _logger.LogDebug("Calculating average response time for team: {TeamName}", teamName);
-            
+
             var histories = await GetTeamHistoryAsync(teamName);
-            if (!histories.Any()) 
+            if (!histories.Any())
             {
                 _logger.LogWarning("No history found for team: {TeamName}, returning 0 average response time", teamName);
                 return 0;
             }
 
             var averageTime = histories.Average(h => h.AverageResponseTime);
-            
+
             _logger.LogInformation("Average response time for team {TeamName}: {AverageTime:F2}ms", teamName, averageTime);
             return averageTime;
         }
