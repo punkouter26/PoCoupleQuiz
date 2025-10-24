@@ -1,0 +1,127 @@
+/* Celebration Animation Component */
+.celebration-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confetti-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+}
+
+.confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    top: -10px;
+    animation: confettiFall 3s linear forwards;
+    opacity: 0.8;
+}
+
+@keyframes confettiFall {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+.celebration-message {
+    text-align: center;
+    animation: celebrationBounce 0.6s ease-out;
+    z-index: 1;
+}
+
+@keyframes celebrationBounce {
+    0% {
+        transform: scale(0) rotate(-180deg);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2) rotate(10deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+.celebration-icon {
+    font-size: 5rem;
+    animation: iconPulse 1s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+.celebration-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 1rem 0 0.5rem 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+}
+
+.celebration-subtitle {
+    font-size: 1.25rem;
+    color: #2c3e50;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Dark Mode */
+.app-container.dark-mode .celebration-title {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.app-container.dark-mode .celebration-subtitle {
+    color: #e0e0e0;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .celebration-icon {
+        font-size: 3.5rem;
+    }
+
+    .celebration-title {
+        font-size: 2rem;
+    }
+
+    .celebration-subtitle {
+        font-size: 1rem;
+        padding: 0 1rem;
+    }
+
+    .confetti {
+        width: 8px;
+        height: 8px;
+    }
+}

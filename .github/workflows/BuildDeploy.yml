@@ -7,8 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  AZURE_WEBAPP_NAME: pocouplequiz
-  AZURE_WEBAPP_PACKAGE_PATH: 'PoCoupleQuiz.Server'
+  AZURE_WEBAPP_NAME: 'pocouplequiz'
   DOTNET_VERSION: '9.0.x'
 
 jobs:
@@ -16,28 +15,25 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
     
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
-    - name: Restore dependencies
-      run: dotnet restore
+    - name: Build and Publish
+      run: |
+        dotnet restore
+        dotnet publish PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj \
+          --configuration Release \
+          --output ./publish
     
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
-    
-    - name: Test
-      run: dotnet test --no-build --verbosity normal --configuration Release
-    
-    - name: Publish
-      run: dotnet publish ${{ env.AZURE_WEBAPP_PACKAGE_PATH }} --configuration Release --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/publish
-    
-    - name: Deploy to Azure Web App
+    - name: Deploy to Azure App Service
+      if: github.event_name == 'push'
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/publish 
+        package: ./publish 

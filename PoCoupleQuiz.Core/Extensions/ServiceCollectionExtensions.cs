@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PoCoupleQuiz.Core.Services;
+using PoCoupleQuiz.Core.Validators;
 
 namespace PoCoupleQuiz.Core.Extensions;
 
@@ -10,6 +11,9 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Register validators
+        services.AddSingleton<IValidator<string>, TeamNameValidator>();
+
         // Register Question Service based on configuration
         if (ShouldUseMockQuestionService(configuration))
         {

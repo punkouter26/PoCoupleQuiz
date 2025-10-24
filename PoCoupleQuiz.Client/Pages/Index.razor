@@ -9,33 +9,31 @@
 <style>
     .title-container {
         background: linear-gradient(135deg, #FFD700, #FFA500);
-        padding: 2rem;
-        border-radius: 20px;
-        margin-bottom: 2rem;
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin-bottom: 1.5rem;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        animation: bounce 2s infinite;
-    }
-
-    @@keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
+        text-align: center;
     }
 
     .game-title {
         font-family: 'Comic Sans MS', cursive;
         color: #FF4081;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
     }
 
     .subtitle {
         font-family: 'Comic Sans MS', cursive;
         color: #673AB7;
+        font-size: 1rem;
     }
 
     .setup-container {
         background-color: #F8BBD0;
         border-radius: 15px;
-        padding: 2rem;
+        padding: 1.5rem;
     }
 
     .form-control {
@@ -57,6 +55,7 @@
         font-size: 1.1rem;
         cursor: pointer;
         transition: background-color 0.3s;
+        width: 100%;
     }
 
     .btn-primary:hover {
@@ -71,15 +70,38 @@
         padding: 1rem;
         margin-bottom: 1rem;
     }
+
+    /* Mobile-first responsive layout */
+    @@media (max-width: 768px) {
+        .title-container {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .game-title {
+            font-size: 1.5rem;
+        }
+        
+        .subtitle {
+            font-size: 0.9rem;
+        }
+        
+        .setup-container {
+            padding: 1rem;
+        }
+    }
 </style>
 
-<div style="max-width: 800px; margin: 0 auto;">
+<div style="max-width: 800px; margin: 0 auto; padding: 1rem;">
     <div class="title-container">
         <h2 style="text-align: center;" class="game-title mb-4">PoCoupleQuiz</h2>
         <h6 style="text-align: center;" class="subtitle">
             The Fun Way to Test How Well You Know Each Other! 🧠 💕
         </h6>
     </div>
+
+    <!-- Quick Stats Widget -->
+    <QuickStatsWidget />
 
     <div class="setup-container" style="padding: 2rem; margin: 1rem;">
         <p style="text-align: center; margin-bottom: 1rem;">
@@ -102,7 +124,12 @@
 
             <!-- Player Names -->
             <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Player Names:</label>
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">
+                    Player Names:
+                    <HelpTooltip Title="King Player"
+                                 Text="The first player is the 'King' who answers questions about themselves. Other players try to guess the King's answers to earn points."
+                                 Example="If the King is Sarah, she answers 'What's your favorite color?', then others guess what Sarah answered" />
+                </label>
                 @for (int i = 0; i < numberOfPlayers; i++)
                 {
                     int index = i; // Capture for lambda
@@ -120,7 +147,12 @@
             
             <!-- Difficulty -->
             <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Difficulty Level:</label>
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">
+                    Difficulty Level:
+                    <HelpTooltip Title="Difficulty Levels"
+                                 Text="Difficulty determines the number of rounds. Easy = 3 rounds, Medium = 5 rounds, Hard = 7 rounds. The King role rotates each round."
+                                 Example="In Medium difficulty, each player gets a chance to be King, and 2 players will be King twice" />
+                </label>
                 <select @bind="selectedDifficulty" class="form-control">
                     <option value="@DifficultyLevel.Easy">Easy (3 rounds)</option>
                     <option value="@DifficultyLevel.Medium">Medium (5 rounds)</option>

@@ -7,6 +7,7 @@ using PoCoupleQuiz.Core.Models; // Added for Question model
 using Polly; // Added Polly
 using Polly.Retry; // Added Polly Retry
 using Microsoft.Extensions.Logging; // Added Logging
+using System.ClientModel; // Added for ClientResult
 
 namespace PoCoupleQuiz.Core.Services;
 
@@ -71,70 +72,45 @@ public class AzureOpenAIQuestionService : IQuestionService
     // Updated return type from Task<string> to Task<Question>
     public async Task<Question> GenerateQuestionAsync(string? difficulty = null)
     {
-        // Create cache key (still based on text for simplicity)
         string cacheKey = $"question_text_{difficulty ?? "medium"}_{_lastQuestion}";
 
-        // Check if we have cached question text
-        if (_promptCache.ContainsKey(cacheKey))
+        // Check cache
+        var cachedQuestion = GetCachedQuestion(cacheKey);
+        if (cachedQuestion != null)
         {
-            var cachedQuestionText = _promptCache[cacheKey];
-            _lastQuestion = cachedQuestionText;
-            _logger.LogInformation("Using cached question text: {QuestionText}", cachedQuestionText);
-            // Return a Question object with cached text and a default category
-            return new Question { Text = cachedQuestionText, Category = QuestionCategory.Preferences }; // Placeholder category
+            _lastQuestion = cachedQuestion.Text;
+            return cachedQuestion;
         }
 
         try
         {
-            var systemPrompt = difficulty?.ToLower() switch
-            {
-                "easy" => "You are a quiz game host. Generate simple, fun, and easily answerable questions about someone's personal habits, preferences, and daily routines. The questions should be straightforward with clear answers. For example: 'What is their favorite color?', 'Do they prefer coffee or tea?'",
-                "hard" => "You are a quiz game host. Generate challenging and thought-provoking questions about someone's personal values, complex preferences, and deeper characteristics. These questions should require deeper knowledge of the person. For example: 'What would they say was their most defining life experience?', 'What's their approach to handling conflict?'",
-                _ => "You are a quiz game host. Generate fun, appropriate questions about someone's personal habits, preferences, and daily routines. These questions should help determine how well others know this person. Questions should be specific and have clear answers. For example: 'What is their favorite breakfast food?', 'What time do they usually go to bed?', 'What's their most used app on their phone?'"
-            };
-
-            var messages = new List<ChatMessage>
-            {
-                new SystemChatMessage(systemPrompt),
-                new UserChatMessage($"Generate a single question that would reveal how well someone knows the person being asked about. Do not generate this question: {_lastQuestion}")
-            };
+            var messages = BuildChatMessages(difficulty ?? "medium");
 
             _logger.LogInformation("Sending request to Azure OpenAI with deployment: {DeploymentName}", _deploymentName);
 
-            // Execute API call through Polly pipeline
-            var response = await _resiliencePipeline.ExecuteAsync(async token =>
+            var response = await ExecuteWithRetryAsync(messages, new ChatCompletionOptions
             {
-                var chatClient = _client.GetChatClient(_deploymentName);
-                return await chatClient.CompleteChatAsync(messages, new ChatCompletionOptions
-                {
-                    MaxOutputTokenCount = 100,
-                    Temperature = 0.7f,
-                    TopP = 0.95f,
-                    FrequencyPenalty = 0.8f,
-                    PresencePenalty = 0.8f
-                }, token);
+                MaxOutputTokenCount = 100,
+                Temperature = 0.7f,
+                TopP = 0.95f,
+                FrequencyPenalty = 0.8f,
+                PresencePenalty = 0.8f
             });
 
             var newQuestionText = response.Value.Content[0].Text.Trim();
 
-            // Log success
             _logger.LogInformation("Successfully generated question via API: {QuestionText}", newQuestionText);
 
             // Cache the question text
             _promptCache[cacheKey] = newQuestionText;
+            _lastQuestion = newQuestionText;
 
-            _lastQuestion = newQuestionText; // Store the new question text
-
-            // Return a new Question object
-            // TODO: Ideally, parse category from API response or prompt engineering
-            return new Question { Text = newQuestionText, Category = QuestionCategory.Preferences }; // Placeholder category
+            return new Question { Text = newQuestionText, Category = QuestionCategory.Preferences };
         }
         catch (RequestFailedException ex)
         {
-            // Log detailed error information using logger
             _logger.LogError(ex, "Azure OpenAI API Error: Status={Status}, Message={ErrorMessage}", ex.Status, ex.Message);
 
-            // Provide more specific error handling based on status code
             if (ex.Status == (int)HttpStatusCode.TooManyRequests)
             {
                 _logger.LogWarning("Rate limit exceeded. Using fallback question.");
@@ -144,17 +120,49 @@ public class AzureOpenAIQuestionService : IQuestionService
                 _logger.LogError("Authentication failed. Check API key and endpoint.");
             }
 
-            // Use a fallback question
             return GetFallbackQuestion();
         }
         catch (Exception ex)
         {
-            // Log general exception using logger
             _logger.LogError(ex, "Error generating question: {ExceptionType}: {ErrorMessage}", ex.GetType().Name, ex.Message);
-
-            // Use a fallback question
             return GetFallbackQuestion();
         }
+    }
+
+    private Question? GetCachedQuestion(string cacheKey)
+    {
+        if (_promptCache.ContainsKey(cacheKey))
+        {
+            var cachedQuestionText = _promptCache[cacheKey];
+            _logger.LogInformation("Using cached question text: {QuestionText}", cachedQuestionText);
+            return new Question { Text = cachedQuestionText, Category = QuestionCategory.Preferences };
+        }
+        return null;
+    }
+
+    private List<ChatMessage> BuildChatMessages(string difficulty)
+    {
+        var systemPrompt = difficulty.ToLower() switch
+        {
+            "easy" => "You are a quiz game host. Generate simple, fun, and easily answerable questions about someone's personal habits, preferences, and daily routines. The questions should be straightforward with clear answers. For example: 'What is their favorite color?', 'Do they prefer coffee or tea?'",
+            "hard" => "You are a quiz game host. Generate challenging and thought-provoking questions about someone's personal values, complex preferences, and deeper characteristics. These questions should require deeper knowledge of the person. For example: 'What would they say was their most defining life experience?', 'What's their approach to handling conflict?'",
+            _ => "You are a quiz game host. Generate fun, appropriate questions about someone's personal habits, preferences, and daily routines. These questions should help determine how well others know this person. Questions should be specific and have clear answers. For example: 'What is their favorite breakfast food?', 'What time do they usually go to bed?', 'What's their most used app on their phone?'"
+        };
+
+        return new List<ChatMessage>
+        {
+            new SystemChatMessage(systemPrompt),
+            new UserChatMessage($"Generate a single question that would reveal how well someone knows the person being asked about. Do not generate this question: {_lastQuestion}")
+        };
+    }
+
+    private async Task<ClientResult<ChatCompletion>> ExecuteWithRetryAsync(List<ChatMessage> messages, ChatCompletionOptions options)
+    {
+        return await _resiliencePipeline.ExecuteAsync(async token =>
+        {
+            var chatClient = _client.GetChatClient(_deploymentName);
+            return await chatClient.CompleteChatAsync(messages, options, token);
+        });
     }
 
     // Updated to return a Question object
@@ -186,24 +194,15 @@ public class AzureOpenAIQuestionService : IQuestionService
 
         try
         {
-            var messages = new List<ChatMessage>
-            {
-                new SystemChatMessage("You are a quiz game judge. Your task is to determine if a player's guess matches what the main player answered about themselves. Consider semantic similarity and be somewhat lenient - answers don't need to be word-for-word identical to be considered a match. Answer with just 'yes' or 'no'."),
-                new UserChatMessage($"Do these answers match?\nMain player's answer: {answer1}\nGuessing player's answer: {answer2}")
-            };
+            var messages = BuildSimilarityMessages(answer1, answer2);
 
-            // Execute API call through Polly pipeline
-            var response = await _resiliencePipeline.ExecuteAsync(async token =>
+            var response = await ExecuteWithRetryAsync(messages, new ChatCompletionOptions
             {
-                var chatClient = _client.GetChatClient(_deploymentName);
-                return await chatClient.CompleteChatAsync(messages, new ChatCompletionOptions
-                {
-                    MaxOutputTokenCount = 10,
-                    Temperature = 0.3f,
-                    TopP = 0.5f,
-                    FrequencyPenalty = 0,
-                    PresencePenalty = 0
-                }, token);
+                MaxOutputTokenCount = 10,
+                Temperature = 0.3f,
+                TopP = 0.5f,
+                FrequencyPenalty = 0,
+                PresencePenalty = 0
             });
 
             var result = response.Value.Content[0].Text.Trim().ToLower();
@@ -216,7 +215,6 @@ public class AzureOpenAIQuestionService : IQuestionService
         }
         catch (Exception ex)
         {
-            // Log the error using logger
             _logger.LogError(ex, "Error checking answer similarity: {ErrorMessage}", ex.Message);
 
             // Fallback to simple string comparison when API fails
@@ -224,6 +222,15 @@ public class AzureOpenAIQuestionService : IQuestionService
                               answer2.ToLowerInvariant().Contains(answer1.ToLowerInvariant());
             return simpleMatch;
         }
+    }
+
+    private List<ChatMessage> BuildSimilarityMessages(string answer1, string answer2)
+    {
+        return new List<ChatMessage>
+        {
+            new SystemChatMessage("You are a quiz game judge. Your task is to determine if a player's guess matches what the main player answered about themselves. Consider semantic similarity and be somewhat lenient - answers don't need to be word-for-word identical to be considered a match. Answer with just 'yes' or 'no'."),
+            new UserChatMessage($"Do these answers match?\nMain player's answer: {answer1}\nGuessing player's answer: {answer2}")
+        };
     }
 
     public async Task<string> GenerateAnswerAsync(string question)
@@ -239,24 +246,15 @@ public class AzureOpenAIQuestionService : IQuestionService
 
         try
         {
-            var messages = new List<ChatMessage>
-            {
-                new SystemChatMessage("You are an AI player in a quiz game. Generate a plausible and realistic answer about someone's personal habits or preferences. Keep answers concise and specific."),
-                new UserChatMessage($"Generate an answer to this question: {question}")
-            };
+            var messages = BuildAnswerMessages(question);
 
-            // Execute API call through Polly pipeline
-            var response = await _resiliencePipeline.ExecuteAsync(async token =>
+            var response = await ExecuteWithRetryAsync(messages, new ChatCompletionOptions
             {
-                var chatClient = _client.GetChatClient(_deploymentName);
-                return await chatClient.CompleteChatAsync(messages, new ChatCompletionOptions
-                {
-                    MaxOutputTokenCount = 50,
-                    Temperature = 0.6f,
-                    TopP = 0.9f,
-                    FrequencyPenalty = 0,
-                    PresencePenalty = 0
-                }, token);
+                MaxOutputTokenCount = 50,
+                Temperature = 0.6f,
+                TopP = 0.9f,
+                FrequencyPenalty = 0,
+                PresencePenalty = 0
             });
 
             var answer = response.Value.Content[0].Text.Trim();
@@ -268,18 +266,30 @@ public class AzureOpenAIQuestionService : IQuestionService
         }
         catch (Exception ex)
         {
-            // Log the error using logger
             _logger.LogError(ex, "Error generating answer: {ErrorMessage}", ex.Message);
-
-            // Return fallback answers based on question type
-            if (question.Contains("favorite"))
-                return "Chocolate ice cream";
-            else if (question.Contains("hobby"))
-                return "Reading novels";
-            else if (question.Contains("time") || question.Contains("when"))
-                return "Around 10 PM";
-            else
-                return "It depends on the day";
+            return GetFallbackAnswer(question);
         }
+    }
+
+    private List<ChatMessage> BuildAnswerMessages(string question)
+    {
+        return new List<ChatMessage>
+        {
+            new SystemChatMessage("You are an AI player in a quiz game. Generate a plausible and realistic answer about someone's personal habits or preferences. Keep answers concise and specific."),
+            new UserChatMessage($"Generate an answer to this question: {question}")
+        };
+    }
+
+    private string GetFallbackAnswer(string question)
+    {
+        // Return fallback answers based on question type
+        if (question.Contains("favorite"))
+            return "Chocolate ice cream";
+        else if (question.Contains("hobby"))
+            return "Reading novels";
+        else if (question.Contains("time") || question.Contains("when"))
+            return "Around 10 PM";
+        else
+            return "It depends on the day";
     }
 }

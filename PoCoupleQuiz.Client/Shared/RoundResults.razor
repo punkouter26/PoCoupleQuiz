@@ -1,0 +1,33 @@
+@using PoCoupleQuiz.Core.Models
+
+<div class="results-container mt-4">
+    <h5>Round Results</h5>
+    <div class="alert alert-success">
+        <strong>King's Answer:</strong> @KingAnswer
+    </div>
+    
+    @foreach (var playerAnswer in PlayerAnswers)
+    {
+        var isMatch = MatchedPlayers.Contains(playerAnswer.Key);
+        <div class="alert @(isMatch ? "alert-success" : "alert-warning")">
+            <strong>@playerAnswer.Key:</strong> @playerAnswer.Value 
+            @if (isMatch) { <span class="badge bg-success ms-2">✓ Match!</span> }
+        </div>
+    }
+    
+    <RadzenButton Click="OnNextRound" Text="Next Round" ButtonStyle="ButtonStyle.Primary" class="mt-3" />
+</div>
+
+<style>
+    .results-container {
+        border-top: 2px solid #e0e0e0;
+        padding-top: 1rem;
+    }
+</style>
+
+@code {
+    [Parameter] public string KingAnswer { get; set; } = "";
+    [Parameter] public Dictionary<string, string> PlayerAnswers { get; set; } = new();
+    [Parameter] public List<string> MatchedPlayers { get; set; } = new();
+    [Parameter] public EventCallback OnNextRound { get; set; }
+}

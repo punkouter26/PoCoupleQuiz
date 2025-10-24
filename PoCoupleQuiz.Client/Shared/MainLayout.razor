@@ -8,14 +8,40 @@
 
 <PageTitle>PoCoupleQuiz</PageTitle>
 
+<style>
+    .rz-layout header {
+        background-color: #1976d2;
+        color: white;
+        padding: 0.75rem 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .rz-layout header h5 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .rz-layout main {
+        padding: 0.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    @@media (min-width: 768px) {
+        .rz-layout main {
+            padding: 1rem;
+        }
+    }
+</style>
+
 <AppErrorBoundary>
     <div class="rz-layout">
-        <header style="background-color: #1976d2; color: white; padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <header>
             <div style="display: flex; align-items: center; justify-content: space-between;">
-                <h5 style="margin: 0; margin-left: 1rem;">PoCoupleQuiz</h5>
+                <h5>PoCoupleQuiz</h5>
             </div>
         </header>
-        <main style="padding: 1rem; max-width: 1200px; margin: 0 auto;">
+        <main>
             @Body
         </main>
     </div>

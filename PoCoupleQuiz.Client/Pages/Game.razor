@@ -23,15 +23,9 @@
     }
     else if (currentGame.IsGameOver)
     {
-        <div class="game-over-container">
-            <h2>🎉 Game Over! 🎉</h2>
-            <ScoreboardDisplay Scoreboard="@currentGame.GetScoreboard()" />
-            
-            <div class="mt-4">
-                <RadzenButton Click="@(() => NavigationManager.NavigateTo("/"))" Text="New Game" ButtonStyle="ButtonStyle.Primary" class="me-2" />
-                <RadzenButton Click="@(() => NavigationManager.NavigateTo("/leaderboard"))" Text="Leaderboard" ButtonStyle="ButtonStyle.Secondary" />
-            </div>
-        </div>
+        <GameComplete Scoreboard="@currentGame.GetScoreboard()"
+                     OnNewGame="@(() => NavigationManager.NavigateTo("/"))"
+                     OnViewLeaderboard="@(() => NavigationManager.NavigateTo("/leaderboard"))" />
     }
     else
     {
@@ -42,68 +36,26 @@
                         <h3>Round @(currentGame.CurrentRound + 1) of @currentGame.MaxRounds</h3>
                           @if (currentQuestion != null)
                         {
-                            <div class="question-container">
-                                <h4 class="question-text">@currentQuestion.Question</h4>
-                                
-                                @if (!showResults)
-                                {
-                                    <!-- Current Player Interface -->
-                                    <div class="@(isKingPlayerTurn ? "king-interface" : "player-interface")">
-                                        @if (isKingPlayerTurn)
-                                        {
-                                            <h5>👑 @currentPlayerName's Turn (King Player)</h5>
-                                            <p>Answer the question about yourself:</p>
-                                        }
-                                        else
-                                        {
-                                            <h5>🎯 @currentPlayerName's Turn</h5>
-                                            <p>What do you think @currentGame.KingPlayer?.Name would answer?</p>
-                                        }
-                                        
-                                        <RadzenTextArea @bind-Value="currentAnswer" 
-                                                       @oninput="@((ChangeEventArgs e) => OnAnswerInput(e))"
-                                                       Placeholder="@(isKingPlayerTurn ? "Your answer..." : "Your guess...")" 
-                                                       Rows="3" 
-                                                       Style="width: 100%; margin-bottom: 1rem;" />
-                                        
-                                        <RadzenButton Click="SubmitAnswer" 
-                                                     Text="@(isKingPlayerTurn ? "Submit Answer" : "Submit Guess")" 
-                                                     ButtonStyle="ButtonStyle.Primary" 
-                                                     Disabled="@string.IsNullOrWhiteSpace(currentAnswer)" />
-                                    </div>
-                                    
-                                    <!-- Show progress -->
-                                    @if (!isKingPlayerTurn)
-                                    {
-                                        <div class="mt-3">
-                                            <small class="text-muted">
-                                                Player @(currentGuessingPlayerIndex + 1) of @guessingPlayers.Count guessing players
-                                            </small>
-                                        </div>
-                                    }
-                                }
-                                else
-                                {
-                                    <!-- Results Interface -->
-                                    <div class="results-container mt-4">
-                                        <h5>Round Results</h5>
-                                        <div class="alert alert-success">
-                                            <strong>King's Answer:</strong> @currentQuestion.KingPlayerAnswer
-                                        </div>
-                                        
-                                        @foreach (var playerAnswer in currentQuestion.PlayerAnswers)
-                                        {
-                                            var isMatch = currentQuestion.HasPlayerMatched(playerAnswer.Key);
-                                            <div class="alert @(isMatch ? "alert-success" : "alert-warning")">
-                                                <strong>@playerAnswer.Key:</strong> @playerAnswer.Value 
-                                                @if (isMatch) { <span class="badge bg-success ms-2">✓ Match!</span> }
-                                            </div>
-                                        }
-                                        
-                                        <RadzenButton Click="NextRound" Text="Next Round" ButtonStyle="ButtonStyle.Primary" class="mt-3" />
-                                    </div>
-                                }
-                            </div>
+                            @if (!showResults)
+                            {
+                                <QuestionDisplay QuestionText="@currentQuestion.Question"
+                                               CurrentPlayerName="@currentPlayerName"
+                                               KingPlayerName="@(currentGame.KingPlayer?.Name ?? "")"
+                                               IsKingPlayer="@isKingPlayerTurn"
+                                               ShowResults="@showResults"
+                                               CurrentGuessingPlayerIndex="@currentGuessingPlayerIndex"
+                                               TotalGuessingPlayers="@guessingPlayers.Count"
+                                               Answer="@currentAnswer"
+                                               OnAnswerInput="@OnAnswerInput"
+                                               OnSubmit="@SubmitAnswer" />
+                            }
+                            else
+                            {
+                                <RoundResults KingAnswer="@currentQuestion.KingPlayerAnswer"
+                                            PlayerAnswers="@currentQuestion.PlayerAnswers"
+                                            MatchedPlayers="@GetMatchedPlayers()"
+                                            OnNextRound="@NextRound" />
+                            }
                         }
                         else
                         {
@@ -139,31 +91,6 @@
     
     .game-card {
         min-height: 400px;
-    }
-    
-    .question-text {
-        color: #1976d2;
-        margin-bottom: 2rem;
-        padding: 1rem;
-        background: #f5f5f5;
-        border-radius: 8px;
-    }
-    
-    .king-interface, .player-interface {
-        padding: 1rem;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        background: #fafafa;
-    }
-    
-    .results-container {
-        border-top: 2px solid #e0e0e0;
-        padding-top: 1rem;
-    }
-    
-    .game-over-container {
-        text-align: center;
-        padding: 2rem;
     }
 </style>
 
@@ -448,6 +375,15 @@
     {
         currentAnswer = e.Value?.ToString() ?? "";
         StateHasChanged(); // Force UI update to enable/disable button immediately
+    }
+
+    private List<string> GetMatchedPlayers()
+    {
+        if (currentQuestion == null) return new List<string>();
+        
+        return currentQuestion.PlayerAnswers.Keys
+            .Where(player => currentQuestion.HasPlayerMatched(player))
+            .ToList();
     }
 
     private async Task EvaluateAnswers()

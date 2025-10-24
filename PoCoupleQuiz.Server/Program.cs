@@ -119,6 +119,7 @@ namespace PoCoupleQuiz.Server
                 app.UseHttpsRedirection();
 
                 app.UseBlazorFrameworkFiles();
+                app.UseStaticFiles();
                 app.UseRouting();
 
                 // Map health check endpoints

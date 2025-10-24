@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
+using PoCoupleQuiz.Core.Validators;
 
 namespace PoCoupleQuiz.Server.Controllers;
 
@@ -10,11 +11,16 @@ public class GameHistoryController : ControllerBase
 {
     private readonly IGameHistoryService _gameHistoryService;
     private readonly ILogger<GameHistoryController> _logger;
+    private readonly IValidator<string> _teamNameValidator;
 
-    public GameHistoryController(IGameHistoryService gameHistoryService, ILogger<GameHistoryController> logger)
+    public GameHistoryController(
+        IGameHistoryService gameHistoryService, 
+        ILogger<GameHistoryController> logger,
+        IValidator<string> teamNameValidator)
     {
         _gameHistoryService = gameHistoryService;
         _logger = logger;
+        _teamNameValidator = teamNameValidator;
     }
 
     [HttpPost]
@@ -26,6 +32,25 @@ public class GameHistoryController : ControllerBase
             {
                 _logger.LogWarning("Received null GameHistory object");
                 return BadRequest("GameHistory object is required");
+            }
+
+            // Validate team names
+            if (!string.IsNullOrWhiteSpace(history.Team1Name))
+            {
+                var team1Validation = _teamNameValidator.Validate(history.Team1Name);
+                if (!team1Validation.IsValid)
+                {
+                    return BadRequest($"Team1Name: {team1Validation.ErrorMessage}");
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(history.Team2Name))
+            {
+                var team2Validation = _teamNameValidator.Validate(history.Team2Name);
+                if (!team2Validation.IsValid)
+                {
+                    return BadRequest($"Team2Name: {team2Validation.ErrorMessage}");
+                }
             }
 
             if (string.IsNullOrWhiteSpace(history.Team1Name) && string.IsNullOrWhiteSpace(history.Team2Name))

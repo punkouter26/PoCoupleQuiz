@@ -1,0 +1,24 @@
+@using PoCoupleQuiz.Core.Models
+
+<div class="game-over-container">
+    <h2>🎉 Game Over! 🎉</h2>
+    <ScoreboardDisplay Scoreboard="@Scoreboard" />
+    
+    <div class="mt-4">
+        <RadzenButton Click="@OnNewGame" Text="New Game" ButtonStyle="ButtonStyle.Primary" class="me-2" />
+        <RadzenButton Click="@OnViewLeaderboard" Text="Leaderboard" ButtonStyle="ButtonStyle.Secondary" />
+    </div>
+</div>
+
+<style>
+    .game-over-container {
+        text-align: center;
+        padding: 2rem;
+    }
+</style>
+
+@code {
+    [Parameter] public Dictionary<string, int> Scoreboard { get; set; } = new();
+    [Parameter] public EventCallback OnNewGame { get; set; }
+    [Parameter] public EventCallback OnViewLeaderboard { get; set; }
+}

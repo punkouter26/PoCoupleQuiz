@@ -1,0 +1,63 @@
+@inject IJSRuntime JS
+
+<div class="help-tooltip-trigger" @onclick="ToggleTooltip">
+    <span class="help-icon">@Icon</span>
+</div>
+
+@if (isVisible)
+{
+    <div class="help-tooltip" @onclick:stopPropagation="true">
+        <div class="help-tooltip-content">
+            <div class="help-tooltip-header">
+                <strong>@Title</strong>
+                <button class="help-tooltip-close" @onclick="ToggleTooltip">✕</button>
+            </div>
+            <p>@Text</p>
+            @if (!string.IsNullOrEmpty(Example))
+            {
+                <div class="help-tooltip-example">
+                    <em>Example: @Example</em>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Icon { get; set; } = "❓";
+
+    [Parameter]
+    public string Title { get; set; } = "Help";
+
+    [Parameter]
+    public string Text { get; set; } = "";
+
+    [Parameter]
+    public string Example { get; set; } = "";
+
+    private bool isVisible = false;
+
+    private void ToggleTooltip()
+    {
+        isVisible = !isVisible;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("eval", @"
+                document.addEventListener('click', function(e) {
+                    var tooltips = document.querySelectorAll('.help-tooltip');
+                    tooltips.forEach(function(tooltip) {
+                        if (!tooltip.contains(e.target) && !e.target.closest('.help-tooltip-trigger')) {
+                            var closeBtn = tooltip.querySelector('.help-tooltip-close');
+                            if (closeBtn) closeBtn.click();
+                        }
+                    });
+                });
+            ");
+        }
+    }
+}

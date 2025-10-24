@@ -1,0 +1,72 @@
+@using PoCoupleQuiz.Core.Models
+
+<div class="question-container">
+    <h4 class="question-text">@QuestionText</h4>
+    
+    @if (!ShowResults)
+    {
+        <div class="@(IsKingPlayer ? "king-interface" : "player-interface")">
+            @if (IsKingPlayer)
+            {
+                <h5>👑 @CurrentPlayerName's Turn (King Player)</h5>
+                <p>Answer the question about yourself:</p>
+            }
+            else
+            {
+                <h5>🎯 @CurrentPlayerName's Turn</h5>
+                <p>What do you think @KingPlayerName would answer?</p>
+            }
+            
+            <RadzenTextArea @bind-Value="Answer" 
+                           @oninput="@OnAnswerInput"
+                           Placeholder="@(IsKingPlayer ? "Your answer..." : "Your guess...")" 
+                           Rows="3" 
+                           Style="width: 100%; margin-bottom: 1rem;" />
+            
+            <RadzenButton Click="OnSubmit" 
+                         Text="@(IsKingPlayer ? "Submit Answer" : "Submit Guess")" 
+                         ButtonStyle="ButtonStyle.Primary" 
+                         Disabled="@string.IsNullOrWhiteSpace(Answer)" />
+        </div>
+        
+        @if (!IsKingPlayer)
+        {
+            <div class="mt-3">
+                <small class="text-muted">
+                    Player @(CurrentGuessingPlayerIndex + 1) of @TotalGuessingPlayers guessing players
+                </small>
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .question-text {
+        color: #1976d2;
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+    
+    .king-interface, .player-interface {
+        padding: 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        background: #fafafa;
+    }
+</style>
+
+@code {
+    [Parameter] public string QuestionText { get; set; } = "";
+    [Parameter] public string CurrentPlayerName { get; set; } = "";
+    [Parameter] public string KingPlayerName { get; set; } = "";
+    [Parameter] public bool IsKingPlayer { get; set; }
+    [Parameter] public bool ShowResults { get; set; }
+    [Parameter] public int CurrentGuessingPlayerIndex { get; set; }
+    [Parameter] public int TotalGuessingPlayers { get; set; }
+    [Parameter] public string Answer { get; set; } = "";
+    [Parameter] public EventCallback<string> AnswerChanged { get; set; }
+    [Parameter] public EventCallback<ChangeEventArgs> OnAnswerInput { get; set; }
+    [Parameter] public EventCallback OnSubmit { get; set; }
+}

@@ -18,8 +18,18 @@ builder.Services.AddScoped<BrowserDiagnosticsService>();
 
 var app = builder.Build();
 
-// Initialize browser diagnostics
-var diagnosticsService = app.Services.GetRequiredService<BrowserDiagnosticsService>();
-await diagnosticsService.InitializeAsync();
+// Initialize browser diagnostics in background (don't block app startup)
+_ = Task.Run(async () =>
+{
+    try
+    {
+        var diagnosticsService = app.Services.GetRequiredService<BrowserDiagnosticsService>();
+        await diagnosticsService.InitializeAsync();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Failed to initialize browser diagnostics: {ex.Message}");
+    }
+});
 
 await app.RunAsync();

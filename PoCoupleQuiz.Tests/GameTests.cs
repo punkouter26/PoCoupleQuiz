@@ -3,7 +3,7 @@ using Moq;
 using Microsoft.Extensions.Logging;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
-using PoCoupleQuiz.Client.Pages.Pages;
+using PoCoupleQuiz.Client.Pages;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Components;
@@ -18,7 +18,7 @@ namespace PoCoupleQuiz.Tests
     {
         private readonly Mock<IQuestionService> _mockQuestionService; private readonly Mock<ITeamService> _mockTeamService;
         private readonly Mock<IGameHistoryService> _mockGameHistoryService;
-        private readonly Mock<ILogger<PoCoupleQuiz.Client.Pages.Pages.Index>> _mockLogger;
+        private readonly Mock<ILogger<PoCoupleQuiz.Client.Pages.Index>> _mockLogger;
         private readonly Mock<IGameStateService> _mockGameStateService;
         private readonly Mock<NavigationManager> _mockNavigationManager;
         private readonly Mock<NotificationService> _mockNotificationService;
@@ -29,7 +29,7 @@ namespace PoCoupleQuiz.Tests
             _mockQuestionService = new Mock<IQuestionService>();
             _mockTeamService = new Mock<ITeamService>();
             _mockGameHistoryService = new Mock<IGameHistoryService>();
-            _mockLogger = new Mock<ILogger<PoCoupleQuiz.Client.Pages.Pages.Index>>();
+            _mockLogger = new Mock<ILogger<PoCoupleQuiz.Client.Pages.Index>>();
             _mockGameStateService = new Mock<IGameStateService>();
             _mockNavigationManager = new Mock<NavigationManager>();
             _mockNotificationService = new Mock<NotificationService>();
@@ -55,7 +55,8 @@ namespace PoCoupleQuiz.Tests
             // Register services
             Services.AddSingleton<IQuestionService>(_mockQuestionService.Object);
             Services.AddSingleton<ITeamService>(_mockTeamService.Object);
-            Services.AddSingleton<IGameHistoryService>(_mockGameHistoryService.Object); Services.AddSingleton<ILogger<PoCoupleQuiz.Client.Pages.Pages.Index>>(_mockLogger.Object);
+            Services.AddSingleton<IGameHistoryService>(_mockGameHistoryService.Object); 
+            Services.AddSingleton<ILogger<PoCoupleQuiz.Client.Pages.Index>>(_mockLogger.Object);
             Services.AddSingleton<IGameStateService>(_mockGameStateService.Object);
             Services.AddSingleton<NavigationManager>(_mockNavigationManager.Object);
             Services.AddSingleton<NotificationService>(_mockNotificationService.Object);
@@ -71,6 +72,9 @@ namespace PoCoupleQuiz.Tests
             JSInterop.SetupVoid("Radzen.destroyTooltip", _ => true);
             JSInterop.SetupVoid("Radzen.showTooltip", _ => true);
             JSInterop.Setup<object>("Radzen.getProperty", _ => true).SetResult(new object());
+            
+            // Setup JSInterop for HelpTooltip component
+            JSInterop.SetupVoid("eval", _ => true);
 
             // Store service provider for later cleanup
             _serviceProvider = Services.BuildServiceProvider();
@@ -102,7 +106,7 @@ namespace PoCoupleQuiz.Tests
         public async Task Index_ShouldRenderCorrectly()
         {
             // Arrange
-            var cut = Render<PoCoupleQuiz.Client.Pages.Pages.Index>();
+            var cut = Render<PoCoupleQuiz.Client.Pages.Index>();
 
             // Act - Allow time for component to initialize
             await Task.Delay(100);

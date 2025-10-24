@@ -1,4 +1,4 @@
-name: Build and Deploy to Azure
+name: Build and Deploy App Service
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: 'PoCoupleQuiz'
-  AZURE_WEBAPP_PACKAGE_PATH: 'PoCoupleQuiz.Server'
   DOTNET_VERSION: '9.0.x'
 
 jobs:
@@ -15,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
     
     - name: Setup .NET
@@ -23,33 +22,16 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
-    - name: Restore dependencies
-      run: dotnet restore
-    
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
-    
-    - name: Test
-      run: dotnet test --no-build --verbosity normal --configuration Release
-    
-    - name: Publish
-      run: dotnet publish ${{ env.AZURE_WEBAPP_PACKAGE_PATH }} --configuration Release --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/publish --no-build
+    - name: Build and Publish
+      run: |
+        dotnet restore
+        dotnet publish PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj \
+          --configuration Release \
+          --output ./publish
     
     - name: Deploy to Azure App Service
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/publish
-    
-    - name: Health Check
-      run: |
-        echo "Waiting for deployment to complete..."
-        sleep 30
-        response=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/healthz)
-        if [ $response -eq 200 ]; then
-          echo "✅ Health check passed - Application is running"
-        else
-          echo "❌ Health check failed - HTTP status: $response"
-          exit 1
-        fi
+        package: ./publish

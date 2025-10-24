@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
+using PoCoupleQuiz.Core.Validators;
 using System.ComponentModel.DataAnnotations;
 
 namespace PoCoupleQuiz.Server.Controllers;
@@ -11,11 +12,16 @@ public class TeamsController : ControllerBase
 {
     private readonly ITeamService _teamService;
     private readonly ILogger<TeamsController> _logger;
+    private readonly IValidator<string> _teamNameValidator;
 
-    public TeamsController(ITeamService teamService, ILogger<TeamsController> logger)
+    public TeamsController(
+        ITeamService teamService, 
+        ILogger<TeamsController> logger,
+        IValidator<string> teamNameValidator)
     {
         _teamService = teamService;
         _logger = logger;
+        _teamNameValidator = teamNameValidator;
     }
 
     [HttpGet]
@@ -34,14 +40,10 @@ public class TeamsController : ControllerBase
     [HttpGet("{teamName}")]
     public async Task<ActionResult<Team>> GetTeam(string teamName)
     {
-        if (string.IsNullOrWhiteSpace(teamName))
+        var validationResult = _teamNameValidator.Validate(teamName);
+        if (!validationResult.IsValid)
         {
-            return BadRequest("Team name cannot be empty.");
-        }
-
-        if (teamName.Length > 100)
-        {
-            return BadRequest("Team name cannot exceed 100 characters.");
+            return BadRequest(validationResult.ErrorMessage);
         }
 
         var team = await _teamService.GetTeamAsync(teamName);
@@ -60,14 +62,10 @@ public class TeamsController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        if (string.IsNullOrWhiteSpace(team.Name))
+        var validationResult = _teamNameValidator.Validate(team.Name);
+        if (!validationResult.IsValid)
         {
-            return BadRequest("Team name is required.");
-        }
-
-        if (team.Name.Length > 100)
-        {
-            return BadRequest("Team name cannot exceed 100 characters.");
+            return BadRequest(validationResult.ErrorMessage);
         }
 
         if (team.TotalQuestionsAnswered < 0 || team.CorrectAnswers < 0)
@@ -82,14 +80,10 @@ public class TeamsController : ControllerBase
     [HttpPut("{teamName}/stats")]
     public async Task<ActionResult> UpdateTeamStats(string teamName, [FromBody] UpdateStatsRequest request)
     {
-        if (string.IsNullOrWhiteSpace(teamName))
+        var validationResult = _teamNameValidator.Validate(teamName);
+        if (!validationResult.IsValid)
         {
-            return BadRequest("Team name cannot be empty.");
-        }
-
-        if (teamName.Length > 100)
-        {
-            return BadRequest("Team name cannot exceed 100 characters.");
+            return BadRequest(validationResult.ErrorMessage);
         }
 
         if (!ModelState.IsValid)

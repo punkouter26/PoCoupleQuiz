@@ -50,38 +50,50 @@
                 </RadzenCard>
             </div>
 
-            <!-- Match History -->
+            <!-- Match History Timeline -->
             <div class="col-12 mb-3">
                 <RadzenCard>
-                    <h6 class="mb-3">Match History</h6>
-                    <RadzenDataGrid Data="@_gameHistories" AllowSorting="true" AllowPaging="true" PageSize="10" TItem="GameHistory">
-                        <Columns>
-                            <RadzenDataGridColumn TItem="GameHistory" Property="Timestamp" Title="Date" FormatString="{0:g}" />
-                            <RadzenDataGridColumn TItem="GameHistory" Property="GameMode" Title="Mode" />
-                            <RadzenDataGridColumn TItem="GameHistory" Title="Opponent">
-                                <Template Context="game">
-                                    @(game.Team1Name == TeamName ? game.Team2Name : game.Team1Name)
-                                </Template>
-                            </RadzenDataGridColumn>
-                            <RadzenDataGridColumn TItem="GameHistory" Title="Score">
-                                <Template Context="game">
-                                    @{
-                                        var isTeam1 = game.Team1Name == TeamName;
-                                        var score = isTeam1 ? $"{game.Team1Score}-{game.Team2Score}" : $"{game.Team2Score}-{game.Team1Score}";
-                                        var won = (isTeam1 && game.Team1Score > game.Team2Score) || (!isTeam1 && game.Team2Score > game.Team1Score);
-                                        var color = won ? "text-success" : "text-danger";
-                                    }
-                                    <span class="@color">@score</span>
-                                </Template>
-                            </RadzenDataGridColumn>
-                            <RadzenDataGridColumn TItem="GameHistory" Property="TotalQuestions" Title="Questions" />
-                            <RadzenDataGridColumn TItem="GameHistory" Title="Avg Time">
-                                <Template Context="game">
-                                    @game.AverageResponseTime.ToString("F1")s
-                                </Template>
-                            </RadzenDataGridColumn>
-                        </Columns>
-                    </RadzenDataGrid>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Match History</h6>
+                        <RadzenSwitch @bind-Value="@showTimeline" />
+                        <span class="ms-2">Timeline View</span>
+                    </div>
+                    
+                    @if (showTimeline)
+                    {
+                        <GameTimeline Games="@_gameHistories.OrderByDescending(g => g.Timestamp)" />
+                    }
+                    else
+                    {
+                        <RadzenDataGrid Data="@_gameHistories" AllowSorting="true" AllowPaging="true" PageSize="10" TItem="GameHistory">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="GameHistory" Property="Timestamp" Title="Date" FormatString="{0:g}" />
+                                <RadzenDataGridColumn TItem="GameHistory" Property="GameMode" Title="Mode" />
+                                <RadzenDataGridColumn TItem="GameHistory" Title="Opponent">
+                                    <Template Context="game">
+                                        @(game.Team1Name == TeamName ? game.Team2Name : game.Team1Name)
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="GameHistory" Title="Score">
+                                    <Template Context="game">
+                                        @{
+                                            var isTeam1 = game.Team1Name == TeamName;
+                                            var score = isTeam1 ? $"{game.Team1Score}-{game.Team2Score}" : $"{game.Team2Score}-{game.Team1Score}";
+                                            var won = (isTeam1 && game.Team1Score > game.Team2Score) || (!isTeam1 && game.Team2Score > game.Team1Score);
+                                            var color = won ? "text-success" : "text-danger";
+                                        }
+                                        <span class="@color">@score</span>
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="GameHistory" Property="TotalQuestions" Title="Questions" />
+                                <RadzenDataGridColumn TItem="GameHistory" Title="Avg Time">
+                                    <Template Context="game">
+                                        @game.AverageResponseTime.ToString("F1")s
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    }
                 </RadzenCard>
             </div>
         </div>
@@ -96,6 +108,7 @@
     private IEnumerable<GameHistory> _gameHistories = Array.Empty<GameHistory>();
     private int _currentStreak;
     private int _bestStreak;
+    private bool showTimeline = true;
 
     protected override async Task OnInitializedAsync()
     {
