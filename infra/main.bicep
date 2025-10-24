@@ -15,7 +15,7 @@ var tags = {
 }
 
 // Generate resource group name from solution name
-var resourceGroupName = 'rg-pocouplequiz-${environmentName}'
+var resourceGroupName = 'PoCoupleQuiz'
 
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -30,7 +30,6 @@ module resources 'resources.bicep' = {
   params: {
     location: location
     tags: tags
-    resourceGroupName: resourceGroupName
   }
 }
 

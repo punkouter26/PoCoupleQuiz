@@ -4,15 +4,11 @@ param location string = resourceGroup().location
 @description('Tags that will be applied to all resources')
 param tags object = {}
 
-@description('Resource group name for naming convention')
-param resourceGroupName string
-
-// Base name derived from resource group (remove 'rg-' prefix)
-var baseName = replace(resourceGroupName, 'rg-', '')
+// Base name for all resources
+var baseName = 'PoCoupleQuiz'
 
 // Storage account name (must be 3-24 characters, lowercase, no hyphens)
-// Ensure minimum length of 3 by padding with environment suffix
-var storageAccountName = take('stpcq${replace(replace(toLower(baseName), '-', ''), 'pocouplequiz', '')}', 24)
+var storageAccountName = 'stpocouplequiz'
 
 // Shared resource group for App Service Plan - using hardcoded resource ID for cross-RG reference
 var sharedAppServicePlanId = '/subscriptions/${subscription().subscriptionId}/resourceGroups/PoShared/providers/Microsoft.Web/serverfarms/PoShared'
@@ -85,7 +81,7 @@ resource gameHistoryTable 'Microsoft.Storage/storageAccounts/tableServices/table
 
 // App Service for hosting the Blazor application
 resource appService 'Microsoft.Web/sites@2023-12-01' = {
-  name: 'app-${baseName}'
+  name: baseName
   location: 'eastus2' // Must match App Service Plan location (PoShared is in East US 2)
   tags: union(tags, { 'azd-service-name': 'web' })
   kind: 'app'
