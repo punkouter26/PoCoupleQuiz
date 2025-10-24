@@ -56,8 +56,11 @@ public class GameHistoryControllerTests : IAsyncLifetime
     [Fact]
     public async Task SaveGameHistory_NullHistory_ReturnsBadRequest()
     {
+        // Arrange
+        var content = new StringContent("null", System.Text.Encoding.UTF8, "application/json");
+
         // Act
-        var response = await _client.PostAsync("/api/GameHistory", null);
+        var response = await _client.PostAsync("/api/GameHistory", content);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
