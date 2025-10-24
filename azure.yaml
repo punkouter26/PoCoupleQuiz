@@ -8,3 +8,4 @@ services:
         project: ./PoCoupleQuiz.Server
         host: appservice
         language: dotnet
+resourceGroup: rg-pocouplequiz
