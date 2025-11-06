@@ -17,7 +17,7 @@ var sharedOpenAIDeploymentName = 'gpt-35-turbo'
 
 // Shared App Service Plan in PoShared resource group (existing resource)
 var sharedResourceGroupName = 'PoShared'
-var sharedAppServicePlanName = 'ASP-PoShared-8ed9' // F1 tier plan in PoShared
+var sharedAppServicePlanName = 'PoShared' // F1 tier plan in East US 2
 
 // Generate unique resource names
 var appServiceName = '${abbrs.webSitesAppService}${baseName}'
