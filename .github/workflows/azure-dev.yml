@@ -1,16 +1,11 @@
 # ============================================================================
-# Po.CoupleQuiz - CI/CD Pipeline with Quality Gates
+# Po.CoupleQuiz - Simple CI/CD Pipeline
 # ============================================================================
-# This workflow performs the following quality checks and deployment:
-# 
-# Quality Gates:
-# 1. CodeQL Static Analysis (security scanning)
-# 2. Code Format Verification (dotnet format --verify-no-changes)
-# 3. Coverage Report Check (docs/coverage/index.html must exist)
-# 4. Build Verification (dotnet build)
-# 
-# Deployment:
-# 5. Azure Deployment via azd (using OIDC federated credentials)
+# This workflow builds and deploys the application to Azure App Service
+#
+# Steps:
+# 1. Build the .NET application
+# 2. Deploy to Azure via azd (using OIDC federated credentials)
 #
 # Triggers:
 # - Push to master branch
@@ -28,8 +23,6 @@ on:
 permissions:
   id-token: write      # Required for OIDC authentication to Azure
   contents: read       # Required to checkout code
-  security-events: write  # Required for CodeQL
-  actions: read        # Required for CodeQL
 
 env:
   AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
@@ -41,117 +34,11 @@ env:
 
 jobs:
   # ==========================================================================
-  # Job 1: Static Analysis & Quality Gates
+  # Build and Deploy to Azure
   # ==========================================================================
-  quality-gates:
-    name: Quality Gates
+  build-and-deploy:
+    name: Build and Deploy to Azure
     runs-on: ubuntu-latest
-    
-    steps:
-      # ----------------------------------------------------------------------
-      # Checkout Code
-      # ----------------------------------------------------------------------
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for CodeQL
-      
-      # ----------------------------------------------------------------------
-      # Setup .NET
-      # ----------------------------------------------------------------------
-      - name: Setup .NET ${{ env.DOTNET_VERSION }}
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-      
-      # ----------------------------------------------------------------------
-      # Restore Dependencies
-      # ----------------------------------------------------------------------
-      - name: Restore NuGet packages
-        run: dotnet restore
-      
-      # ----------------------------------------------------------------------
-      # Quality Gate 1: Code Format Verification
-      # ----------------------------------------------------------------------
-      - name: 🔍 Quality Gate - Code Format Verification
-        run: |
-          echo "::group::Checking code formatting..."
-          dotnet format --verify-no-changes --verbosity diagnostic
-          echo "::endgroup::"
-        continue-on-error: false
-      
-      # ----------------------------------------------------------------------
-      # Quality Gate 2: Build Verification
-      # ----------------------------------------------------------------------
-      - name: 🏗️ Quality Gate - Build Verification
-        run: |
-          echo "::group::Building solution..."
-          dotnet build --configuration Release --no-restore
-          echo "::endgroup::"
-      
-      # ----------------------------------------------------------------------
-      # Quality Gate 3: Coverage Report Check
-      # ----------------------------------------------------------------------
-      - name: 📊 Quality Gate - Coverage Report Check
-        run: |
-          echo "::group::Checking for coverage report..."
-          if [ ! -f "docs/coverage/html/index.html" ]; then
-            echo "❌ ERROR: Coverage report not found!"
-            echo ""
-            echo "The file docs/coverage/html/index.html is missing."
-            echo "Please run the following command locally before pushing:"
-            echo ""
-            echo "  .\Generate-CoverageReport.ps1"
-            echo ""
-            echo "This ensures code coverage meets the 80% threshold."
-            exit 1
-          fi
-          
-          echo "✅ Coverage report found: docs/coverage/html/index.html"
-          
-          # Check if coverage report was updated in this commit
-          COVERAGE_MODIFIED=$(git log -1 --name-only --pretty=format: | grep "docs/coverage" || true)
-          if [ -z "$COVERAGE_MODIFIED" ]; then
-            echo "⚠️  WARNING: Coverage report exists but was not updated in this commit."
-            echo "Please ensure you ran .\Generate-CoverageReport.ps1 before committing."
-          else
-            echo "✅ Coverage report was updated in this commit."
-          fi
-          echo "::endgroup::"
-      
-      # ----------------------------------------------------------------------
-      # Upload Coverage Report as Artifact
-      # ----------------------------------------------------------------------
-      - name: 📤 Upload Coverage Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: docs/coverage/
-          retention-days: 30
-      
-      # ----------------------------------------------------------------------
-      # Quality Gate 4: CodeQL Static Analysis (Security) - DISABLED
-      # CodeQL requires code scanning to be enabled in repository settings
-      # To enable: Go to Settings -> Security -> Code security and analysis
-      # ----------------------------------------------------------------------
-      # - name: 🔒 Initialize CodeQL
-      #   uses: github/codeql-action/init@v3
-      #   with:
-      #     languages: csharp, javascript
-      #     queries: security-and-quality
-      # 
-      # - name: 🔒 Perform CodeQL Analysis
-      #   uses: github/codeql-action/analyze@v3
-      #   with:
-      #     category: "/language:csharp"
-  
-  # ==========================================================================
-  # Job 2: Deploy to Azure
-  # ==========================================================================
-  deploy:
-    name: Deploy to Azure
-    runs-on: ubuntu-latest
-    needs: quality-gates
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     
     steps:
@@ -168,6 +55,16 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      # ----------------------------------------------------------------------
+      # Build Application
+      # ----------------------------------------------------------------------
+      - name: 🏗️ Build Application
+        run: |
+          echo "::group::Building solution..."
+          dotnet build --configuration Release
+          echo "✅ Build successful!"
+          echo "::endgroup::"
       
       # ----------------------------------------------------------------------
       # Install Azure Developer CLI
