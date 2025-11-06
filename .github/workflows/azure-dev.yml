@@ -130,18 +130,20 @@ jobs:
           retention-days: 30
       
       # ----------------------------------------------------------------------
-      # Quality Gate 4: CodeQL Static Analysis (Security)
+      # Quality Gate 4: CodeQL Static Analysis (Security) - DISABLED
+      # CodeQL requires code scanning to be enabled in repository settings
+      # To enable: Go to Settings -> Security -> Code security and analysis
       # ----------------------------------------------------------------------
-      - name: 🔒 Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: csharp, javascript
-          queries: security-and-quality
-      
-      - name: 🔒 Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:csharp"
+      # - name: 🔒 Initialize CodeQL
+      #   uses: github/codeql-action/init@v3
+      #   with:
+      #     languages: csharp, javascript
+      #     queries: security-and-quality
+      # 
+      # - name: 🔒 Perform CodeQL Analysis
+      #   uses: github/codeql-action/analyze@v3
+      #   with:
+      #     category: "/language:csharp"
   
   # ==========================================================================
   # Job 2: Deploy to Azure
