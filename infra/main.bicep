@@ -30,24 +30,37 @@ module resources 'resources.bicep' = {
   params: {
     location: location
     tags: tags
+    serviceName: 'web'
   }
 }
 
-// Output values for the application
+// ============================================================================
+// OUTPUTS FOR AZURE DEPLOYMENT
+// ============================================================================
+// These outputs are used by azd for deployment and local development configuration.
+// Run 'azd env get-values' to see these values.
+// ============================================================================
+
+// Azure subscription and resource group
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
 output AZURE_RESOURCE_GROUP string = rg.name
 
-// App Service outputs
-output AZURE_APP_SERVICE_NAME string = resources.outputs.APP_SERVICE_NAME
-output AZURE_APP_SERVICE_URI string = resources.outputs.APP_SERVICE_URI
+// Application Insights (for app telemetry)
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = resources.outputs.APPLICATION_INSIGHTS_CONNECTION_STRING
+output APPLICATIONINSIGHTS_INSTRUMENTATION_KEY string = resources.outputs.APPLICATION_INSIGHTS_INSTRUMENTATION_KEY
 
-// Storage outputs
+// Log Analytics (for monitoring)
+output LOG_ANALYTICS_WORKSPACE_ID string = resources.outputs.LOG_ANALYTICS_WORKSPACE_ID
+
+// Azure OpenAI (shared resource)
+output AZURE_OPENAI_ENDPOINT string = resources.outputs.OPENAI_ENDPOINT
+output AZURE_OPENAI_DEPLOYMENT_NAME string = resources.outputs.OPENAI_DEPLOYMENT_NAME
+
+// Azure Storage Account
 output AZURE_STORAGE_ACCOUNT_NAME string = resources.outputs.STORAGE_ACCOUNT_NAME
 
-// Application Insights outputs
-output AZURE_APPLICATION_INSIGHTS_NAME string = resources.outputs.APPLICATION_INSIGHTS_NAME
-output AZURE_APPLICATION_INSIGHTS_CONNECTION_STRING string = resources.outputs.APPLICATION_INSIGHTS_CONNECTION_STRING
-
-// Azure OpenAI outputs (using shared resource)
-output AZURE_OPENAI_ENDPOINT string = resources.outputs.OPENAI_ENDPOINT
+// App Service (web application)
+output SERVICE_WEB_NAME string = resources.outputs.SERVICE_WEB_NAME
+output SERVICE_WEB_URI string = resources.outputs.SERVICE_WEB_URI
+output APP_SERVICE_URL string = resources.outputs.APP_SERVICE_URL

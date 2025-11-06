@@ -1,11 +1,13 @@
 using PoCoupleQuiz.Core.Services;
 using PoCoupleQuiz.Core.Extensions;
+using PoCoupleQuiz.Server.Extensions;
 using PoCoupleQuiz.Server.Middleware;
 using PoCoupleQuiz.Server.HealthChecks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Serilog;
 using Serilog.Events;
 using System;
@@ -18,7 +20,7 @@ namespace PoCoupleQuiz.Server
     {
         public static void Main(string[] args)
         {
-            // Configure Serilog early, before the host is built
+            // Configure Serilog early for startup logging
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -31,7 +33,7 @@ namespace PoCoupleQuiz.Server
             if (!Directory.Exists(debugPath))
                 Directory.CreateDirectory(debugPath);
 
-            // Configure Serilog with shared log file for testing compatibility
+            // Configure basic Serilog for startup
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(configuration)
                 .CreateLogger();
@@ -44,8 +46,8 @@ namespace PoCoupleQuiz.Server
 
                 var builder = WebApplication.CreateBuilder(args);
 
-                // Use Serilog for logging
-                builder.Host.UseSerilog();
+                // Use Serilog configuration extension
+                builder.Host.AddSerilogConfiguration();
 
                 // Clear default logging providers since we're using Serilog
                 builder.Logging.ClearProviders();
@@ -55,17 +57,28 @@ namespace PoCoupleQuiz.Server
                 builder.Services.AddControllersWithViews();
                 builder.Services.AddRazorPages();
                 builder.Services.AddEndpointsApiExplorer();
-                builder.Services.AddSwaggerGen();            // Add health checks
-                builder.Services.AddHealthChecks()
-                    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("API is running"), tags: new[] { "live" })
-                    .AddCheck<AzureTableStorageHealthCheck>("azure_table_storage", tags: new[] { "ready" })
-                    .AddCheck<AzureOpenAIHealthCheck>("azure_openai", tags: new[] { "ready" });
+                builder.Services.AddSwaggerGen();
+                
+                // Add health checks using extension method
+                builder.Services.AddHealthCheckConfiguration(builder.Configuration);
 
-                // Add Application Insights
+                // Add HTTP context accessor for telemetry enrichment
+                builder.Services.AddHttpContextAccessor();
+
+                // Add Application Insights with custom telemetry initializer
                 builder.Services.AddApplicationInsightsTelemetry();
+                builder.Services.AddSingleton<Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer, PoCoupleQuiz.Server.Telemetry.CustomTelemetryInitializer>();
+
+                // Configure OpenTelemetry using extension method
+                builder.Services.AddOpenTelemetryConfiguration(
+                    builder.Configuration,
+                    builder.Environment.IsProduction());
 
                 // Register application services using extension method
                 builder.Services.AddPoCoupleQuizServices(builder.Configuration);
+
+                // Register server-specific services
+                builder.Services.AddScoped<PoCoupleQuiz.Server.Services.IBrowserLogService, PoCoupleQuiz.Server.Services.BrowserLogService>();
 
                 Log.Information("Application services configured successfully");
 

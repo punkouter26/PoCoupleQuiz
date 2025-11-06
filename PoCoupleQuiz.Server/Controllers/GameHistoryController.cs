@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Mvc;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
 using PoCoupleQuiz.Core.Validators;
+using PoCoupleQuiz.Server.Filters;
 
 namespace PoCoupleQuiz.Server.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/game-history")]
 public class GameHistoryController : ControllerBase
 {
     private readonly IGameHistoryService _gameHistoryService;
@@ -14,7 +15,7 @@ public class GameHistoryController : ControllerBase
     private readonly IValidator<string> _teamNameValidator;
 
     public GameHistoryController(
-        IGameHistoryService gameHistoryService, 
+        IGameHistoryService gameHistoryService,
         ILogger<GameHistoryController> logger,
         IValidator<string> teamNameValidator)
     {
@@ -98,28 +99,32 @@ public class GameHistoryController : ControllerBase
         }
     }
 
-    [HttpGet("team/{teamName}")]
+    [HttpGet("teams/{teamName}")]
+    [ValidateTeamName]
     public async Task<ActionResult<IEnumerable<GameHistory>>> GetTeamHistory(string teamName)
     {
         var history = await _gameHistoryService.GetTeamHistoryAsync(teamName);
         return Ok(history);
     }
 
-    [HttpGet("categoryStats/{teamName}")]
+    [HttpGet("teams/{teamName}/category-stats")]
+    [ValidateTeamName]
     public async Task<ActionResult<Dictionary<QuestionCategory, int>>> GetTeamCategoryStats(string teamName)
     {
         var stats = await _gameHistoryService.GetTeamCategoryStatsAsync(teamName);
         return Ok(stats);
     }
 
-    [HttpGet("topMatchedAnswers/{teamName}/{count}")]
+    [HttpGet("teams/{teamName}/top-matched-answers/{count}")]
+    [ValidateTeamName]
     public async Task<ActionResult<List<string>>> GetTopMatchedAnswers(string teamName, int count)
     {
         var answers = await _gameHistoryService.GetTopMatchedAnswersAsync(teamName, count);
         return Ok(answers);
     }
 
-    [HttpGet("averageResponseTime/{teamName}")]
+    [HttpGet("teams/{teamName}/average-response-time")]
+    [ValidateTeamName]
     public async Task<ActionResult<double>> GetAverageResponseTime(string teamName)
     {
         var avgTime = await _gameHistoryService.GetAverageResponseTimeAsync(teamName);

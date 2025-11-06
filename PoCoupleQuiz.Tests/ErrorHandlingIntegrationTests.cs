@@ -34,6 +34,7 @@ namespace PoCoupleQuiz.Tests
             _httpClient.Dispose();
             await _factory.DisposeAsync();
         }
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task TeamsController_GetTeam_InvalidName_ReturnsBadRequest()
         {
@@ -44,6 +45,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task TeamsController_GetTeam_ExtremelyLongName_ReturnsBadRequest()
         {
@@ -57,6 +59,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task TeamsController_SaveTeam_EmptyName_ReturnsBadRequest()
         {
@@ -78,6 +81,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task TeamsController_SaveTeam_NegativeStats_ReturnsBadRequest()
         {
@@ -99,6 +103,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task TeamsController_UpdateStats_NegativeScore_ReturnsBadRequest()
         {
@@ -114,6 +119,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task GlobalExceptionHandler_HandlesUnexpectedErrors()
         {
@@ -128,6 +134,7 @@ namespace PoCoupleQuiz.Tests
             Assert.True(response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task TeamsController_SaveTeam_MalformedJson_ReturnsBadRequest()
         {
@@ -142,6 +149,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task TeamsController_UpdateStats_InvalidGameMode_ReturnsBadRequest()
         {

@@ -4,14 +4,32 @@ param location string = resourceGroup().location
 @description('Tags that will be applied to all resources')
 param tags object = {}
 
+@description('Service name for the App Service')
+param serviceName string = 'web'
+
 // Base name for all resources
 var baseName = 'PoCoupleQuiz'
+var abbrs = loadJsonContent('./abbreviations.json')
 
-// Storage account name (must be 3-24 characters, lowercase, no hyphens)
-var storageAccountName = 'stpocouplequiz'
+// Shared Azure OpenAI resource in PoShared resource group (existing resource)
+var sharedOpenAIEndpoint = 'https://posharedopenaieastus.openai.azure.com/'
+var sharedOpenAIDeploymentName = 'gpt-35-turbo'
 
-// Shared resource group for App Service Plan - using hardcoded resource ID for cross-RG reference
-var sharedAppServicePlanId = '/subscriptions/${subscription().subscriptionId}/resourceGroups/PoShared/providers/Microsoft.Web/serverfarms/PoShared'
+// Generate unique resource names
+var appServicePlanName = '${abbrs.webServerFarms}${baseName}'
+var appServiceName = '${abbrs.webSitesAppService}${baseName}'
+var storageAccountName = toLower('${abbrs.storageStorageAccounts}${take(replace(baseName, '-', ''), 17)}')
+
+// ============================================================================
+// PRODUCTION INFRASTRUCTURE
+// ============================================================================
+// This Bicep file provisions all resources required for Azure deployment:
+// 1. Log Analytics Workspace - Required for Application Insights
+// 2. Application Insights - For telemetry and monitoring
+// 3. Storage Account - For Azure Table Storage (game history, teams)
+// 4. App Service Plan - Hosting infrastructure
+// 5. App Service - Web application deployment
+// ============================================================================
 
 // Log Analytics Workspace (required for Application Insights)
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -26,10 +44,12 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
     features: {
       enableLogAccessUsingOnlyResourcePermissions: true
     }
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
   }
 }
 
-// Application Insights (for telemetry)
+// Application Insights (for telemetry and monitoring)
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: 'appi-${baseName}'
   location: location
@@ -49,58 +69,83 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
   location: location
   tags: tags
-  sku: {
-    name: 'Standard_LRS' // Cheapest option: Locally redundant storage
-  }
   kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS' // Locally redundant storage (lowest cost)
+  }
   properties: {
-    accessTier: 'Hot'
+    minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
     allowSharedKeyAccess: true
-    minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
+    accessTier: 'Hot'
+    encryption: {
+      services: {
+        blob: {
+          enabled: true
+        }
+        file: {
+          enabled: true
+        }
+        table: {
+          enabled: true
+        }
+      }
+      keySource: 'Microsoft.Storage'
+    }
   }
 }
 
-// Table Service (part of Storage Account)
+// Table Service (for game history and team data)
 resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-01' = {
-  parent: storageAccount
   name: 'default'
+  parent: storageAccount
 }
 
-// Create tables for the application
-resource teamsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
-  parent: tableService
-  name: 'PoCoupleQuizTeams'
-}
-
-resource gameHistoryTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
-  parent: tableService
-  name: 'PoCoupleQuizGameHistory'
-}
-
-// App Service for hosting the Blazor application
-resource appService 'Microsoft.Web/sites@2023-12-01' = {
-  name: baseName
-  location: 'eastus2' // Must match App Service Plan location (PoShared is in East US 2)
-  tags: union(tags, { 'azd-service-name': 'web' })
-  kind: 'app'
+// App Service Plan (hosting infrastructure)
+resource appServicePlan 'Microsoft.Web/serverfarms@2024-04-01' = {
+  name: appServicePlanName
+  location: location
+  tags: tags
+  sku: {
+    name: 'B1' // Basic tier - suitable for production workloads
+    tier: 'Basic'
+    size: 'B1'
+    capacity: 1
+  }
   properties: {
-    serverFarmId: sharedAppServicePlanId
+    reserved: true // Required for Linux
+  }
+  kind: 'linux'
+}
+
+// App Service (web application)
+resource appService 'Microsoft.Web/sites@2024-04-01' = {
+  name: appServiceName
+  location: location
+  tags: union(tags, {
+    'azd-service-name': serviceName
+  })
+  kind: 'app,linux'
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
-      windowsFxVersion: 'DOTNETCORE|9.0'
-      alwaysOn: false // Required for Free (F1) tier
-      use32BitWorkerProcess: true // Required for Free (F1) tier
-      netFrameworkVersion: 'v9.0'
-      httpLoggingEnabled: true
-      logsDirectorySizeLimit: 35
-      requestTracingEnabled: true
+      linuxFxVersion: 'DOTNETCORE|9.0'
       minTlsVersion: '1.2'
-      ftpsState: 'FtpsOnly'
+      ftpsState: 'Disabled'
+      alwaysOn: true
+      http20Enabled: true
       appSettings: [
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: applicationInsights.properties.ConnectionString
+        }
+        {
+          name: 'ApplicationInsights__ConnectionString'
           value: applicationInsights.properties.ConnectionString
         }
         {
@@ -112,8 +157,24 @@ resource appService 'Microsoft.Web/sites@2023-12-01' = {
           value: 'recommended'
         }
         {
-          name: 'ASPNETCORE_ENVIRONMENT'
-          value: 'Production'
+          name: 'APPINSIGHTS_PROFILERFEATURE_VERSION'
+          value: '1.0.0'  // Enable Application Insights Profiler
+        }
+        {
+          name: 'APPINSIGHTS_SNAPSHOTFEATURE_VERSION'
+          value: '1.0.0'  // Enable Snapshot Debugger
+        }
+        {
+          name: 'DiagnosticServices_EXTENSION_VERSION'
+          value: '~3'  // Required for Snapshot Debugger
+        }
+        {
+          name: 'SnapshotDebugger_EXTENSION_VERSION'
+          value: 'disabled'  // Change to 'latest' to enable (additional cost ~$0.26/GB)
+        }
+        {
+          name: 'InstrumentationEngine_EXTENSION_VERSION'
+          value: 'disabled'  // Change to 'latest' to enable profiler (minimal cost)
         }
         {
           name: 'AzureStorage__ConnectionString'
@@ -121,42 +182,55 @@ resource appService 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'AzureOpenAI__Endpoint'
-          value: 'https://posharedopenaieastus.openai.azure.com/'
-        }
-        {
-          name: 'AzureOpenAI__Key'
-          value: '' // Must be set manually or via Key Vault
+          value: sharedOpenAIEndpoint
         }
         {
           name: 'AzureOpenAI__DeploymentName'
-          value: 'gpt-35-turbo'
+          value: sharedOpenAIDeploymentName
         }
         {
-          name: 'GameSettings__KingAnswerTimeSeconds'
-          value: '45'
-        }
-        {
-          name: 'GameSettings__PlayerAnswerTimeEasySeconds'
-          value: '40'
-        }
-        {
-          name: 'GameSettings__PlayerAnswerTimeMediumSeconds'
-          value: '30'
-        }
-        {
-          name: 'GameSettings__PlayerAnswerTimeHardSeconds'
-          value: '20'
+          name: 'ASPNETCORE_ENVIRONMENT'
+          value: 'Production'
         }
       ]
+      healthCheckPath: '/health/live'
+      cors: {
+        allowedOrigins: [
+          'https://${appServiceName}.azurewebsites.net'
+        ]
+        supportCredentials: false
+      }
     }
   }
 }
 
-// Outputs
-output APP_SERVICE_NAME string = appService.name
-output APP_SERVICE_URI string = 'https://${appService.properties.defaultHostName}'
-output STORAGE_ACCOUNT_NAME string = storageAccount.name
+// ============================================================================
+// OUTPUTS FOR AZURE DEPLOYMENT
+// ============================================================================
+
+// Application Insights outputs
 output APPLICATION_INSIGHTS_NAME string = applicationInsights.name
 output APPLICATION_INSIGHTS_CONNECTION_STRING string = applicationInsights.properties.ConnectionString
-output OPENAI_ENDPOINT string = 'https://posharedopenaieastus.openai.azure.com/'
+output APPLICATION_INSIGHTS_INSTRUMENTATION_KEY string = applicationInsights.properties.InstrumentationKey
+
+// Log Analytics outputs
 output LOG_ANALYTICS_WORKSPACE_NAME string = logAnalyticsWorkspace.name
+output LOG_ANALYTICS_WORKSPACE_ID string = logAnalyticsWorkspace.id
+
+// Azure OpenAI outputs (shared resource)
+output OPENAI_ENDPOINT string = sharedOpenAIEndpoint
+output OPENAI_DEPLOYMENT_NAME string = sharedOpenAIDeploymentName
+
+// Storage Account outputs
+output STORAGE_ACCOUNT_NAME string = storageAccount.name
+// Note: Connection string with account key should not be output for security reasons
+// Use Managed Identity or retrieve from App Service configuration
+
+// App Service outputs
+output APP_SERVICE_NAME string = appService.name
+output APP_SERVICE_URL string = 'https://${appService.properties.defaultHostName}'
+output APP_SERVICE_PLAN_NAME string = appServicePlan.name
+
+// Service-specific outputs (required by azd)
+output SERVICE_WEB_NAME string = appService.name
+output SERVICE_WEB_URI string = 'https://${appService.properties.defaultHostName}'

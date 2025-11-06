@@ -1,0 +1,36 @@
+// ============================================================================
+// CUSTOM ACTIVITY: Question Generation Traces
+// ============================================================================
+// Description: Finds all custom Activity spans created with ActivitySource
+// Use Case: Debug business logic flows, measure custom operation performance
+// Metrics: Custom span duration, success rate, dependency chains
+// Note: Requires custom ActivitySource instrumentation to be deployed
+// ============================================================================
+
+// Custom Activities are stored in 'dependencies' table with specific naming
+dependencies
+| where timestamp > ago(24h)
+| where type == "InProc"  // Custom activities show as in-process dependencies
+| where name startswith "Po.CoupleQuiz"  // Our custom ActivitySource namespace
+| extend 
+    ActivityName = name,
+    CustomProperties = customDimensions
+| summarize 
+    CallCount = count(),
+    AvgDuration_ms = round(avg(duration), 2),
+    P50_Duration_ms = round(percentile(duration, 50), 2),
+    P95_Duration_ms = round(percentile(duration, 95), 2),
+    P99_Duration_ms = round(percentile(duration, 99), 2),
+    SuccessRate_Percent = round(100.0 * countif(success == true) / count(), 2),
+    SampleProperties = any(CustomProperties)
+    by ActivityName
+| order by CallCount desc
+| project 
+    Activity = ActivityName,
+    Calls = CallCount,
+    SuccessRate = SuccessRate_Percent,
+    Avg_ms = AvgDuration_ms,
+    P50_ms = P50_Duration_ms,
+    P95_ms = P95_Duration_ms,
+    P99_ms = P99_Duration_ms,
+    SampleCustomProperties = SampleProperties

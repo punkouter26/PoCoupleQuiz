@@ -1,0 +1,33 @@
+// ============================================================================
+// SERVER PERFORMANCE: Top 10 Slowest Requests (Server-Side)
+// ============================================================================
+// Description: Identifies the slowest API endpoints by duration
+// Use Case: Performance optimization, identify bottlenecks
+// Metrics: Request duration (P50, P95, P99), count, success rate
+// ============================================================================
+
+requests
+| where timestamp > ago(24h)
+| where name !startswith "GET /health"  // Exclude health checks
+| summarize 
+    RequestCount = count(),
+    SuccessRate = round(100.0 * countif(success == true) / count(), 2),
+    P50_Duration_ms = round(percentile(duration, 50), 2),
+    P95_Duration_ms = round(percentile(duration, 95), 2),
+    P99_Duration_ms = round(percentile(duration, 99), 2),
+    Max_Duration_ms = round(max(duration), 2),
+    Avg_Duration_ms = round(avg(duration), 2)
+    by name, resultCode
+| where RequestCount > 5  // Filter out infrequent requests
+| order by P95_Duration_ms desc
+| take 10
+| project 
+    Endpoint = name,
+    StatusCode = resultCode,
+    RequestCount,
+    SuccessRate_Percent = SuccessRate,
+    Avg_ms = Avg_Duration_ms,
+    P50_ms = P50_Duration_ms,
+    P95_ms = P95_Duration_ms,
+    P99_ms = P99_Duration_ms,
+    Max_ms = Max_Duration_ms

@@ -1,0 +1,32 @@
+graph TB
+    subgraph "Users"
+        User[fa:fa-user Players/Couples]
+    end
+
+    subgraph "PoCoupleQuiz System"
+        WebApp[fa:fa-globe Web Application<br/>Blazor WebAssembly]
+    end
+
+    subgraph "Azure Cloud"
+        AppService[fa:fa-server App Service<br/>.NET 9 Web API]
+        TableStorage[fa:fa-database Azure Table Storage<br/>Game Data]
+        OpenAI[fa:fa-brain Azure OpenAI<br/>Question Generation]
+        AppInsights[fa:fa-chart-line Application Insights<br/>Telemetry & Logs]
+        KeyVault[fa:fa-key Key Vault<br/>Secrets]
+    end
+
+    User -->|Plays Quiz| WebApp
+    WebApp -->|HTTPS API Calls| AppService
+    AppService -->|Store/Retrieve Data| TableStorage
+    AppService -->|Generate Questions| OpenAI
+    AppService -->|Send Telemetry| AppInsights
+    WebApp -->|Client-side Telemetry| AppInsights
+    AppService -->|Fetch Secrets| KeyVault
+
+    classDef userClass fill:#4A90E2,stroke:#2E5C8A,color:#fff
+    classDef systemClass fill:#50C878,stroke:#2E7D4E,color:#fff
+    classDef azureClass fill:#F39C12,stroke:#C87F0A,color:#fff
+
+    class User userClass
+    class WebApp systemClass
+    class AppService,TableStorage,OpenAI,AppInsights,KeyVault azureClass

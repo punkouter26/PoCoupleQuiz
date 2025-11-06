@@ -1,23 +1,63 @@
 @* ScoreboardDisplay.razor *@
+@inject IJSRuntime JSRuntime
+
 @if (Scoreboard != null && Scoreboard.Any())
 {
     <div class="scoreboard-display">
         <h4>Current Scores</h4>
         @foreach (var entry in Scoreboard.OrderByDescending(s => s.Value))
         {
-            <div class="scoreboard-item">
+            var isUpdated = IsScoreUpdated(entry.Key);
+            <div class="scoreboard-item @(isUpdated ? "score-updated" : "")">
                 <span class="player-name">@entry.Key</span>
-                <span class="player-score">@entry.Value</span>
+                <span class="player-score" data-score="@entry.Value">@entry.Value</span>
             </div>
         }
     </div>
 }
 else
 {
-    <p>No scoreboard data available.</p>
+    <p>No scores to display.</p>
 }
 
 @code {
     [Parameter]
     public Dictionary<string, int> Scoreboard { get; set; } = new Dictionary<string, int>();
+    
+    [Parameter]
+    public Dictionary<string, int> PreviousScoreboard { get; set; } = new Dictionary<string, int>();
+    
+    private bool IsScoreUpdated(string playerName)
+    {
+        if (!PreviousScoreboard.ContainsKey(playerName))
+            return false;
+            
+        if (!Scoreboard.ContainsKey(playerName))
+            return false;
+            
+        return Scoreboard[playerName] > PreviousScoreboard[playerName];
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender && Scoreboard != null)
+        {
+            foreach (var player in Scoreboard)
+            {
+                if (IsScoreUpdated(player.Key))
+                {
+                    // Trigger haptic feedback on mobile for score increase
+                    try
+                    {
+                        await JSRuntime.InvokeVoidAsync("triggerSuccessHaptic");
+                    }
+                    catch (Exception)
+                    {
+                        // Silently fail if JS interop not available
+                    }
+                    break; // Only vibrate once per render
+                }
+            }
+        }
+    }
 }

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Text.Json;
+using PoCoupleQuiz.Core.Services;
+using PoCoupleQuiz.Server.Services;
 
 namespace PoCoupleQuiz.Server.Controllers
 {
@@ -13,13 +15,22 @@ namespace PoCoupleQuiz.Server.Controllers
     [Route("api/[controller]")]
     public class DiagnosticsController : ControllerBase
     {
-        private readonly HttpClient _httpClient;
+        private readonly IConnectivityCheckService _connectivityCheckService;
+        private readonly IConsoleLoggingService _consoleLoggingService;
+        private readonly IBrowserLogService _browserLogService;
         private readonly ILogger<DiagnosticsController> _logger;
         private readonly string _debugPath;
 
-        public DiagnosticsController(HttpClient httpClient, ILogger<DiagnosticsController> logger, IWebHostEnvironment env)
+        public DiagnosticsController(
+            IConnectivityCheckService connectivityCheckService,
+            IConsoleLoggingService consoleLoggingService,
+            IBrowserLogService browserLogService,
+            ILogger<DiagnosticsController> logger, 
+            IWebHostEnvironment env)
         {
-            _httpClient = httpClient;
+            _connectivityCheckService = connectivityCheckService;
+            _consoleLoggingService = consoleLoggingService;
+            _browserLogService = browserLogService;
             _logger = logger;
             _debugPath = Path.Combine(env.ContentRootPath, "DEBUG");
 
@@ -31,16 +42,8 @@ namespace PoCoupleQuiz.Server.Controllers
         [HttpGet("internet")]
         public async Task<IActionResult> CheckInternetConnection()
         {
-            try
-            {
-                var response = await _httpClient.GetAsync("https://www.microsoft.com/");
-                response.EnsureSuccessStatusCode();
-                return Ok(true);
-            }
-            catch (HttpRequestException)
-            {
-                return Ok(false);
-            }
+            var isConnected = await _connectivityCheckService.CheckServerConnectivityAsync("https://www.microsoft.com/");
+            return Ok(isConnected);
         }
 
         [HttpPost("console")]
@@ -54,28 +57,19 @@ namespace PoCoupleQuiz.Server.Controllers
                 var url = logData.TryGetProperty("url", out var urlProp) ? urlProp.GetString() ?? "" : "";
                 var stack = logData.TryGetProperty("stack", out var stackProp) ? stackProp.GetString() : null;
 
-                // Log to server logger with appropriate level
-                var logMessage = "CLIENT CONSOLE [{Level}] {Url}: {Message}";
-                var logArgs = new object[] { level.ToUpper(), url, message };
-
-                switch (level.ToLower())
+                // Build structured message for logging
+                var structuredMessage = $"CLIENT CONSOLE [{level.ToUpper()}] {url}: {message}";
+                if (!string.IsNullOrEmpty(stack) && level.ToLower() == "error")
                 {
-                    case "error":
-                        _logger.LogError("CLIENT CONSOLE [ERROR] {Url}: {Message} {Stack}", url, message, stack ?? "");
-                        break;
-                    case "warn":
-                        _logger.LogWarning(logMessage, logArgs);
-                        break;
-                    case "debug":
-                        _logger.LogDebug(logMessage, logArgs);
-                        break;
-                    default:
-                        _logger.LogInformation(logMessage, logArgs);
-                        break;
+                    structuredMessage += $" {stack}";
                 }
 
-                // Also write to dedicated browser console log file
-                await WriteToBrowserLogFile("console", logData);
+                // Use ConsoleLoggingService to log to server logger
+                _consoleLoggingService.LogMessage(level, structuredMessage);
+
+                // Use BrowserLogService to write to dedicated browser console log file
+                var logEntry = JsonSerializer.Serialize(logData, new JsonSerializerOptions { WriteIndented = false });
+                await _browserLogService.WriteToBrowserLogFileAsync(logEntry, "console");
 
                 return Ok();
             }
@@ -129,11 +123,12 @@ namespace PoCoupleQuiz.Server.Controllers
                 var elementId = logData.TryGetProperty("elementId", out var idProp) ? idProp.GetString() : null;
                 var url = logData.GetProperty("url").GetString() ?? "";
 
-                _logger.LogInformation("CLIENT ACTION {Action} on {ElementType} {ElementId} at {Url}",
-                    action, elementType, elementId ?? "unnamed", url);
+                var message = $"CLIENT ACTION {action} on {elementType} {elementId ?? "unnamed"} at {url}";
+                _consoleLoggingService.LogMessage("info", message);
 
                 // Write to dedicated user action log file
-                await WriteToBrowserLogFile("user-actions", logData);
+                var logEntry = JsonSerializer.Serialize(logData, new JsonSerializerOptions { WriteIndented = false });
+                await _browserLogService.WriteToBrowserLogFileAsync(logEntry, "user-actions");
 
                 return Ok();
             }
@@ -141,27 +136,6 @@ namespace PoCoupleQuiz.Server.Controllers
             {
                 _logger.LogError(ex, "Failed to process user action log from client");
                 return StatusCode(500);
-            }
-        }
-
-        private async Task WriteToBrowserLogFile(string logType, JsonElement logData)
-        {
-            try
-            {
-                var fileName = $"browser-{logType}.log";
-                var filePath = Path.Combine(_debugPath, fileName);
-
-                var logEntry = JsonSerializer.Serialize(logData, new JsonSerializerOptions
-                {
-                    WriteIndented = false
-                }) + Environment.NewLine;
-
-                // Append to file (create if doesn't exist)
-                await System.IO.File.AppendAllTextAsync(filePath, logEntry);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to write browser log to file for type: {LogType}", logType);
             }
         }
 

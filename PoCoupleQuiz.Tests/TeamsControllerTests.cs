@@ -30,6 +30,7 @@ public class TeamsControllerTests : IAsyncLifetime
         await _factory.DisposeAsync();
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task UpdateTeamStats_ValidRequest_ReturnsOk()
     {
@@ -56,6 +57,7 @@ public class TeamsControllerTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task UpdateTeamStats_EmptyTeamName_ReturnsBadRequest()
     {
@@ -73,6 +75,7 @@ public class TeamsControllerTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task UpdateTeamStats_LongTeamName_ReturnsBadRequest()
     {
@@ -91,6 +94,7 @@ public class TeamsControllerTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task UpdateTeamStats_NegativeScore_ReturnsBadRequest()
     {
@@ -109,6 +113,7 @@ public class TeamsControllerTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task UpdateTeamStats_InvalidGameMode_ReturnsBadRequest()
     {
@@ -127,6 +132,7 @@ public class TeamsControllerTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task GetAllTeams_ReturnsTeamsList()
     {
@@ -148,6 +154,7 @@ public class TeamsControllerTests : IAsyncLifetime
         Assert.NotNull(teams);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task SaveTeam_ValidTeam_ReturnsOk()
     {
@@ -166,6 +173,7 @@ public class TeamsControllerTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task SaveTeam_NegativeStatistics_ReturnsBadRequest()
     {

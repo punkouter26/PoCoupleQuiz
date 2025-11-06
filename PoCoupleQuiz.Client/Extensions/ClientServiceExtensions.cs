@@ -11,8 +11,13 @@ public static class ClientServiceExtensions
         // Client uses HTTP services to communicate with the server
         services.AddScoped<IGameStateService, GameStateService>();
         services.AddScoped<ITeamService, HttpTeamService>();
-        services.AddScoped<IQuestionService, MockQuestionService>(); // Client uses mock for simplicity
         services.AddScoped<IGameHistoryService, HttpGameHistoryService>();
+        services.AddScoped<IGameScoringService, GameScoringService>();
+        services.AddScoped<IGameTurnManager, GameTurnManager>();
+        
+        // Question service needs to be available on client for game logic
+        // Note: This will make HTTP calls to the server's API
+        services.AddScoped<IQuestionService, HttpQuestionService>();
 
         return services;
     }

@@ -39,17 +39,12 @@ export default defineConfig({
   /* Configure projects for major browsers */
   projects: [
     {
-      name: 'chromium-desktop',
-      use: { 
-        ...devices['Desktop Chrome'],
-        viewport: { width: 1920, height: 1080 }
-      },
-    },
-    {
       name: 'chromium-mobile',
       use: { 
         ...devices['Pixel 5'],
-        viewport: { width: 375, height: 667 }
+        viewport: { width: 375, height: 667 },
+        isMobile: true,
+        hasTouch: true,
       },
     },
   ],

@@ -1,19 +1,25 @@
 using Xunit;
 using PoCoupleQuiz.Core.Services;
+using PoCoupleQuiz.Tests.Utilities;
 
 namespace PoCoupleQuiz.Tests;
 
+/// <summary>
+/// Unit tests for QuestionService
+/// </summary>
 public class QuestionServiceTests
 {
     private readonly IQuestionService _questionService;
 
     public QuestionServiceTests()
     {
-        _questionService = new MockQuestionService();
+        _questionService = new Tests.Utilities.MockQuestionService();
     }
 
+    [Trait("Category", "Unit")]
     [Fact]
-    public async Task GenerateQuestion_ShouldReturnNonEmptyQuestion()
+    [Trait("Category", "Unit")]
+    public async Task GenerateQuestion_MockService_ReturnsNonEmptyQuestion()
     {
         // Act
         var question = await _questionService.GenerateQuestionAsync();
@@ -24,7 +30,9 @@ public class QuestionServiceTests
         Assert.NotEmpty(question.Text); // Check the Text property
     }
 
+    [Trait("Category", "Unit")]
     [Theory]
+    [Trait("Category", "Unit")]
     [InlineData("red", "red", true)]
     [InlineData("blue", "red", false)]
     [InlineData("pizza", "Pizza", true)]
@@ -35,7 +43,7 @@ public class QuestionServiceTests
     [InlineData("answer1", "", false)]
     [InlineData("", "answer2", false)]
     [InlineData(" ", " ", false)]
-    public async Task CheckAnswerSimilarity_ShouldMatchSimilarAnswers(string answer1, string answer2, bool expectedMatch)
+    public async Task CheckAnswerSimilarity_VariousInputs_MatchesCorrectly(string answer1, string answer2, bool expectedMatch)
     {
         // Act
         var isMatch = await _questionService.CheckAnswerSimilarityAsync(answer1, answer2);
@@ -44,8 +52,10 @@ public class QuestionServiceTests
         Assert.Equal(expectedMatch, isMatch);
     }
 
+    [Trait("Category", "Unit")]
     [Fact]
-    public async Task GenerateQuestion_ShouldReturnDifferentQuestionsOnMultipleCalls()
+    [Trait("Category", "Unit")]
+    public async Task GenerateQuestion_MultipleCalls_ReturnsDifferentQuestions()
     {
         // Act
         var question1 = await _questionService.GenerateQuestionAsync();
@@ -58,8 +68,10 @@ public class QuestionServiceTests
         Assert.NotEqual(question1.Text, question3.Text);
     }
 
+    [Trait("Category", "Unit")]
     [Fact]
-    public async Task GenerateQuestion_ShouldCycleBackToPredefinedQuestions()
+    [Trait("Category", "Unit")]
+    public async Task GenerateQuestion_AfterAllQuestions_CyclesBackToStart()
     {
         // Act
         var firstRoundQuestions = new[]

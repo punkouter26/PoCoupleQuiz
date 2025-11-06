@@ -15,6 +15,7 @@ namespace PoCoupleQuiz.Tests
             _cssContent = File.ReadAllText(cssPath);
         }
 
+        [Trait("Category", "Unit")]
         [Fact]
         public void CssFileExists()
         {
@@ -22,6 +23,7 @@ namespace PoCoupleQuiz.Tests
             Assert.NotEmpty(_cssContent);
         }
 
+        [Trait("Category", "Unit")]
         [Fact]
         public void HasMobileFirstMediaQueries()
         {
@@ -29,6 +31,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("@media (min-width:", _cssContent);
         }
 
+        [Trait("Category", "Unit")]
         [Fact]
         public void HasResponsiveContainer()
         {
@@ -37,6 +40,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("width: 100%", _cssContent);
             Assert.Contains("max-width:", _cssContent);
         }
+        [Trait("Category", "Unit")]
         [Fact]
         public void HasResponsiveGrid()
         {
@@ -45,6 +49,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("min-width:", _cssContent);
         }
 
+        [Trait("Category", "Unit")]
         [Fact]
         public void HasTouchFriendlyElements()
         {
@@ -53,6 +58,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("font-size: 1rem", _cssContent);
         }
 
+        [Trait("Category", "Unit")]
         [Fact]
         public void HasResponsiveBreakpoints()
         {
@@ -64,6 +70,7 @@ namespace PoCoupleQuiz.Tests
             }
         }
 
+        [Trait("Category", "Unit")]
         [Fact]
         public void HasFlexibleUnits()
         {
@@ -73,6 +80,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("%", _cssContent);
         }
 
+        [Trait("Category", "Unit")]
         [Fact]
         public void HasResponsiveImages()
         {
@@ -80,6 +88,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("max-width: 100%", _cssContent);
         }
 
+        [Trait("Category", "Unit")]
         [Fact]
         public void HasMobileNavigation()
         {
@@ -88,6 +97,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("flex-direction:", _cssContent);
         }
 
+        [Trait("Category", "Unit")]
         [Fact]
         public void HasResponsiveTypography()
         {

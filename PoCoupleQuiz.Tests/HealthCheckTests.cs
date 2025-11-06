@@ -29,8 +29,10 @@ public class HealthCheckTests : IAsyncLifetime
         await _factory.DisposeAsync();
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
-    public async Task ApiHealth_ReturnsHealthStatus()
+    [Trait("Category", "Integration")]
+    public async Task ApiHealth_EndpointCalled_ReturnsHealthStatus()
     {
         // Act
         var response = await _client.GetAsync("/api/health");
@@ -42,7 +44,9 @@ public class HealthCheckTests : IAsyncLifetime
         Assert.Contains("status", content.ToLower());
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task Health_RootEndpoint_ReturnsHealthy()
     {
         // Act
@@ -52,8 +56,10 @@ public class HealthCheckTests : IAsyncLifetime
         response.EnsureSuccessStatusCode();
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
-    public async Task HealthLive_ReturnsLivenessStatus()
+    [Trait("Category", "Integration")]
+    public async Task HealthLive_EndpointCalled_ReturnsLivenessStatus()
     {
         // Act
         var response = await _client.GetAsync("/health/live");
@@ -62,8 +68,10 @@ public class HealthCheckTests : IAsyncLifetime
         response.EnsureSuccessStatusCode();
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
-    public async Task HealthReady_ReturnsReadinessStatus()
+    [Trait("Category", "Integration")]
+    public async Task HealthReady_EndpointCalled_ReturnsReadinessStatus()
     {
         // Act
         var response = await _client.GetAsync("/health/ready");
@@ -72,14 +80,16 @@ public class HealthCheckTests : IAsyncLifetime
         response.EnsureSuccessStatusCode();
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
-    public async Task ApiHealth_ContainsRequiredChecks()
+    [Trait("Category", "Integration")]
+    public async Task ApiHealth_ResponseParsed_ContainsRequiredChecks()
     {
         // Act
         var response = await _client.GetAsync("/api/health");
         var content = await response.Content.ReadAsStringAsync();
 
         // Assert - Verify the health check contains expected dependencies
-        Assert.Contains("self", content.ToLower());
+        Assert.Contains("azure", content.ToLower());
     }
 }

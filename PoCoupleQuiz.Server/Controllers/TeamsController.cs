@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Mvc;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
 using PoCoupleQuiz.Core.Validators;
+using PoCoupleQuiz.Server.Filters;
 using System.ComponentModel.DataAnnotations;
 
 namespace PoCoupleQuiz.Server.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/teams")]
 public class TeamsController : ControllerBase
 {
     private readonly ITeamService _teamService;
@@ -15,7 +16,7 @@ public class TeamsController : ControllerBase
     private readonly IValidator<string> _teamNameValidator;
 
     public TeamsController(
-        ITeamService teamService, 
+        ITeamService teamService,
         ILogger<TeamsController> logger,
         IValidator<string> teamNameValidator)
     {
@@ -29,15 +30,17 @@ public class TeamsController : ControllerBase
     {
         _logger.LogInformation("Retrieving all teams");
         var teams = await _teamService.GetAllTeamsAsync();
-        
+
         using (_logger.BeginScope(new Dictionary<string, object?> { ["TeamCount"] = teams.Count() }))
         {
             _logger.LogInformation("Retrieved {TeamCount} teams", teams.Count());
         }
-        
+
         return Ok(teams);
     }
+    
     [HttpGet("{teamName}")]
+    [ValidateTeamName]
     public async Task<ActionResult<Team>> GetTeam(string teamName)
     {
         var validationResult = _teamNameValidator.Validate(teamName);
@@ -78,6 +81,7 @@ public class TeamsController : ControllerBase
     }
 
     [HttpPut("{teamName}/stats")]
+    [ValidateTeamName]
     public async Task<ActionResult> UpdateTeamStats(string teamName, [FromBody] UpdateStatsRequest request)
     {
         var validationResult = _teamNameValidator.Validate(teamName);
@@ -101,7 +105,7 @@ public class TeamsController : ControllerBase
             return BadRequest("Invalid game mode.");
         }
 
-        await _teamService.UpdateTeamStatsAsync(teamName, request.GameMode, request.Score);
+        await _teamService.UpdateTeamStatsAsync(teamName, request.GameMode, request.Score, request.QuestionsAnswered, request.CorrectAnswers);
         return Ok();
     }
 }
@@ -113,4 +117,10 @@ public class UpdateStatsRequest
 
     [Range(0, int.MaxValue, ErrorMessage = "Score must be non-negative")]
     public int Score { get; set; }
+    
+    [Range(0, int.MaxValue, ErrorMessage = "Questions answered must be non-negative")]
+    public int QuestionsAnswered { get; set; }
+    
+    [Range(0, int.MaxValue, ErrorMessage = "Correct answers must be non-negative")]
+    public int CorrectAnswers { get; set; }
 }

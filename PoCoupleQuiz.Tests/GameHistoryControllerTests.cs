@@ -31,7 +31,9 @@ public class GameHistoryControllerTests : IAsyncLifetime
         await _factory.DisposeAsync();
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task SaveGameHistory_ValidHistory_ReturnsOk()
     {
         // Arrange
@@ -47,26 +49,30 @@ public class GameHistoryControllerTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/GameHistory", history);
+        var response = await _client.PostAsJsonAsync("/api/game-history", history);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task SaveGameHistory_NullHistory_ReturnsBadRequest()
     {
         // Arrange
         var content = new StringContent("null", System.Text.Encoding.UTF8, "application/json");
 
         // Act
-        var response = await _client.PostAsync("/api/GameHistory", content);
+        var response = await _client.PostAsync("/api/game-history", content);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task SaveGameHistory_MissingTeamNames_ReturnsBadRequest()
     {
         // Arrange
@@ -78,13 +84,15 @@ public class GameHistoryControllerTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/GameHistory", history);
+        var response = await _client.PostAsJsonAsync("/api/game-history", history);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task SaveGameHistory_NegativeTotalQuestions_ReturnsBadRequest()
     {
         // Arrange
@@ -96,13 +104,15 @@ public class GameHistoryControllerTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/GameHistory", history);
+        var response = await _client.PostAsJsonAsync("/api/game-history", history);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task GetTeamHistory_ExistingTeam_ReturnsHistory()
     {
         // Arrange
@@ -116,10 +126,10 @@ public class GameHistoryControllerTests : IAsyncLifetime
             Team2Score = 2,
             GameMode = GameMode.KingPlayer
         };
-        await _client.PostAsJsonAsync("/api/GameHistory", history);
+        await _client.PostAsJsonAsync("/api/game-history", history);
 
         // Act
-        var response = await _client.GetAsync($"/api/GameHistory/team/{teamName}");
+        var response = await _client.GetAsync($"/api/game-history/teams/{teamName}");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -127,14 +137,16 @@ public class GameHistoryControllerTests : IAsyncLifetime
         Assert.NotNull(result);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task GetCategoryStats_ExistingTeam_ReturnsStats()
     {
         // Arrange
         var teamName = "CategoryTestTeam";
 
         // Act
-        var response = await _client.GetAsync($"/api/GameHistory/categoryStats/{teamName}");
+        var response = await _client.GetAsync($"/api/game-history/teams/{teamName}/category-stats");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -142,7 +154,9 @@ public class GameHistoryControllerTests : IAsyncLifetime
         Assert.NotNull(result);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task GetTopMatchedAnswers_ValidTeamAndCount_ReturnsAnswers()
     {
         // Arrange
@@ -150,7 +164,7 @@ public class GameHistoryControllerTests : IAsyncLifetime
         var count = 5;
 
         // Act
-        var response = await _client.GetAsync($"/api/GameHistory/topMatchedAnswers/{teamName}/{count}");
+        var response = await _client.GetAsync($"/api/game-history/teams/{teamName}/top-matched-answers/{count}");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -158,14 +172,16 @@ public class GameHistoryControllerTests : IAsyncLifetime
         Assert.NotNull(result);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task GetAverageResponseTime_ValidTeam_ReturnsTime()
     {
         // Arrange
         var teamName = "TimeTestTeam";
 
         // Act
-        var response = await _client.GetAsync($"/api/GameHistory/averageResponseTime/{teamName}");
+        var response = await _client.GetAsync($"/api/game-history/teams/{teamName}/average-response-time");
 
         // Assert
         response.EnsureSuccessStatusCode();

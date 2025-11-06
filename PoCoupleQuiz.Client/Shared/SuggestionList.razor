@@ -1,0 +1,69 @@
+@* Suggestion List Component *@
+
+<div class="suggestion-container">
+    @if (Suggestions != null && Suggestions.Any())
+    {
+        <div class="suggestions-label">
+            <small class="text-muted">Suggestions:</small>
+        </div>
+        <div class="suggestions-list">
+            @foreach (var suggestion in Suggestions)
+            {
+                <button type="button" 
+                        class="suggestion-chip" 
+                        @onclick="@(() => OnSuggestionSelected.InvokeAsync(suggestion))">
+                    @suggestion
+                </button>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .suggestion-container {
+        margin-top: 12px;
+    }
+
+    .suggestions-label {
+        margin-bottom: 8px;
+    }
+
+    .suggestions-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .suggestion-chip {
+        padding: 6px 14px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+    }
+
+    .suggestion-chip:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .suggestion-chip:active {
+        transform: scale(0.95);
+    }
+
+    @@media (max-width: 768px) {
+        .suggestion-chip {
+            font-size: 0.8rem;
+            padding: 5px 12px;
+        }
+    }
+</style>
+
+@code {
+    [Parameter] public List<string>? Suggestions { get; set; }
+    [Parameter] public EventCallback<string> OnSuggestionSelected { get; set; }
+}

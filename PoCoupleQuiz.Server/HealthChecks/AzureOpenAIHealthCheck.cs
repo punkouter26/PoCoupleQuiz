@@ -43,7 +43,7 @@ public class AzureOpenAIHealthCheck : IHealthCheck
 
             // Test connection by creating client
             var client = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
-            
+
             // Note: We don't make an actual API call to avoid costs and rate limits
             // Just verify the client can be instantiated with the provided credentials
             return HealthCheckResult.Healthy($"Azure OpenAI configured with deployment: {deploymentName}");

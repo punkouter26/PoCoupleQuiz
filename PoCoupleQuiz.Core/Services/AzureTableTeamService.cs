@@ -15,8 +15,8 @@ public class AzureTableTeamService : ITeamService
     {
         _logger = logger;
 
-        var connectionString = configuration["AzureStorage:ConnectionString"]
-            ?? throw new ArgumentNullException("AzureStorage:ConnectionString", "Azure Storage connection string is required");
+        var connectionString = configuration["AzureTableStorage:ConnectionString"]
+            ?? throw new ArgumentNullException("AzureTableStorage:ConnectionString", "Azure Storage connection string is required");
 
         _tableClient = new TableClient(connectionString, "Teams");
         _tableClient.CreateIfNotExists();
@@ -76,10 +76,25 @@ public class AzureTableTeamService : ITeamService
             throw;
         }
     }
-    public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score)
+    public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score, int questionsAnswered = 0, int correctAnswers = 0)
     {
         var team = await GetTeamAsync(teamName);
-        if (team == null) return; if (gameMode == GameMode.KingPlayer)
+        
+        // Create team if it doesn't exist
+        if (team == null)
+        {
+            team = new Team
+            {
+                Name = teamName,
+                HighScore = 0,
+                TotalQuestionsAnswered = 0,
+                CorrectAnswers = 0,
+                LastPlayed = DateTime.UtcNow
+            };
+        }
+
+        // Update high score if applicable
+        if (gameMode == GameMode.KingPlayer)
         {
             if (score > team.HighScore)
             {
@@ -87,7 +102,15 @@ public class AzureTableTeamService : ITeamService
             }
         }
 
+        // Update statistics
+        team.TotalQuestionsAnswered += questionsAnswered;
+        team.CorrectAnswers += correctAnswers;
+        team.LastPlayed = DateTime.UtcNow;
+
         await SaveTeamAsync(team);
+        
+        _logger.LogInformation("Updated stats for team {TeamName}: HighScore={HighScore}, Score={Score}, TotalQuestions={Total}, Correct={Correct}", 
+            teamName, team.HighScore, score, team.TotalQuestionsAnswered, team.CorrectAnswers);
     }
 }
 

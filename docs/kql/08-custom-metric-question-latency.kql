@@ -1,0 +1,28 @@
+// ============================================================================
+// CUSTOM METRIC: Question Generation Latency (Timechart)
+// ============================================================================
+// Description: Visualizes AI question generation performance over time
+// Use Case: Monitor OpenAI API performance vs. mock service, identify slowdowns
+// Metrics: Average latency by question source (openai/mock) and difficulty
+// Note: Requires custom Meter instrumentation to be deployed
+// ============================================================================
+
+customMetrics
+| where timestamp > ago(24h)
+| where name == "po.couplequiz.questions.generation_latency"
+| extend 
+    QuestionSource = tostring(customDimensions["question_source"]),
+    Difficulty = tostring(customDimensions["difficulty"])
+| summarize 
+    AvgLatency_ms = round(avg(value), 2),
+    P95_Latency_ms = round(percentile(value, 95), 2),
+    QuestionCount = count()
+    by bin(timestamp, 15m), QuestionSource, Difficulty
+| order by timestamp asc
+| render timechart 
+    with (
+        title="Question Generation Latency (Last 24 Hours)",
+        xtitle="Time",
+        ytitle="Latency (milliseconds)",
+        legend=visible
+    )

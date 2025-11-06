@@ -1,33 +1,95 @@
 .scoreboard-display {
-    padding: 1rem;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    background-color: #f9f9f9;
+    padding: 0;
 }
 
 .scoreboard-display h4 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    color: #333;
+    margin: 0 0 20px 0;
+    color: #495057;
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
 }
 
 .scoreboard-item {
     display: flex;
     justify-content: space-between;
-    padding: 0.5rem 0;
-    border-bottom: 1px dashed #eee;
+    align-items: center;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 1px solid #e9ecef;
+    transition: all 0.2s ease;
+}
+
+.scoreboard-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-color: #1b6ec2;
 }
 
 .scoreboard-item:last-child {
-    border-bottom: none;
+    margin-bottom: 0;
+}
+
+/* Score update animation */
+.scoreboard-item.score-updated {
+    animation: scoreBouncePulse 0.6s ease;
+}
+
+@keyframes scoreBouncePulse {
+    0% { 
+        transform: scale(1); 
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    }
+    25% { 
+        transform: scale(1.08); 
+        background: linear-gradient(135deg, rgba(39, 174, 96, 0.2) 0%, rgba(39, 174, 96, 0.1) 100%);
+    }
+    50% { 
+        transform: scale(1.04); 
+        background: linear-gradient(135deg, rgba(39, 174, 96, 0.15) 0%, rgba(39, 174, 96, 0.05) 100%);
+    }
+    75% { 
+        transform: scale(1.06); 
+        background: linear-gradient(135deg, rgba(39, 174, 96, 0.1) 0%, #ffffff 100%);
+    }
+    100% { 
+        transform: scale(1); 
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    }
 }
 
 .player-name {
-    font-weight: bold;
-    color: #555;
+    font-weight: 600;
+    color: #495057;
+    font-size: 1rem;
 }
 
 .player-score {
-    color: #007bff;
-    font-weight: bold;
+    color: #1b6ec2;
+    font-weight: 700;
+    font-size: 1.25rem;
+    background: #e7f3ff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    min-width: 40px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.score-updated .player-score {
+    animation: scorePop 0.4s ease 0.2s;
+}
+
+@keyframes scorePop {
+    0%, 100% { 
+        transform: scale(1); 
+    }
+    50% { 
+        transform: scale(1.3); 
+        color: #27ae60;
+        background: #d4edda;
+    }
 }

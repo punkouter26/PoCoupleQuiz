@@ -30,6 +30,8 @@ public class Game
 
     public Dictionary<string, int> GetScoreboard()
     {
+        // Only show guessing players' scores (not the king player)
+        // The king doesn't earn points - only the guessers do
         var scores = new Dictionary<string, int>();
         foreach (var player in Players.Where(p => !p.IsKingPlayer))
         {
@@ -83,5 +85,15 @@ public class Game
             }
             player.TotalGamesPlayed++;
         }
+    }
+
+    /// <summary>
+    /// Calculates the score for a single answer match.
+    /// </summary>
+    /// <param name="isMatch">Whether the answer matched the king's answer.</param>
+    /// <returns>The score points to award (10 for match, 0 for no match).</returns>
+    public int CalculateScore(bool isMatch)
+    {
+        return isMatch ? 10 : 0;
     }
 }

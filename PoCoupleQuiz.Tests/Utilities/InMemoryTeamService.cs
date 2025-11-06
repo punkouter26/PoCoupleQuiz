@@ -2,42 +2,59 @@ using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
 using System.Collections.Concurrent;
 
-namespace PoCoupleQuiz.Tests.Utilities
+namespace PoCoupleQuiz.Tests.Utilities;
+
+public class InMemoryTeamService : ITeamService
 {
-    public class InMemoryTeamService : ITeamService
+    private static readonly ConcurrentDictionary<string, Team> _teams = new();
+
+    public Task<Team?> GetTeamAsync(string teamName)
     {
-        private readonly ConcurrentDictionary<string, Team> _teams = new();
+        var team = _teams.TryGetValue(teamName.ToLowerInvariant(), out var foundTeam) ? foundTeam : null;
+        return Task.FromResult(team);
+    }
 
-        public Task<Team?> GetTeamAsync(string teamName)
-        {
-            _teams.TryGetValue(teamName, out var team);
-            return Task.FromResult(team);
-        }
+    public Task<IEnumerable<Team>> GetAllTeamsAsync()
+    {
+        return Task.FromResult<IEnumerable<Team>>(_teams.Values.ToList());
+    }
 
-        public Task<IEnumerable<Team>> GetAllTeamsAsync()
-        {
-            return Task.FromResult(_teams.Values.AsEnumerable());
-        }
+    public Task SaveTeamAsync(Team team)
+    {
+        _teams[team.Name.ToLowerInvariant()] = team;
+        return Task.CompletedTask;
+    }
 
-        public Task SaveTeamAsync(Team team)
+    public Task UpdateTeamStatsAsync(string teamName, GameMode mode, int score, int questionsAnswered = 0, int correctAnswers = 0)
+    {
+        var key = teamName.ToLowerInvariant();
+        
+        if (!_teams.TryGetValue(key, out var team))
         {
-            _teams.AddOrUpdate(team.Name, team, (key, oldValue) => team);
-            return Task.CompletedTask;
-        }
-
-        public Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score)
-        {
-            if (_teams.TryGetValue(teamName, out var team))
+            // Create team if it doesn't exist
+            team = new Team
             {
-                team.TotalQuestionsAnswered++;
-                if (score > 0)
-                {
-                    team.CorrectAnswers++;
-                }
-                team.LastPlayed = DateTime.UtcNow;
-                // CorrectPercentage is calculated automatically
-            }
-            return Task.CompletedTask;
+                Name = teamName,
+                HighScore = 0,
+                TotalQuestionsAnswered = 0,
+                CorrectAnswers = 0,
+                LastPlayed = DateTime.UtcNow
+            };
+            _teams[key] = team;
         }
+        
+        if (mode == GameMode.KingPlayer)
+        {
+            if (score > team.HighScore)
+            {
+                team.HighScore = score;
+            }
+        }
+        
+        team.TotalQuestionsAnswered += questionsAnswered;
+        team.CorrectAnswers += correctAnswers;
+        team.LastPlayed = DateTime.UtcNow;
+        
+        return Task.CompletedTask;
     }
 }

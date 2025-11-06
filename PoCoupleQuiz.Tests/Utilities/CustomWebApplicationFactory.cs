@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using PoCoupleQuiz.Core.Services;
+using PoCoupleQuiz.Tests.Utilities;
 using Microsoft.Extensions.Logging;
 using System.IO;
 using Microsoft.Extensions.Hosting;

@@ -9,10 +9,10 @@
 <style>
     .title-container {
         background: linear-gradient(135deg, #FFD700, #FFA500);
-        padding: 1.5rem;
-        border-radius: 15px;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        padding: 0.75rem;
+        border-radius: 10px;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         text-align: center;
     }
 
@@ -20,39 +20,39 @@
         font-family: 'Comic Sans MS', cursive;
         color: #FF4081;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        font-size: 1.8rem;
-        margin-bottom: 0.5rem;
+        font-size: 1.3rem;
+        margin-bottom: 0.25rem;
     }
 
     .subtitle {
         font-family: 'Comic Sans MS', cursive;
         color: #673AB7;
-        font-size: 1rem;
+        font-size: 0.8rem;
     }
 
     .setup-container {
         background-color: #F8BBD0;
-        border-radius: 15px;
-        padding: 1.5rem;
+        border-radius: 10px;
+        padding: 0.75rem;
     }
 
     .form-control {
         width: 100%;
-        padding: 0.5rem;
+        padding: 0.4rem;
         border: 1px solid #ddd;
         border-radius: 5px;
-        margin-bottom: 0.5rem;
-        font-size: 1rem;
+        margin-bottom: 0.35rem;
+        font-size: 0.9rem;
     }
 
     .btn-primary {
         background-color: #007bff;
         border-color: #007bff;
         color: white;
-        padding: 0.75rem 1.5rem;
+        padding: 0.6rem 1rem;
         border-radius: 5px;
         border: none;
-        font-size: 1.1rem;
+        font-size: 1rem;
         cursor: pointer;
         transition: background-color 0.3s;
         width: 100%;
@@ -65,67 +65,53 @@
 
     .card {
         background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        padding: 1rem;
-        margin-bottom: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
     }
 
     /* Mobile-first responsive layout */
     @@media (max-width: 768px) {
         .title-container {
-            padding: 1rem;
-            margin-bottom: 1rem;
+            padding: 0.6rem;
+            margin-bottom: 0.5rem;
         }
         
         .game-title {
-            font-size: 1.5rem;
+            font-size: 1.1rem;
         }
         
         .subtitle {
-            font-size: 0.9rem;
+            font-size: 0.75rem;
         }
         
         .setup-container {
-            padding: 1rem;
+            padding: 0.6rem;
         }
     }
 </style>
 
-<div style="max-width: 800px; margin: 0 auto; padding: 1rem;">
-    <div class="title-container">
-        <h2 style="text-align: center;" class="game-title mb-4">PoCoupleQuiz</h2>
-        <h6 style="text-align: center;" class="subtitle">
-            The Fun Way to Test How Well You Know Each Other! 🧠 💕
-        </h6>
-    </div>
-
-    <!-- Quick Stats Widget -->
-    <QuickStatsWidget />
-
-    <div class="setup-container" style="padding: 2rem; margin: 1rem;">
-        <p style="text-align: center; margin-bottom: 1rem;">
-            One player (the king) answers questions about themselves while others try to match their answers.
-            The player who knows the king player best wins! 🏆
-        </p>        
+<div style="max-width: 800px; margin: 0 auto; padding: 0.5rem;">
+    <div class="setup-container" style="padding: 0.75rem; margin: 0.5rem;">
         
         <div class="card">
-            <h6 style="margin-bottom: 1rem;">Game Setup 🎲</h6>
+            <h6 style="margin-bottom: 0.75rem;">Game Setup 🎲</h6>
                 <!-- Number of Players -->
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Number of Players:</label>
+            <div style="margin-bottom: 0.75rem;">
+                <label style="display: block; margin-bottom: 0.35rem; font-weight: bold;">Players:</label>
                 <select @onchange="OnPlayerCountChanged" class="form-control" value="@numberOfPlayers">
-                    <option value="3">3 Players (1 King + 2 Guessers)</option>
-                    <option value="4">4 Players (1 King + 3 Guessers)</option>
-                    <option value="5">5 Players (1 King + 4 Guessers)</option>
-                    <option value="6">6 Players (1 King + 5 Guessers)</option>
+                    <option value="3">3 Players</option>
+                    <option value="4">4 Players</option>
+                    <option value="5">5 Players</option>
+                    <option value="6">6 Players</option>
                 </select>
             </div>
 
             <!-- Player Names -->
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">
-                    Player Names:
+            <div style="margin-bottom: 0.75rem;">
+                <label style="display: block; margin-bottom: 0.35rem; font-weight: bold;">
+                    Names:
                     <HelpTooltip Title="King Player"
                                  Text="The first player is the 'King' who answers questions about themselves. Other players try to guess the King's answers to earn points."
                                  Example="If the King is Sarah, she answers 'What's your favorite color?', then others guess what Sarah answered" />
@@ -133,22 +119,22 @@
                 @for (int i = 0; i < numberOfPlayers; i++)
                 {
                     int index = i; // Capture for lambda
-                    <div style="margin-bottom: 0.5rem;">
+                    <div style="margin-bottom: 0.35rem;">
                         <input @bind="playerNames[index]" 
-                               placeholder="@(index == 0 ? "King Player Name" : $"Player {index + 1} Name")" 
+                               placeholder="@(index == 0 ? "King" : $"Player {index + 1}")" 
                                class="form-control" />
                         @if (index == 0)
                         {
-                            <small style="color: #666; font-style: italic;">This player will be the "King" who answers questions</small>
+                            <small style="color: #666; font-style: italic; font-size: 0.75rem;">King answers questions</small>
                         }
                     </div>
                 }
             </div>
             
             <!-- Difficulty -->
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">
-                    Difficulty Level:
+            <div style="margin-bottom: 0.75rem;">
+                <label style="display: block; margin-bottom: 0.35rem; font-weight: bold;">
+                    Difficulty:
                     <HelpTooltip Title="Difficulty Levels"
                                  Text="Difficulty determines the number of rounds. Easy = 3 rounds, Medium = 5 rounds, Hard = 7 rounds. The King role rotates each round."
                                  Example="In Medium difficulty, each player gets a chance to be King, and 2 players will be King twice" />
@@ -158,10 +144,6 @@
                     <option value="@DifficultyLevel.Medium">Medium (5 rounds)</option>
                     <option value="@DifficultyLevel.Hard">Hard (7 rounds)</option>
                 </select>
-                
-                <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #666;">
-                    @GetDifficultyDescription(selectedDifficulty)
-                </p>
             </div>
         </div>
 
@@ -178,10 +160,68 @@
     private int numberOfPlayers = 3;
     private string[] playerNames = new string[10]; // Support up to 10 players
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // Initialize with default names
+        await LoadSavedPreferences();
         UpdatePlayerNamesArray();
+    }
+    
+    private async Task LoadSavedPreferences()
+    {
+        try
+        {
+            // Load player names
+            var savedNames = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "playerNames");
+            if (!string.IsNullOrEmpty(savedNames))
+            {
+                var names = System.Text.Json.JsonSerializer.Deserialize<string[]>(savedNames);
+                if (names != null && names.Length > 0)
+                {
+                    // Copy saved names to playerNames array
+                    for (int i = 0; i < Math.Min(names.Length, playerNames.Length); i++)
+                    {
+                        if (!string.IsNullOrWhiteSpace(names[i]))
+                        {
+                            playerNames[i] = names[i];
+                        }
+                    }
+                }
+            }
+            
+            // Load player count
+            var savedPlayerCount = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "playerCount");
+            if (int.TryParse(savedPlayerCount, out int count) && count >= 3 && count <= 10)
+            {
+                numberOfPlayers = count;
+            }
+            
+            // Load difficulty
+            var savedDifficulty = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "difficulty");
+            if (!string.IsNullOrEmpty(savedDifficulty) && Enum.TryParse<DifficultyLevel>(savedDifficulty, out var diff))
+            {
+                selectedDifficulty = diff;
+            }
+        }
+        catch (Exception)
+        {
+            // Silently fail - use defaults
+        }
+    }
+    
+    private async Task SavePreferences()
+    {
+        try
+        {
+            var namesToSave = playerNames.Take(numberOfPlayers).ToArray();
+            var json = System.Text.Json.JsonSerializer.Serialize(namesToSave);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "playerNames", json);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "playerCount", numberOfPlayers.ToString());
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "difficulty", selectedDifficulty.ToString());
+        }
+        catch (Exception)
+        {
+            // Silently fail - not critical
+        }
     }
 
     private void UpdatePlayerNamesArray()
@@ -232,6 +272,9 @@
             await JSRuntime.InvokeVoidAsync("alert", "Player names must be unique. Please choose different names.");
             return;
         }
+
+        // Save preferences for next time
+        await SavePreferences();
 
         var game = new PoCoupleQuiz.Core.Models.Game
         {

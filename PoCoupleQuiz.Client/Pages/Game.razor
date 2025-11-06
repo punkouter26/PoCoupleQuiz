@@ -6,6 +6,8 @@
 @inject IQuestionService QuestionService
 @inject ITeamService TeamService
 @inject IGameHistoryService GameHistoryService
+@inject IGameTurnManager TurnManager
+@inject IGameScoringService ScoringService
 @inject NavigationManager NavigationManager
 @inject NotificationService NotificationService
 @inject ILogger<Pages.Game> Logger
@@ -59,23 +61,20 @@
                         }
                         else
                         {
-                            <div class="d-flex justify-content-center">
-                                <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
-                                <span class="ms-2">Loading question...</span>
-                            </div>
+                            <SkeletonLoader Type="question" />
                         }
                     </RadzenCard>
                 </div>
                 
                 <div class="col-md-4">
                     <RadzenCard class="scoreboard-card">
-                        <ScoreboardDisplay Scoreboard="@currentGame.GetScoreboard()" />
+                        <ScoreboardDisplay Scoreboard="@currentGame.GetScoreboard()" 
+                                         PreviousScoreboard="@previousScoreboard" />
                     </RadzenCard>
                     
                     <RadzenCard class="progress-card mt-3">
-                        <h6>Game Progress</h6>
-                        <RadzenProgressBar Value="@gameProgress" Max="100" ShowValue="true" Unit="%" />
-                        <small class="text-muted">Round @(currentGame.CurrentRound + 1) of @currentGame.MaxRounds</small>
+                        <GameProgressTracker CurrentRound="@(currentGame.CurrentRound + 1)" 
+                                           TotalRounds="@currentGame.MaxRounds" />
                     </RadzenCard>
                 </div>
             </div>
@@ -83,14 +82,77 @@
     }
 </div>
 
+@* Floating Action Button for Next Round *@
+@if (currentGame != null && showResults && !currentGame.IsGameOver)
+{
+    <FloatingActionButton Icon="→" 
+                         Title="Next Round" 
+                         OnClick="@NextRound" />
+}
+
 <style>
     .game-container {
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
+        padding: 20px 0;
     }
     
     .game-card {
         min-height: 400px;
+        padding: 30px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+    }
+    
+    .game-card h3 {
+        color: #1b6ec2;
+        font-weight: 600;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .scoreboard-card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        padding: 20px;
+    }
+    
+    .scoreboard-card h4 {
+        color: #495057;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+    
+    .progress-card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        padding: 20px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    }
+    
+    .progress-card h6 {
+        color: #495057;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    
+    .progress-card strong {
+        font-size: 1.5rem;
+        color: #1b6ec2;
+    }
+    
+    @@media (max-width: 768px) {
+        .game-card {
+            padding: 20px;
+            min-height: 300px;
+        }
+        
+        .col-md-4 > .scoreboard-card,
+        .col-md-4 > .progress-card {
+            margin-top: 20px;
+        }
     }
 </style>
 
@@ -101,7 +163,7 @@
     private GameQuestion? currentQuestion;
     private string currentAnswer = "";
     private bool showResults = false;
-    private double gameProgress = 0;
+    private Dictionary<string, int> previousScoreboard = new Dictionary<string, int>();
     
     // Turn management
     private string currentPlayerName = "";
@@ -129,7 +191,6 @@
             isKingPlayerTurn = true; // Always start a new round with the king player's turn
             
             await LoadCurrentQuestion();
-            UpdateGameProgress();
         }
         catch (Exception ex)
         {
@@ -160,6 +221,9 @@
             }
             
             currentQuestion = currentGame.Questions[currentGame.CurrentRound];
+            
+            // Initialize TurnManager for this round
+            TurnManager.InitializeTurn(currentGame, currentQuestion);
             
             // Reset turn state for this round
             isKingPlayerTurn = string.IsNullOrEmpty(currentQuestion.KingPlayerAnswer);
@@ -200,13 +264,13 @@
     {
         try
         {
-            if (currentQuestion == null || string.IsNullOrWhiteSpace(currentAnswer)) return;
+            if (currentQuestion == null || string.IsNullOrWhiteSpace(currentAnswer) || currentGame == null) return;
 
             if (isKingPlayerTurn)
             {
                 // King player submitting their answer
                 currentQuestion.KingPlayerAnswer = currentAnswer.Trim();
-                Logger.LogInformation("King player {KingName} submitted answer for round {Round}", currentPlayerName, currentGame?.CurrentRound);
+                Logger.LogInformation("King player {KingName} submitted answer for round {Round}", currentPlayerName, currentGame.CurrentRound);
                 
                 // Move to first guessing player
                 if (guessingPlayers.Any())
@@ -220,18 +284,19 @@
             {
                 // Guessing player submitting their answer
                 currentQuestion.RecordPlayerAnswer(currentPlayerName, currentAnswer.Trim());
-                Logger.LogInformation("Player {PlayerName} submitted answer for round {Round}", currentPlayerName, currentGame?.CurrentRound);
+                Logger.LogInformation("Player {PlayerName} submitted answer for round {Round}", currentPlayerName, currentGame.CurrentRound);
                 
-                // Move to next guessing player or show results
-                currentGuessingPlayerIndex++;
-                if (currentGuessingPlayerIndex < guessingPlayers.Count)
+                // Use TurnManager to check if there are more players
+                bool hasMorePlayers = TurnManager.AdvanceToNextPlayer(currentGame, currentQuestion);
+                if (hasMorePlayers)
                 {
                     // Next guessing player
-                    currentPlayerName = guessingPlayers[currentGuessingPlayerIndex];
+                    currentGuessingPlayerIndex = TurnManager.GetCurrentGuessingPlayerIndex(currentGame, currentQuestion);
+                    currentPlayerName = TurnManager.GetCurrentPlayerName(currentGame, currentQuestion);
                 }
                 else
                 {
-                    // All players have answered, evaluate and show results
+                    // All players have answered, use ScoringService to evaluate
                     await EvaluateAnswers();
                     showResults = true;
                 }
@@ -257,6 +322,7 @@
         {
             if (currentGame == null) return;
             
+            // Advance the round
             currentGame.CurrentRound++;
             
             if (currentGame.IsGameOver)
@@ -266,20 +332,16 @@
             }
             else
             {
-                // Rotate the king player for the next round
-                currentGame.SetNextKingPlayer();
-
-                // Reset for next round
+                // Reset for next round - King player stays the same throughout the game
                 currentAnswer = "";
                 showResults = false;
                 isKingPlayerTurn = true; // Always start a new round with the king player's turn
                 currentGuessingPlayerIndex = 0;
-                currentPlayerName = currentGame.KingPlayer?.Name ?? ""; // Update current player name to the new king
+                currentPlayerName = currentGame.KingPlayer?.Name ?? ""; // King player remains the same
 
                 await LoadCurrentQuestion();
             }
             
-            UpdateGameProgress();
             StateHasChanged();
         }
         catch (Exception ex)
@@ -352,7 +414,16 @@
             
             foreach (var player in currentGame.Players)
             {
-                await TeamService.UpdateTeamStatsAsync(player.Name, GameMode.KingPlayer, player.Score);
+                // Calculate questions answered and correct answers for this player
+                int questionsAnswered = currentGame.MaxRounds;
+                int correctAnswers = player.Score; // In this game, score = number of correct guesses
+                
+                await TeamService.UpdateTeamStatsAsync(
+                    player.Name, 
+                    GameMode.KingPlayer, 
+                    player.Score, 
+                    questionsAnswered, 
+                    correctAnswers);
             }
             
             Logger.LogInformation("Updated player statistics");
@@ -360,14 +431,6 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error updating player stats");
-        }
-    }
-
-    private void UpdateGameProgress()
-    {
-        if (currentGame != null)
-        {
-            gameProgress = ((double)(currentGame.CurrentRound + 1) / currentGame.MaxRounds) * 100;
         }
     }
 
@@ -390,25 +453,15 @@
     {
         try
         {
-            if (currentQuestion == null) return;
+            if (currentQuestion == null || currentGame == null) return;
             
-            // Compare each player's answer with king's answer
-            foreach (var playerAnswer in currentQuestion.PlayerAnswers)
-            {
-                bool isMatch = await QuestionService.CheckAnswerSimilarityAsync(
-                    currentQuestion.KingPlayerAnswer, 
-                    playerAnswer.Value);
-                
-                if (isMatch)
-                {
-                    currentQuestion.MarkPlayerAsMatched(playerAnswer.Key);
-                }
-            }
+            // Store previous scores for animation comparison
+            previousScoreboard = new Dictionary<string, int>(currentGame.GetScoreboard());
             
-            // Update scores
-            currentGame?.UpdateScores(currentGame.CurrentRound);
+            // Use GameScoringService to evaluate all answers at once
+            await ScoringService.EvaluateAnswersAsync(currentGame, currentQuestion, QuestionService);
             
-            Logger.LogInformation("Evaluated answers for round {Round}", currentGame?.CurrentRound);
+            Logger.LogInformation("Evaluated answers for round {Round}", currentGame.CurrentRound);
         }
         catch (Exception ex)
         {

@@ -55,7 +55,7 @@ namespace PoCoupleQuiz.Tests
             // Register services
             Services.AddSingleton<IQuestionService>(_mockQuestionService.Object);
             Services.AddSingleton<ITeamService>(_mockTeamService.Object);
-            Services.AddSingleton<IGameHistoryService>(_mockGameHistoryService.Object); 
+            Services.AddSingleton<IGameHistoryService>(_mockGameHistoryService.Object);
             Services.AddSingleton<ILogger<PoCoupleQuiz.Client.Pages.Index>>(_mockLogger.Object);
             Services.AddSingleton<IGameStateService>(_mockGameStateService.Object);
             Services.AddSingleton<NavigationManager>(_mockNavigationManager.Object);
@@ -72,7 +72,7 @@ namespace PoCoupleQuiz.Tests
             JSInterop.SetupVoid("Radzen.destroyTooltip", _ => true);
             JSInterop.SetupVoid("Radzen.showTooltip", _ => true);
             JSInterop.Setup<object>("Radzen.getProperty", _ => true).SetResult(new object());
-            
+
             // Setup JSInterop for HelpTooltip component
             JSInterop.SetupVoid("eval", _ => true);
 
@@ -102,6 +102,7 @@ namespace PoCoupleQuiz.Tests
         }
 
         #region UI Rendering Tests
+        [Trait("Category", "Component")]
         [Fact]
         public async Task Index_ShouldRenderCorrectly()
         {
@@ -111,11 +112,12 @@ namespace PoCoupleQuiz.Tests
             // Act - Allow time for component to initialize
             await Task.Delay(100);
 
-            // Assert
-            var heading = cut.Find("h2");
-            Assert.Contains("PoCoupleQuiz", heading.TextContent);
+            // Assert - Check for game setup heading
+            var heading = cut.Find("h6");
+            Assert.Contains("Game Setup", heading.TextContent);
         }
 
+        [Trait("Category", "Component")]
         [Fact]
         public async Task Leaderboard_ShouldRenderCorrectly()
         {
@@ -133,6 +135,7 @@ namespace PoCoupleQuiz.Tests
 
         #region Game Logic Unit Tests
 
+        [Trait("Category", "Component")]
         [Fact]
         public void CorrectAnswer_ShouldIncreaseScore()
         {
@@ -171,6 +174,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Equal(1, player.TotalCorrectGuesses);
         }
 
+        [Trait("Category", "Component")]
         [Fact]
         public void IncorrectAnswer_ShouldNotChangeScore()
         {

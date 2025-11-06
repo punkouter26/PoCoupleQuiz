@@ -14,62 +14,31 @@ public static class ServiceCollectionExtensions
         // Register validators
         services.AddSingleton<IValidator<string>, TeamNameValidator>();
 
-        // Register Question Service based on configuration
-        if (ShouldUseMockQuestionService(configuration))
+        // Register Question Service - use Mock if Azure OpenAI is not configured
+        var apiKey = configuration["AzureOpenAI:ApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "placeholder-key")
         {
+            // Use mock service for local development without Azure OpenAI
             services.AddSingleton<IQuestionService, MockQuestionService>();
         }
         else
         {
+            // Use real Azure OpenAI service
             services.AddSingleton<IQuestionService, AzureOpenAIQuestionService>();
         }
 
-        // Register Team Service based on configuration
-        if (ShouldUseInMemoryTeamService(configuration))
-        {
-            services.AddSingleton<ITeamService, InMemoryTeamService>();
-        }
-        else
-        {
-            services.AddSingleton<ITeamService, AzureTableTeamService>();
-        }
-        // Register other services with consistent lifetimes
-        if (ShouldUseInMemoryGameHistoryService(configuration))
-        {
-            services.AddScoped<IGameHistoryService, InMemoryGameHistoryService>();
-        }
-        else
-        {
-            services.AddScoped<IGameHistoryService, GameHistoryService>();
-        }
+        services.AddSingleton<ITeamService, AzureTableTeamService>();
+        services.AddScoped<IGameHistoryService, GameHistoryService>();
         services.AddScoped<IGameStateService, GameStateService>();
 
+        // Register Phase 2 refactored services
+        services.AddScoped<IGameTurnManager, GameTurnManager>();
+        services.AddScoped<IGameScoringService, GameScoringService>();
+        services.AddSingleton<IPromptBuilder, PromptBuilder>();
+        services.AddSingleton<IQuestionCache, QuestionCache>();
+        services.AddScoped<IConsoleLoggingService, ConsoleLoggingService>();
+        services.AddScoped<IConnectivityCheckService, ConnectivityCheckService>();
+
         return services;
-    }
-    private static bool ShouldUseMockQuestionService(IConfiguration configuration)
-    {
-        var openAiEndpoint = configuration["AzureOpenAI:Endpoint"];
-        var openAiKey = configuration["AzureOpenAI:Key"];
-
-        return string.IsNullOrEmpty(openAiEndpoint) ||
-               string.IsNullOrEmpty(openAiKey) ||
-               openAiEndpoint.Contains("your-resource-name");
-    }
-    private static bool ShouldUseInMemoryTeamService(IConfiguration configuration)
-    {
-        var connectionString = configuration["AzureStorage:ConnectionString"];
-
-        return string.IsNullOrEmpty(connectionString) ||
-               connectionString.Contains("UseDevelopmentStorage=false") ||
-               connectionString.Contains("your-storage-account");
-    }
-
-    private static bool ShouldUseInMemoryGameHistoryService(IConfiguration configuration)
-    {
-        var connectionString = configuration["AzureStorage:ConnectionString"];
-
-        return string.IsNullOrEmpty(connectionString) ||
-               connectionString.Contains("UseDevelopmentStorage=false") ||
-               connectionString.Contains("your-storage-account");
     }
 }

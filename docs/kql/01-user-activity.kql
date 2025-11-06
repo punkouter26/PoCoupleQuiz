@@ -1,0 +1,40 @@
+// ============================================================================
+// USER ACTIVITY: Active Users and Sessions (Last 7 Days)
+// ============================================================================
+// Description: Analyzes unique users and sessions over the past week
+// Use Case: Monitor daily active users (DAU), identify usage patterns
+// Metrics: Unique users, unique sessions, page views per user
+// ============================================================================
+
+let timeRange = 7d;
+
+// Get unique users from page views (client-side tracking)
+let uniqueUsers = pageViews
+| where timestamp > ago(timeRange)
+| summarize Users = dcount(user_Id) by bin(timestamp, 1d)
+| project Date = format_datetime(timestamp, 'yyyy-MM-dd'), Users;
+
+// Get unique sessions from all requests
+let uniqueSessions = requests
+| where timestamp > ago(timeRange)
+| summarize Sessions = dcount(session_Id) by bin(timestamp, 1d)
+| project Date = format_datetime(timestamp, 'yyyy-MM-dd'), Sessions;
+
+// Get total page views
+let totalPageViews = pageViews
+| where timestamp > ago(timeRange)
+| summarize PageViews = count() by bin(timestamp, 1d)
+| project Date = format_datetime(timestamp, 'yyyy-MM-dd'), PageViews;
+
+// Combine metrics
+uniqueUsers
+| join kind=inner (uniqueSessions) on Date
+| join kind=inner (totalPageViews) on Date
+| project 
+    Date,
+    Users,
+    Sessions,
+    PageViews,
+    PageViewsPerUser = round(todouble(PageViews) / Users, 2),
+    SessionsPerUser = round(todouble(Sessions) / Users, 2)
+| order by Date desc

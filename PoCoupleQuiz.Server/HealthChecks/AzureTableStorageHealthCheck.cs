@@ -34,7 +34,7 @@ public class AzureTableStorageHealthCheck : IHealthCheck
             }
 
             // For Azurite (local development)
-            if (connectionString.Contains("UseDevelopmentStorage=true") || 
+            if (connectionString.Contains("UseDevelopmentStorage=true") ||
                 connectionString.Contains("127.0.0.1:10002"))
             {
                 var tableServiceClient = new TableServiceClient(connectionString);

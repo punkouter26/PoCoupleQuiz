@@ -29,6 +29,7 @@ public class DiagnosticsControllerTests : IAsyncLifetime
         await _factory.DisposeAsync();
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task CheckInternetConnection_ReturnsBoolean()
     {
@@ -39,9 +40,10 @@ public class DiagnosticsControllerTests : IAsyncLifetime
         response.EnsureSuccessStatusCode();
         var result = await response.Content.ReadFromJsonAsync<bool>();
         // Result can be true or false depending on network
-        Assert.True(result is true or false);
+        Assert.True(result == true || result == false); // Boolean result is valid
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task LogConsoleMessage_ValidMessage_ReturnsOk()
     {
@@ -60,6 +62,7 @@ public class DiagnosticsControllerTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Trait("Category", "Integration")]
     [Fact]
     public async Task NetworkStatus_ReturnsNetworkInfo()
     {

@@ -4,11 +4,36 @@ html, body {
     padding: 0;
     height: 100%;
     overflow-x: hidden;
+    resize: none;
 }
 
 #app {
     min-height: 100vh;
     height: auto;
+    resize: none;
+}
+
+/* Prevent resize handles on all elements in mobile view */
+@media (max-width: 768px) {
+    * {
+        resize: none !important;
+    }
+    
+    html, body, #app {
+        touch-action: pan-y pan-x;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+    
+    /* Re-enable selection for input fields */
+    input, textarea, select {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+    }
 }
 
 h1:focus {

@@ -28,12 +28,14 @@ namespace PoCoupleQuiz.Tests
             return Task.CompletedTask;
         }
 
-        public async Task DisposeAsync()
+        public Task DisposeAsync()
         {
             _httpClient.Dispose();
             _factory.Dispose();
+            return Task.CompletedTask;
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task HomePage_LoadsSuccessfully()
         {
@@ -47,6 +49,7 @@ namespace PoCoupleQuiz.Tests
             // Assert.Contains("container", content); // Removed as it's not in index.html
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task GamePage_LoadsSuccessfully()
         {
@@ -59,6 +62,7 @@ namespace PoCoupleQuiz.Tests
             // Assert.Contains("game", content); // Commented out as content is rendered by Blazor
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task LeaderboardPage_LoadsSuccessfully()
         {
@@ -71,6 +75,7 @@ namespace PoCoupleQuiz.Tests
             // Assert.Contains("Leaderboard", content); // Commented out as content is rendered by Blazor
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task DiagnosticsPage_LoadsSuccessfully()
         {
@@ -83,6 +88,7 @@ namespace PoCoupleQuiz.Tests
             // Assert.Contains("Diagnostics", content); // Commented out as content is rendered by Blazor
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task TeamsApi_WorksCorrectly()
         {
@@ -113,6 +119,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains(teams, t => t.Name == "TestTeam");
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task ResponsiveLayoutElements_ArePresent()
         {
@@ -127,12 +134,13 @@ namespace PoCoupleQuiz.Tests
             // Assert.Contains("quiz-card", content);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task GetTeamHistory_ReturnsGameHistoryForTeam()
         {
             // Arrange
             var teamName = "TestTeamHistory";
-            
+
             // Create team first
             var team = new Team
             {
@@ -158,10 +166,10 @@ namespace PoCoupleQuiz.Tests
             };
             var historyJson = JsonSerializer.Serialize(history);
             var historyContent = new StringContent(historyJson, Encoding.UTF8, "application/json");
-            await _httpClient.PostAsync("/api/GameHistory", historyContent);
+            await _httpClient.PostAsync("/api/game-history", historyContent);
 
             // Act
-            var response = await _httpClient.GetAsync($"/api/GameHistory/team/{teamName}");
+            var response = await _httpClient.GetAsync($"/api/game-history/teams/{teamName}");
             var responseJson = await response.Content.ReadAsStringAsync();
             var histories = JsonSerializer.Deserialize<List<GameHistory>>(responseJson, new JsonSerializerOptions
             {
@@ -174,12 +182,13 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains(histories, h => h.Team1Name == teamName || h.Team2Name == teamName);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task UpdateTeamStats_ValidData_UpdatesSuccessfully()
         {
             // Arrange
             var teamName = "TestStatsUpdate";
-            
+
             // Create team first
             var team = new Team
             {
@@ -192,12 +201,18 @@ namespace PoCoupleQuiz.Tests
             await _httpClient.PostAsync("/api/teams", teamContent);
 
             // Act - Update stats
-            var updateRequest = new { GameMode = GameMode.KingPlayer, Score = 10 };
+            var updateRequest = new 
+            { 
+                GameMode = GameMode.KingPlayer, 
+                Score = 10,
+                QuestionsAnswered = 5,
+                CorrectAnswers = 3
+            };
             var updateJson = JsonSerializer.Serialize(updateRequest);
             var updateContent = new StringContent(updateJson, Encoding.UTF8, "application/json");
-            
+
             var updateResponse = await _httpClient.PutAsync(
-                $"/api/Teams/{teamName}/stats", 
+                $"/api/teams/{teamName}/stats",
                 updateContent);
 
             // Verify
@@ -214,6 +229,7 @@ namespace PoCoupleQuiz.Tests
             Assert.True(updatedTeam.TotalQuestionsAnswered > 0);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task HealthCheck_Ready_ReturnsHealthyWhenServicesUp()
         {
@@ -226,6 +242,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("Healthy", content);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task HealthCheck_Live_AlwaysReturnsHealthy()
         {
@@ -238,12 +255,13 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("Healthy", content);
         }
 
+        [Trait("Category", "Integration")]
         [Fact]
         public async Task GetCategoryStats_ReturnsCorrectStatistics()
         {
             // Arrange
             var teamName = "TestCategoryStats";
-            
+
             // Create team
             var team = new Team
             {
@@ -275,10 +293,10 @@ namespace PoCoupleQuiz.Tests
             };
             var historyJson = JsonSerializer.Serialize(history);
             var historyContent = new StringContent(historyJson, Encoding.UTF8, "application/json");
-            await _httpClient.PostAsync("/api/GameHistory", historyContent);
+            await _httpClient.PostAsync("/api/game-history", historyContent);
 
             // Act
-            var response = await _httpClient.GetAsync($"/api/GameHistory/categoryStats/{teamName}");
+            var response = await _httpClient.GetAsync($"/api/game-history/teams/{teamName}/category-stats");
             var responseJson = await response.Content.ReadAsStringAsync();
 
             // Assert

@@ -3,9 +3,29 @@
 name: pocouplequiz
 metadata:
     template: azd-init@1.18.2
+
+# ============================================================================
+# AZURE DEPLOYMENT CONFIGURATION
+# ============================================================================
+# This configuration provisions Azure resources and deploys the application to
+# Azure App Service.
+#
+# Local Development:
+# - Run: azd provision (provisions infrastructure only)
+# - Use: Azurite for Azure Table Storage emulation
+# - Use: dotnet run for the web server
+#
+# Production Deployment:
+# - Run: azd up (provisions infrastructure AND deploys application)
+# - Deploys to: Azure App Service
+# - Uses: Azure Table Storage, Azure OpenAI, Application Insights
+# ============================================================================
+
 services:
     web:
         project: ./PoCoupleQuiz.Server
         host: appservice
         language: dotnet
+
 resourceGroup: PoCoupleQuiz
+

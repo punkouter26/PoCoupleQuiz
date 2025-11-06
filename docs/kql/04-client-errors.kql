@@ -1,0 +1,34 @@
+// ============================================================================
+// CLIENT-SIDE ERRORS: Top Exceptions by Browser
+// ============================================================================
+// Description: Identifies most common client-side exceptions grouped by browser
+// Use Case: Debug client-side issues, prioritize browser compatibility fixes
+// Metrics: Exception count, affected users, browser distribution
+// ============================================================================
+
+exceptions
+| where timestamp > ago(7d)
+| where client_Type == "Browser"  // Filter for client-side exceptions only
+| extend 
+    BrowserName = tostring(client_Browser),
+    BrowserVersion = tostring(split(client_Browser, " ")[1]),
+    ExceptionType = type,
+    ExceptionMessage = outerMessage
+| summarize 
+    ExceptionCount = count(),
+    AffectedUsers = dcount(user_Id),
+    FirstOccurrence = min(timestamp),
+    LastOccurrence = max(timestamp),
+    SampleStackTrace = any(details[0].parsedStack)
+    by ExceptionType, ExceptionMessage, BrowserName
+| order by ExceptionCount desc
+| take 20
+| project 
+    Exception = ExceptionType,
+    Message = substring(ExceptionMessage, 0, 100),  // Truncate long messages
+    Browser = BrowserName,
+    Occurrences = ExceptionCount,
+    AffectedUsers,
+    FirstSeen = format_datetime(FirstOccurrence, 'yyyy-MM-dd HH:mm'),
+    LastSeen = format_datetime(LastOccurrence, 'yyyy-MM-dd HH:mm'),
+    TimeSpan = LastOccurrence - FirstOccurrence

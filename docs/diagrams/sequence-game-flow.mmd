@@ -1,0 +1,100 @@
+sequenceDiagram
+    participant Player as Player (Browser)
+    participant Blazor as Blazor WebAssembly
+    participant API as ASP.NET Core API
+    participant GameSvc as Game Service
+    participant QuestionSvc as Question Service
+    participant Storage as Azure Table Storage
+    participant OpenAI as Azure OpenAI
+    participant AI as Application Insights
+
+    Note over Player,AI: Game Initialization
+
+    Player->>Blazor: Navigate to / (Index)
+    Blazor->>Blazor: Render Player Registration
+
+    Player->>Blazor: Enter Names & Select Difficulty
+    Blazor->>API: POST /api/games/start<br/>{players, difficulty}
+    activate API
+    
+    API->>GameSvc: CreateGame(players, difficulty)
+    activate GameSvc
+    
+    GameSvc->>Storage: Create Game Entity
+    GameSvc->>Storage: Create Player Entities
+    GameSvc-->>API: GameId
+    deactivate GameSvc
+    
+    API->>QuestionSvc: GenerateQuestions(difficulty, count)
+    activate QuestionSvc
+    
+    QuestionSvc->>OpenAI: Generate contextual questions<br/>(GPT-4 prompt)
+    activate OpenAI
+    OpenAI-->>QuestionSvc: Generated questions
+    deactivate OpenAI
+    
+    QuestionSvc->>Storage: Store questions for game
+    QuestionSvc-->>API: Questions
+    deactivate QuestionSvc
+    
+    API-->>Blazor: { gameId, questions, kingPlayer }
+    deactivate API
+    
+    Blazor->>AI: Track Event: GameStarted
+    
+    Blazor->>Blazor: Navigate to /game/{gameId}
+
+    Note over Player,AI: Gameplay Loop (per round)
+
+    Blazor->>Player: Display Question #1
+    Player->>Blazor: King Player submits answer
+    
+    Blazor->>API: POST /api/games/{gameId}/submit-answer<br/>{questionId, playerId, answer}
+    activate API
+    API->>GameSvc: StoreKingAnswer(gameId, questionId, answer)
+    GameSvc->>Storage: Update answer in game state
+    API-->>Blazor: { success: true }
+    deactivate API
+    
+    Blazor->>Player: Show "Other players guess" state
+    Player->>Blazor: Other players submit guesses
+    
+    Blazor->>API: POST /api/games/{gameId}/submit-guesses<br/>[{playerId, guess}]
+    activate API
+    API->>GameSvc: ScoreRound(gameId, questionId, guesses)
+    activate GameSvc
+    
+    GameSvc->>Storage: Retrieve king answer
+    GameSvc->>GameSvc: Compare guesses with answer
+    GameSvc->>Storage: Update player scores
+    GameSvc-->>API: { scores, correctPlayers }
+    deactivate GameSvc
+    
+    API-->>Blazor: Round results
+    deactivate API
+    
+    Blazor->>AI: Track Event: RoundCompleted
+    Blazor->>Player: Display round results
+
+    Note over Player,AI: Game Completion
+
+    Blazor->>API: GET /api/games/{gameId}/leaderboard
+    activate API
+    API->>GameSvc: GetFinalScores(gameId)
+    GameSvc->>Storage: Retrieve final scores
+    GameSvc-->>API: Leaderboard data
+    API-->>Blazor: { players, scores, winner }
+    deactivate API
+    
+    Blazor->>Player: Display final leaderboard
+    Blazor->>AI: Track Event: GameCompleted
+
+    Player->>Blazor: View Statistics
+    Blazor->>API: GET /api/games/history
+    activate API
+    API->>Storage: Query historical games
+    Storage-->>API: Game history
+    API-->>Blazor: Statistics data
+    deactivate API
+    
+    Blazor->>Player: Display statistics page

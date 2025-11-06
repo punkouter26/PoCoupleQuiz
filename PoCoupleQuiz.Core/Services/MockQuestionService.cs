@@ -1,8 +1,10 @@
-using PoCoupleQuiz.Core.Services;
 using PoCoupleQuiz.Core.Models;
 
 namespace PoCoupleQuiz.Core.Services;
 
+/// <summary>
+/// Mock implementation of IQuestionService for development/testing when Azure OpenAI is not available
+/// </summary>
 public class MockQuestionService : IQuestionService
 {
     private int _questionCounter = 0;
@@ -63,6 +65,7 @@ public class MockQuestionService : IQuestionService
         var normalizedAnswer1 = answer1.Trim().ToLower();
         var normalizedAnswer2 = answer2.Trim().ToLower();
 
+        // Simple similarity checks
         if (normalizedAnswer1.Contains("january 1st") && normalizedAnswer2.Contains("1st of january"))
             return Task.FromResult(true);
 

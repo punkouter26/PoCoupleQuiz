@@ -1,0 +1,45 @@
+@using PoCoupleQuiz.Core.Models
+@using Radzen
+@using Radzen.Blazor
+
+@* Game Progress Tracker Component *@
+
+<RadzenCard class="progress-card">
+    <h6 class="mb-3">Game Progress</h6>
+    <RadzenProgressBar Value="@ProgressPercentage" Max="100" ShowValue="false" />
+    <div class="text-center mt-2">
+        <strong>@ProgressPercentage.ToString("F1")%</strong>
+    </div>
+    <small class="text-muted d-block text-center mt-1">
+        Round @CurrentRound of @TotalRounds
+    </small>
+</RadzenCard>
+
+<style>
+    .progress-card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        padding: 20px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    }
+    
+    .progress-card h6 {
+        color: #495057;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    
+    .progress-card strong {
+        font-size: 1.5rem;
+        color: #1b6ec2;
+    }
+</style>
+
+@code {
+    [Parameter] public int CurrentRound { get; set; }
+    [Parameter] public int TotalRounds { get; set; }
+
+    private double ProgressPercentage => TotalRounds > 0 
+        ? (double)CurrentRound / TotalRounds * 100 
+        : 0;
+}

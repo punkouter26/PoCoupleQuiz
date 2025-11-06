@@ -1,0 +1,55 @@
+graph TB
+    subgraph "Web Browser"
+        BlazorApp[fa:fa-laptop Blazor WebAssembly<br/>SPA Client]
+        AIJsSDK[fa:fa-chart-bar App Insights JS SDK]
+    end
+
+    subgraph "Azure App Service"
+        WebAPI[fa:fa-server ASP.NET Core Web API<br/>Minimal APIs]
+        HealthChecks[fa:fa-heartbeat Health Checks<br/>Liveness & Readiness]
+        Serilog[fa:fa-file-text Serilog<br/>Structured Logging]
+    end
+
+    subgraph "Core Business Logic"
+        GameService[fa:fa-gamepad Game Service<br/>Game Orchestration]
+        QuestionService[fa:fa-question-circle Question Service<br/>AI Generation]
+        PlayerService[fa:fa-users Player Service<br/>Player Management]
+    end
+
+    subgraph "External Services"
+        TableStorage[fa:fa-table Azure Table Storage<br/>Players, Games, Questions]
+        OpenAI[fa:fa-brain Azure OpenAI<br/>GPT-4 Question Gen]
+        AppInsights[fa:fa-area-chart Application Insights<br/>Logs & Metrics]
+        KeyVault[fa:fa-lock Key Vault<br/>Connection Strings & API Keys]
+    end
+
+    BlazorApp -->|HTTP/HTTPS| WebAPI
+    BlazorApp -->|Telemetry| AIJsSDK
+    AIJsSDK -->|Events| AppInsights
+    
+    WebAPI --> HealthChecks
+    WebAPI --> GameService
+    WebAPI --> QuestionService
+    WebAPI --> PlayerService
+    WebAPI --> Serilog
+
+    GameService --> TableStorage
+    QuestionService --> OpenAI
+    QuestionService --> TableStorage
+    PlayerService --> TableStorage
+
+    Serilog -->|Logs| AppInsights
+    HealthChecks -->|Status| TableStorage
+    HealthChecks -->|Status| OpenAI
+    
+    WebAPI -->|Secrets| KeyVault
+
+    classDef clientClass fill:#61AFEF,stroke:#3B8FD0,color:#fff
+    classDef apiClass fill:#98C379,stroke:#6FA855,color:#fff
+    classDef serviceClass fill:#E5C07B,stroke:#D4A659,color:#000
+    classDef externalClass fill:#E06C75,stroke:#C85360,color:#fff
+
+    class BlazorApp,AIJsSDK clientClass
+    class WebAPI,HealthChecks,Serilog apiClass
+    class GameService,QuestionService,PlayerService serviceClass
+    class TableStorage,OpenAI,AppInsights,KeyVault externalClass

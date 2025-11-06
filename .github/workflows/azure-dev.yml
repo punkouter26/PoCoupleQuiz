@@ -1,38 +1,216 @@
-# Deploy using Azure Developer CLI
+# ============================================================================
+# Po.CoupleQuiz - CI/CD Pipeline with Quality Gates
+# ============================================================================
+# This workflow performs the following quality checks and deployment:
+# 
+# Quality Gates:
+# 1. CodeQL Static Analysis (security scanning)
+# 2. Code Format Verification (dotnet format --verify-no-changes)
+# 3. Coverage Report Check (docs/coverage/index.html must exist)
+# 4. Build Verification (dotnet build)
+# 
+# Deployment:
+# 5. Azure Deployment via azd (using OIDC federated credentials)
+#
+# Triggers:
+# - Push to main branch
+# - Manual workflow_dispatch
+# ============================================================================
+
+name: CI/CD Pipeline
+
 on:
-  workflow_dispatch:
   push:
     branches:
-      - master
+      - main
+  workflow_dispatch:
 
 permissions:
-  id-token: write
-  contents: read
+  id-token: write      # Required for OIDC authentication to Azure
+  contents: read       # Required to checkout code
+  security-events: write  # Required for CodeQL
+  actions: read        # Required for CodeQL
+
+env:
+  AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+  DOTNET_VERSION: '9.0.x'
 
 jobs:
-  deploy:
+  # ==========================================================================
+  # Job 1: Static Analysis & Quality Gates
+  # ==========================================================================
+  quality-gates:
+    name: Quality Gates
     runs-on: ubuntu-latest
-    env:
-      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
-      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+    
     steps:
-      - name: Checkout
+      # ----------------------------------------------------------------------
+      # Checkout Code
+      # ----------------------------------------------------------------------
+      - name: Checkout repository
         uses: actions/checkout@v4
-        
-      - name: Install azd
-        uses: Azure/setup-azd@v2
-        
-      - name: Log in with Azure
+        with:
+          fetch-depth: 0  # Full history for CodeQL
+      
+      # ----------------------------------------------------------------------
+      # Setup .NET
+      # ----------------------------------------------------------------------
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      # ----------------------------------------------------------------------
+      # Restore Dependencies
+      # ----------------------------------------------------------------------
+      - name: Restore NuGet packages
+        run: dotnet restore
+      
+      # ----------------------------------------------------------------------
+      # Quality Gate 1: Code Format Verification
+      # ----------------------------------------------------------------------
+      - name: 🔍 Quality Gate - Code Format Verification
         run: |
-          azd auth login `
-            --client-id "$Env:AZURE_CLIENT_ID" `
-            --federated-credential-provider "github" `
-            --tenant-id "$Env:AZURE_TENANT_ID"
-        shell: pwsh
+          echo "::group::Checking code formatting..."
+          dotnet format --verify-no-changes --verbosity diagnostic
+          echo "::endgroup::"
+        continue-on-error: false
+      
+      # ----------------------------------------------------------------------
+      # Quality Gate 2: Build Verification
+      # ----------------------------------------------------------------------
+      - name: 🏗️ Quality Gate - Build Verification
+        run: |
+          echo "::group::Building solution..."
+          dotnet build --configuration Release --no-restore
+          echo "::endgroup::"
+      
+      # ----------------------------------------------------------------------
+      # Quality Gate 3: Coverage Report Check
+      # ----------------------------------------------------------------------
+      - name: 📊 Quality Gate - Coverage Report Check
+        run: |
+          echo "::group::Checking for coverage report..."
+          if [ ! -f "docs/coverage/html/index.html" ]; then
+            echo "❌ ERROR: Coverage report not found!"
+            echo ""
+            echo "The file docs/coverage/html/index.html is missing."
+            echo "Please run the following command locally before pushing:"
+            echo ""
+            echo "  .\Generate-CoverageReport.ps1"
+            echo ""
+            echo "This ensures code coverage meets the 80% threshold."
+            exit 1
+          fi
+          
+          echo "✅ Coverage report found: docs/coverage/html/index.html"
+          
+          # Check if coverage report was updated in this commit
+          COVERAGE_MODIFIED=$(git log -1 --name-only --pretty=format: | grep "docs/coverage" || true)
+          if [ -z "$COVERAGE_MODIFIED" ]; then
+            echo "⚠️  WARNING: Coverage report exists but was not updated in this commit."
+            echo "Please ensure you ran .\Generate-CoverageReport.ps1 before committing."
+          else
+            echo "✅ Coverage report was updated in this commit."
+          fi
+          echo "::endgroup::"
+      
+      # ----------------------------------------------------------------------
+      # Upload Coverage Report as Artifact
+      # ----------------------------------------------------------------------
+      - name: 📤 Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: docs/coverage/
+          retention-days: 30
+      
+      # ----------------------------------------------------------------------
+      # Quality Gate 4: CodeQL Static Analysis (Security)
+      # ----------------------------------------------------------------------
+      - name: 🔒 Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp, javascript
+          queries: security-and-quality
+      
+      - name: 🔒 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:csharp"
+  
+  # ==========================================================================
+  # Job 2: Deploy to Azure
+  # ==========================================================================
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: quality-gates
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    
+    steps:
+      # ----------------------------------------------------------------------
+      # Checkout Code
+      # ----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # ----------------------------------------------------------------------
+      # Setup .NET
+      # ----------------------------------------------------------------------
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      # ----------------------------------------------------------------------
+      # Install Azure Developer CLI
+      # ----------------------------------------------------------------------
+      - name: Install azd
+        uses: Azure/setup-azd@v1.0.0
+      
+      # ----------------------------------------------------------------------
+      # Authenticate to Azure using OIDC
+      # ----------------------------------------------------------------------
+      - name: 🔐 Log in to Azure (OIDC)
+        run: |
+          echo "::group::Authenticating to Azure using OIDC..."
+          azd auth login \
+            --client-id "${{ env.AZURE_CLIENT_ID }}" \
+            --federated-credential-provider "github" \
+            --tenant-id "${{ env.AZURE_TENANT_ID }}"
+          echo "✅ Successfully authenticated to Azure"
+          echo "::endgroup::"
+      
+      # ----------------------------------------------------------------------
+      # Provision Infrastructure (if needed)
+      # ----------------------------------------------------------------------
+      - name: 🏗️ Provision Azure Infrastructure
+        run: |
+          echo "::group::Provisioning infrastructure..."
+          azd provision --no-prompt
+          echo "::endgroup::"
+      
+      # ----------------------------------------------------------------------
+      # Deploy Application
+      # ----------------------------------------------------------------------
+      - name: 🚀 Deploy Application to Azure
+        run: |
+          echo "::group::Deploying application..."
+          azd deploy --no-prompt
+          echo "✅ Deployment successful!"
+          echo "::endgroup::"
+      
+      # ----------------------------------------------------------------------
+      # Output Deployment Information
+      # ----------------------------------------------------------------------
+      - name: 📋 Get Deployment URLs
+        run: |
+          echo "::group::Deployment Information"
+          azd env get-values
+          echo "::endgroup::"
 
-      - name: Deploy Application
-        run: azd deploy --no-prompt
-        

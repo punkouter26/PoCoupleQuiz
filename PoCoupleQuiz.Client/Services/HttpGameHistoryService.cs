@@ -17,7 +17,7 @@ public class HttpGameHistoryService : IGameHistoryService
     {
         try
         {
-            var response = await _httpClient.PostAsJsonAsync("api/GameHistory", history);
+            var response = await _httpClient.PostAsJsonAsync("api/game-history", history);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -34,21 +34,21 @@ public class HttpGameHistoryService : IGameHistoryService
 
     public async Task<IEnumerable<GameHistory>> GetTeamHistoryAsync(string teamName)
     {
-        return await _httpClient.GetFromJsonAsync<IEnumerable<GameHistory>>($"api/GameHistory/team/{teamName}") ?? new List<GameHistory>();
+        return await _httpClient.GetFromJsonAsync<IEnumerable<GameHistory>>($"api/game-history/teams/{teamName}") ?? new List<GameHistory>();
     }
 
     public async Task<Dictionary<QuestionCategory, int>> GetTeamCategoryStatsAsync(string teamName)
     {
-        return await _httpClient.GetFromJsonAsync<Dictionary<QuestionCategory, int>>($"api/GameHistory/categoryStats/{teamName}") ?? new Dictionary<QuestionCategory, int>();
+        return await _httpClient.GetFromJsonAsync<Dictionary<QuestionCategory, int>>($"api/game-history/teams/{teamName}/category-stats") ?? new Dictionary<QuestionCategory, int>();
     }
 
     public async Task<List<string>> GetTopMatchedAnswersAsync(string teamName, int count = 10)
     {
-        return await _httpClient.GetFromJsonAsync<List<string>>($"api/GameHistory/topMatchedAnswers/{teamName}/{count}") ?? new List<string>();
+        return await _httpClient.GetFromJsonAsync<List<string>>($"api/game-history/teams/{teamName}/top-matched-answers/{count}") ?? new List<string>();
     }
 
     public async Task<double> GetAverageResponseTimeAsync(string teamName)
     {
-        return await _httpClient.GetFromJsonAsync<double>($"api/GameHistory/averageResponseTime/{teamName}");
+        return await _httpClient.GetFromJsonAsync<double>($"api/game-history/teams/{teamName}/average-response-time");
     }
 }

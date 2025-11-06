@@ -1,0 +1,37 @@
+@* SkeletonLoader.razor - Reusable skeleton loading component *@
+
+<div class="skeleton-container">
+    @if (Type == "question")
+    {
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-subtitle"></div>
+        <div class="skeleton skeleton-textarea"></div>
+        <div class="skeleton skeleton-button"></div>
+    }
+    else if (Type == "scoreboard")
+    {
+        @for (int i = 0; i < 4; i++)
+        {
+            <div class="skeleton skeleton-score-item"></div>
+        }
+    }
+    else if (Type == "leaderboard")
+    {
+        <div class="skeleton skeleton-table-header"></div>
+        @for (int i = 0; i < 5; i++)
+        {
+            <div class="skeleton skeleton-table-row"></div>
+        }
+    }
+    else if (Type == "card")
+    {
+        <div class="skeleton skeleton-card-title"></div>
+        <div class="skeleton skeleton-card-content"></div>
+        <div class="skeleton skeleton-card-content-short"></div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Type { get; set; } = "question";
+}

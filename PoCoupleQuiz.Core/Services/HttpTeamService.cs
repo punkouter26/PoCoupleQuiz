@@ -72,12 +72,13 @@ public class HttpTeamService : ITeamService
         }
     }
 
-    public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score)
+    public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score, int questionsAnswered = 0, int correctAnswers = 0)
     {
         try
         {
-            _logger.LogInformation("Updating team stats for {TeamName}: Mode={GameMode}, Score={Score}", teamName, gameMode, score);
-            await _httpClient.PutAsJsonAsync($"/api/teams/{teamName}/stats", new { gameMode, score });
+            _logger.LogInformation("Updating team stats for {TeamName}: Mode={GameMode}, Score={Score}, Questions={Questions}, Correct={Correct}", 
+                teamName, gameMode, score, questionsAnswered, correctAnswers);
+            await _httpClient.PutAsJsonAsync($"/api/teams/{teamName}/stats", new { gameMode, score, questionsAnswered, correctAnswers });
         }
         catch (HttpRequestException ex)
         {

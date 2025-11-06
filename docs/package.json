@@ -1,0 +1,19 @@
+{
+  "name": "pocoupledata-docs",
+  "version": "1.0.0",
+  "description": "Documentation build scripts for PoCoupleQuiz",
+  "scripts": {
+    "build-diagrams": "mmdc -i diagrams/*.mmd -o diagrams/ -t default -b transparent",
+    "watch-diagrams": "mmdc -i diagrams/*.mmd -o diagrams/ -t default -b transparent -w"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.4.1"
+  },
+  "keywords": [
+    "documentation",
+    "diagrams",
+    "mermaid"
+  ],
+  "author": "PoCoupleQuiz Team",
+  "license": "MIT"
+}
