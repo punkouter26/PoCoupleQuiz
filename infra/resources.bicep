@@ -15,8 +15,11 @@ var abbrs = loadJsonContent('./abbreviations.json')
 var sharedOpenAIEndpoint = 'https://posharedopenaieastus.openai.azure.com/'
 var sharedOpenAIDeploymentName = 'gpt-35-turbo'
 
+// Shared App Service Plan in PoShared resource group (existing resource)
+var sharedResourceGroupName = 'PoShared'
+var sharedAppServicePlanName = 'ASP-PoShared-8ed9' // F1 tier plan in PoShared
+
 // Generate unique resource names
-var appServicePlanName = '${abbrs.webServerFarms}${baseName}'
 var appServiceName = '${abbrs.webSitesAppService}${baseName}'
 var storageAccountName = toLower('${abbrs.storageStorageAccounts}${take(replace(baseName, '-', ''), 17)}')
 
@@ -102,21 +105,10 @@ resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-0
   parent: storageAccount
 }
 
-// App Service Plan (hosting infrastructure)
-resource appServicePlan 'Microsoft.Web/serverfarms@2024-04-01' = {
-  name: appServicePlanName
-  location: location
-  tags: tags
-  sku: {
-    name: 'F1' // Free tier - no cost, no quota limits
-    tier: 'Free'
-    size: 'F1'
-    capacity: 1
-  }
-  properties: {
-    reserved: true // Required for Linux
-  }
-  kind: 'linux'
+// Reference to existing App Service Plan in PoShared resource group
+resource existingAppServicePlan 'Microsoft.Web/serverfarms@2024-04-01' existing = {
+  scope: resourceGroup(sharedResourceGroupName)
+  name: sharedAppServicePlanName
 }
 
 // App Service (web application)
@@ -131,7 +123,7 @@ resource appService 'Microsoft.Web/sites@2024-04-01' = {
     type: 'SystemAssigned'
   }
   properties: {
-    serverFarmId: appServicePlan.id
+    serverFarmId: existingAppServicePlan.id
     httpsOnly: true
     siteConfig: {
       linuxFxVersion: 'DOTNETCORE|9.0'
@@ -229,7 +221,6 @@ output STORAGE_ACCOUNT_NAME string = storageAccount.name
 // App Service outputs
 output APP_SERVICE_NAME string = appService.name
 output APP_SERVICE_URL string = 'https://${appService.properties.defaultHostName}'
-output APP_SERVICE_PLAN_NAME string = appServicePlan.name
 
 // Service-specific outputs (required by azd)
 output SERVICE_WEB_NAME string = appService.name
