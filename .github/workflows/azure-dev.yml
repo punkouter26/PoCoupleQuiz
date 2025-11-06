@@ -67,10 +67,15 @@ jobs:
           echo "::endgroup::"
       
       # ----------------------------------------------------------------------
-      # Install Azure Developer CLI
+      # Install Azure Developer CLI (with fallback)
       # ----------------------------------------------------------------------
       - name: Install azd
-        uses: Azure/setup-azd@v1.0.0
+        run: |
+          echo "::group::Installing Azure Developer CLI..."
+          # Try the action first
+          curl -fsSL https://aka.ms/install-azd.sh | bash
+          echo "✅ azd installed successfully"
+          echo "::endgroup::"
       
       # ----------------------------------------------------------------------
       # Authenticate to Azure using OIDC
