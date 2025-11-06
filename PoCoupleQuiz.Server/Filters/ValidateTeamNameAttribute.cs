@@ -34,7 +34,7 @@ public class ValidateTeamNameAttribute : ActionFilterAttribute
         }
 
         // Get the team name from action arguments
-        if (!context.ActionArguments.TryGetValue(_parameterName, out var teamNameObj) || 
+        if (!context.ActionArguments.TryGetValue(_parameterName, out var teamNameObj) ||
             teamNameObj is not string teamName)
         {
             return; // Parameter not found or not a string, let the action handle it

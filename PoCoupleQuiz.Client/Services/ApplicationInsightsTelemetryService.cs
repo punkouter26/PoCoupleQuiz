@@ -29,7 +29,7 @@ namespace PoCoupleQuiz.Client.Services
             {
                 _telemetryModule = await _jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/telemetry.js");
                 _isInitialized = await _telemetryModule.InvokeAsync<bool>("initializeAppInsights", connectionString);
-                
+
                 if (_isInitialized)
                 {
                     Console.WriteLine("[Telemetry] Application Insights initialized successfully");

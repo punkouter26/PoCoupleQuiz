@@ -58,7 +58,7 @@ namespace PoCoupleQuiz.Server
                 builder.Services.AddRazorPages();
                 builder.Services.AddEndpointsApiExplorer();
                 builder.Services.AddSwaggerGen();
-                
+
                 // Add health checks using extension method
                 builder.Services.AddHealthCheckConfiguration(builder.Configuration);
 

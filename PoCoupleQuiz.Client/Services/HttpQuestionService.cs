@@ -17,7 +17,7 @@ public class HttpQuestionService : IQuestionService
     {
         var response = await _httpClient.PostAsJsonAsync("api/questions/generate", new { difficulty });
         response.EnsureSuccessStatusCode();
-        
+
         var question = await response.Content.ReadFromJsonAsync<Question>();
         return question ?? throw new InvalidOperationException("Failed to generate question");
     }
@@ -26,7 +26,7 @@ public class HttpQuestionService : IQuestionService
     {
         var response = await _httpClient.PostAsJsonAsync("api/questions/check-similarity", new { answer1, answer2 });
         response.EnsureSuccessStatusCode();
-        
+
         var result = await response.Content.ReadFromJsonAsync<bool>();
         return result;
     }
@@ -35,7 +35,7 @@ public class HttpQuestionService : IQuestionService
     {
         var response = await _httpClient.PostAsJsonAsync("api/questions/generate-answer", new { question });
         response.EnsureSuccessStatusCode();
-        
+
         var answer = await response.Content.ReadAsStringAsync();
         return answer.Trim('"'); // Remove JSON quotes
     }

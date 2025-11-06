@@ -42,7 +42,7 @@ namespace PoCoupleQuiz.Server.Telemetry
                     properties["CorrelationId"] = activity.TraceId.ToString();
                     properties["ParentId"] = activity.ParentId ?? "None";
                     properties["SpanId"] = activity.SpanId.ToString();
-                    
+
                     // Add custom baggage from Activity (if any)
                     foreach (var baggage in activity.Baggage)
                     {
@@ -57,11 +57,11 @@ namespace PoCoupleQuiz.Server.Telemetry
                     properties["Request.Method"] = httpContext.Request.Method;
                     properties["Request.Path"] = httpContext.Request.Path.Value ?? "/";
                     properties["Request.QueryString"] = httpContext.Request.QueryString.Value ?? "";
-                    
+
                     // Client information
                     properties["Client.IP"] = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
                     properties["Client.UserAgent"] = httpContext.Request.Headers["User-Agent"].ToString();
-                    
+
                     // Custom headers (game context)
                     if (httpContext.Request.Headers.TryGetValue("X-Game-Id", out var gameId))
                     {

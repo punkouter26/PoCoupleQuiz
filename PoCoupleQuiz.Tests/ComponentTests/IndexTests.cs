@@ -30,7 +30,7 @@ public class IndexTests : BunitContext
         _mockTeamService = new Mock<ITeamService>();
         _mockGameState = new Mock<IGameStateService>();
         _mockJSRuntime = new Mock<IJSRuntime>();
-        
+
         // Setup JSRuntime to return null for localStorage calls (no saved preferences)
         _mockJSRuntime.Setup(js => js.InvokeAsync<string>(
             "localStorage.getItem",
@@ -39,7 +39,7 @@ public class IndexTests : BunitContext
 
         // Create a concrete NavigationManager mock
         var navManager = new TestNavigationManager();
-        
+
         Services.AddSingleton(_mockTeamService.Object);
         Services.AddSingleton(_mockGameState.Object);
         Services.AddSingleton<IJSRuntime>(_mockJSRuntime.Object);
@@ -121,7 +121,7 @@ public class IndexTests : BunitContext
         // Assert
         var difficultySelect = cut.FindAll("select")[1]; // Second select is difficulty
         var options = difficultySelect.QuerySelectorAll("option");
-        
+
         Assert.Equal(3, options.Length);
         Assert.Contains(options, o => o.TextContent.Contains("Easy (3 rounds)"));
         Assert.Contains(options, o => o.TextContent.Contains("Medium (5 rounds)"));
@@ -148,7 +148,7 @@ public class IndexTests : BunitContext
         // Assert
         var playerCountSelect = cut.FindAll("select")[0];
         var options = playerCountSelect.QuerySelectorAll("option");
-        
+
         Assert.Equal(4, options.Length); // 3, 4, 5, 6 players
         Assert.Contains(options, o => o.TextContent == "3 Players");
         Assert.Contains(options, o => o.TextContent == "4 Players");

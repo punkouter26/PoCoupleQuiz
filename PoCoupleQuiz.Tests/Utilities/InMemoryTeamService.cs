@@ -28,7 +28,7 @@ public class InMemoryTeamService : ITeamService
     public Task UpdateTeamStatsAsync(string teamName, GameMode mode, int score, int questionsAnswered = 0, int correctAnswers = 0)
     {
         var key = teamName.ToLowerInvariant();
-        
+
         if (!_teams.TryGetValue(key, out var team))
         {
             // Create team if it doesn't exist
@@ -42,7 +42,7 @@ public class InMemoryTeamService : ITeamService
             };
             _teams[key] = team;
         }
-        
+
         if (mode == GameMode.KingPlayer)
         {
             if (score > team.HighScore)
@@ -50,11 +50,11 @@ public class InMemoryTeamService : ITeamService
                 team.HighScore = score;
             }
         }
-        
+
         team.TotalQuestionsAnswered += questionsAnswered;
         team.CorrectAnswers += correctAnswers;
         team.LastPlayed = DateTime.UtcNow;
-        
+
         return Task.CompletedTask;
     }
 }

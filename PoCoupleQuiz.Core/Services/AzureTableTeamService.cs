@@ -79,7 +79,7 @@ public class AzureTableTeamService : ITeamService
     public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score, int questionsAnswered = 0, int correctAnswers = 0)
     {
         var team = await GetTeamAsync(teamName);
-        
+
         // Create team if it doesn't exist
         if (team == null)
         {
@@ -108,8 +108,8 @@ public class AzureTableTeamService : ITeamService
         team.LastPlayed = DateTime.UtcNow;
 
         await SaveTeamAsync(team);
-        
-        _logger.LogInformation("Updated stats for team {TeamName}: HighScore={HighScore}, Score={Score}, TotalQuestions={Total}, Correct={Correct}", 
+
+        _logger.LogInformation("Updated stats for team {TeamName}: HighScore={HighScore}, Score={Score}, TotalQuestions={Total}, Correct={Correct}",
             teamName, team.HighScore, score, team.TotalQuestionsAnswered, team.CorrectAnswers);
     }
 }

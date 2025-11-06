@@ -34,7 +34,7 @@ public class ScoreboardDisplayTests : Bunit.TestContext
         // Arrange
         var mockJSRuntime = new Mock<IJSRuntime>();
         Services.AddSingleton(mockJSRuntime.Object);
-        
+
         var scoreboard = new Dictionary<string, int>
         {
             { "Player1", 10 },
@@ -60,7 +60,7 @@ public class ScoreboardDisplayTests : Bunit.TestContext
         // Arrange
         var mockJSRuntime = new Mock<IJSRuntime>();
         Services.AddSingleton(mockJSRuntime.Object);
-        
+
         var scoreboard = new Dictionary<string, int>
         {
             { "Player1", 5 },
@@ -85,7 +85,7 @@ public class ScoreboardDisplayTests : Bunit.TestContext
         // Arrange
         var mockJSRuntime = new Mock<IJSRuntime>();
         Services.AddSingleton(mockJSRuntime.Object);
-        
+
         var scoreboard = new Dictionary<string, int>
         {
             { "Player1", 42 },
@@ -108,12 +108,12 @@ public class ScoreboardDisplayTests : Bunit.TestContext
         // Arrange
         var mockJSRuntime = new Mock<IJSRuntime>();
         Services.AddSingleton(mockJSRuntime.Object);
-        
+
         var previousScoreboard = new Dictionary<string, int>
         {
             { "Player1", 5 }
         };
-        
+
         var currentScoreboard = new Dictionary<string, int>
         {
             { "Player1", 10 }
@@ -137,7 +137,7 @@ public class ScoreboardDisplayTests : Bunit.TestContext
         // Arrange
         var mockJSRuntime = new Mock<IJSRuntime>();
         Services.AddSingleton(mockJSRuntime.Object);
-        
+
         var scoreboard = new Dictionary<string, int>
         {
             { "Player1", 5 }
@@ -159,7 +159,7 @@ public class ScoreboardDisplayTests : Bunit.TestContext
         // Arrange
         var mockJSRuntime = new Mock<IJSRuntime>();
         Services.AddSingleton(mockJSRuntime.Object);
-        
+
         var scoreboard = new Dictionary<string, int>
         {
             { "Player1", 10 }

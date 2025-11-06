@@ -30,17 +30,17 @@ public class ConnectivityCheckService : IConnectivityCheckService
         {
             var response = await _httpClient.GetAsync(serverUrl);
             var isSuccess = response.IsSuccessStatusCode;
-            
+
             if (isSuccess)
             {
                 _logger.LogInformation("Server connectivity check successful for {ServerUrl}", serverUrl);
             }
             else
             {
-                _logger.LogWarning("Server connectivity check failed for {ServerUrl} with status code {StatusCode}", 
+                _logger.LogWarning("Server connectivity check failed for {ServerUrl} with status code {StatusCode}",
                     serverUrl, response.StatusCode);
             }
-            
+
             return isSuccess;
         }
         catch (HttpRequestException ex)

@@ -31,7 +31,7 @@ _ = Task.Run(async () =>
         // Get App Insights connection string from server config
         var httpClient = app.Services.GetRequiredService<HttpClient>();
         var response = await httpClient.GetAsync("api/config/appinsights");
-        
+
         if (response.IsSuccessStatusCode)
         {
             var connectionString = await response.Content.ReadAsStringAsync();

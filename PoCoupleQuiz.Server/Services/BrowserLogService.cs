@@ -30,7 +30,7 @@ public class BrowserLogService : IBrowserLogService
         try
         {
             var logDirectory = Path.Combine(_environment.ContentRootPath, "DEBUG");
-            
+
             if (!Directory.Exists(logDirectory))
             {
                 Directory.CreateDirectory(logDirectory);
@@ -41,7 +41,7 @@ public class BrowserLogService : IBrowserLogService
             var logEntry = $"[{timestamp}] [{logType}] {message}{Environment.NewLine}";
 
             await File.AppendAllTextAsync(logFilePath, logEntry);
-            
+
             _logger.LogDebug("Browser log written to file: {LogType} - {Message}", logType, message);
         }
         catch (Exception ex)

@@ -76,7 +76,7 @@ public class HttpTeamService : ITeamService
     {
         try
         {
-            _logger.LogInformation("Updating team stats for {TeamName}: Mode={GameMode}, Score={Score}, Questions={Questions}, Correct={Correct}", 
+            _logger.LogInformation("Updating team stats for {TeamName}: Mode={GameMode}, Score={Score}, Questions={Questions}, Correct={Correct}",
                 teamName, gameMode, score, questionsAnswered, correctAnswers);
             await _httpClient.PutAsJsonAsync($"/api/teams/{teamName}/stats", new { gameMode, score, questionsAnswered, correctAnswers });
         }

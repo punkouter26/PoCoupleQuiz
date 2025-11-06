@@ -201,9 +201,9 @@ namespace PoCoupleQuiz.Tests
             await _httpClient.PostAsync("/api/teams", teamContent);
 
             // Act - Update stats
-            var updateRequest = new 
-            { 
-                GameMode = GameMode.KingPlayer, 
+            var updateRequest = new
+            {
+                GameMode = GameMode.KingPlayer,
                 Score = 10,
                 QuestionsAnswered = 5,
                 CorrectAnswers = 3

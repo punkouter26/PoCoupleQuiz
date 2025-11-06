@@ -14,7 +14,7 @@ public static class ClientServiceExtensions
         services.AddScoped<IGameHistoryService, HttpGameHistoryService>();
         services.AddScoped<IGameScoringService, GameScoringService>();
         services.AddScoped<IGameTurnManager, GameTurnManager>();
-        
+
         // Question service needs to be available on client for game logic
         // Note: This will make HTTP calls to the server's API
         services.AddScoped<IQuestionService, HttpQuestionService>();

@@ -25,7 +25,7 @@ namespace PoCoupleQuiz.Server.Controllers
             IConnectivityCheckService connectivityCheckService,
             IConsoleLoggingService consoleLoggingService,
             IBrowserLogService browserLogService,
-            ILogger<DiagnosticsController> logger, 
+            ILogger<DiagnosticsController> logger,
             IWebHostEnvironment env)
         {
             _connectivityCheckService = connectivityCheckService;

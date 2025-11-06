@@ -12,8 +12,8 @@ public interface IGameScoringService
     /// Evaluates player answers against the king's answer and calculates scores.
     /// </summary>
     Task<Dictionary<string, bool>> EvaluateAnswersAsync(
-        Game game, 
-        GameQuestion question, 
+        Game game,
+        GameQuestion question,
         IQuestionService questionService);
 
     /// <summary>

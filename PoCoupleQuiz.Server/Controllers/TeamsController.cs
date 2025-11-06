@@ -38,7 +38,7 @@ public class TeamsController : ControllerBase
 
         return Ok(teams);
     }
-    
+
     [HttpGet("{teamName}")]
     [ValidateTeamName]
     public async Task<ActionResult<Team>> GetTeam(string teamName)
@@ -117,10 +117,10 @@ public class UpdateStatsRequest
 
     [Range(0, int.MaxValue, ErrorMessage = "Score must be non-negative")]
     public int Score { get; set; }
-    
+
     [Range(0, int.MaxValue, ErrorMessage = "Questions answered must be non-negative")]
     public int QuestionsAnswered { get; set; }
-    
+
     [Range(0, int.MaxValue, ErrorMessage = "Correct answers must be non-negative")]
     public int CorrectAnswers { get; set; }
 }

@@ -81,7 +81,7 @@ public class QuestionCacheTests
 
         // Act
         _cache.CacheQuestion(key, question);
-        
+
         // Immediately retrieve (should work)
         var result = _cache.GetCachedQuestion(key);
 

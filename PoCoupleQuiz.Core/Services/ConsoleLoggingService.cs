@@ -24,8 +24,8 @@ public class ConsoleLoggingService : IConsoleLoggingService
 
     public void LogMessage(string level, string message, string? category = null)
     {
-        var logMessage = string.IsNullOrEmpty(category) 
-            ? message 
+        var logMessage = string.IsNullOrEmpty(category)
+            ? message
             : $"[{category}] {message}";
 
         switch (level.ToLowerInvariant())

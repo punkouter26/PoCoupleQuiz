@@ -54,7 +54,7 @@ public class GameTurnManager : IGameTurnManager
         // Advance guessing player index
         _currentGuessingPlayerIndex++;
         var guessingPlayers = game.Players.Where(p => !p.IsKingPlayer).ToList();
-        
+
         return _currentGuessingPlayerIndex < guessingPlayers.Count;
     }
 
@@ -66,7 +66,7 @@ public class GameTurnManager : IGameTurnManager
         }
 
         var guessingPlayers = game.Players.Where(p => !p.IsKingPlayer).ToList();
-        
+
         // Find unanswered players
         var unansweredPlayers = guessingPlayers
             .Where(p => !question.HasPlayerAnswered(p.Name))
