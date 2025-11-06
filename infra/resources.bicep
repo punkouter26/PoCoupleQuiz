@@ -108,9 +108,9 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2024-04-01' = {
   location: location
   tags: tags
   sku: {
-    name: 'B1' // Basic tier - suitable for production workloads
-    tier: 'Basic'
-    size: 'B1'
+    name: 'F1' // Free tier - no cost, no quota limits
+    tier: 'Free'
+    size: 'F1'
     capacity: 1
   }
   properties: {
@@ -137,7 +137,7 @@ resource appService 'Microsoft.Web/sites@2024-04-01' = {
       linuxFxVersion: 'DOTNETCORE|9.0'
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
-      alwaysOn: true
+      alwaysOn: false // Free tier doesn't support Always On
       http20Enabled: true
       appSettings: [
         {
