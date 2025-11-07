@@ -126,6 +126,12 @@ resource appService 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: existingAppServicePlan.id
     httpsOnly: true
     siteConfig: {
+      metadata: [
+        {
+          name: 'CURRENT_STACK'
+          value: 'dotnet'
+        }
+      ]
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
       alwaysOn: false // Free tier doesn't support Always On
