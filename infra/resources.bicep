@@ -118,7 +118,7 @@ resource appService 'Microsoft.Web/sites@2024-04-01' = {
   tags: union(tags, {
     'azd-service-name': serviceName
   })
-  kind: 'app,linux'
+  kind: 'app' // Windows app
   identity: {
     type: 'SystemAssigned'
   }
@@ -126,7 +126,7 @@ resource appService 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: existingAppServicePlan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOTNETCORE|9.0'
+      netFrameworkVersion: 'v9.0' // .NET 9
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
       alwaysOn: false // Free tier doesn't support Always On
