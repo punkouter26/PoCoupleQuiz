@@ -15,10 +15,6 @@ var abbrs = loadJsonContent('./abbreviations.json')
 var sharedOpenAIEndpoint = 'https://posharedopenaieastus.openai.azure.com/'
 var sharedOpenAIDeploymentName = 'gpt-35-turbo'
 
-// Shared App Service Plan in PoShared resource group (existing resource)
-var sharedResourceGroupName = 'PoShared'
-var sharedAppServicePlanName = 'PoShared' // F1 tier plan in East US 2
-
 // Generate unique resource names
 var appServiceName = baseName // 'PoCoupleQuiz'
 var storageAccountName = toLower('${abbrs.storageStorageAccounts}${take(replace(baseName, '-', ''), 17)}')
@@ -105,27 +101,39 @@ resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-0
   parent: storageAccount
 }
 
-// Reference to existing App Service Plan in PoShared resource group
-resource existingAppServicePlan 'Microsoft.Web/serverfarms@2024-04-01' existing = {
-  scope: resourceGroup(subscription().subscriptionId, sharedResourceGroupName)
-  name: sharedAppServicePlanName
+// App Service Plan (F1 Linux - create our own for .NET 9 compatibility)
+resource appServicePlan 'Microsoft.Web/serverfarms@2024-04-01' = {
+  name: 'plan-${baseName}'
+  location: location
+  tags: tags
+  sku: {
+    name: 'F1'
+    tier: 'Free'
+    size: 'F1'
+    capacity: 1
+  }
+  properties: {
+    reserved: true // Required for Linux
+  }
+  kind: 'linux'
 }
 
 // App Service (web application)
 resource appService 'Microsoft.Web/sites@2024-04-01' = {
   name: appServiceName
-  location: 'eastus2' // Must match the location of the App Service Plan
+  location: location
   tags: union(tags, {
     'azd-service-name': serviceName
   })
-  kind: 'app' // Windows app
+  kind: 'app,linux'
   identity: {
     type: 'SystemAssigned'
   }
   properties: {
-    serverFarmId: existingAppServicePlan.id
+    serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
+      linuxFxVersion: 'DOTNETCORE|9.0'
       metadata: [
         {
           name: 'CURRENT_STACK'
