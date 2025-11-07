@@ -58,17 +58,26 @@ public class HttpTeamService : ITeamService
         try
         {
             _logger.LogInformation("Saving team: {TeamName}", team.Name);
-            await _httpClient.PostAsJsonAsync("/api/teams", team);
+            var response = await _httpClient.PostAsJsonAsync("/api/teams", team);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Failed to save team {TeamName}. Status: {StatusCode}, Error: {Error}", 
+                    team.Name, response.StatusCode, errorContent);
+                // Don't throw, just log the warning - the game can continue without saving
+                return;
+            }
         }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Failed to save team {TeamName}: {Message}", team.Name, ex.Message);
-            throw new InvalidOperationException($"Failed to save team {team.Name}", ex);
+            // Don't throw - allow the game to continue even if save fails
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error saving team {TeamName}", team.Name);
-            throw;
+            // Don't throw - allow the game to continue even if save fails
         }
     }
 
@@ -78,17 +87,26 @@ public class HttpTeamService : ITeamService
         {
             _logger.LogInformation("Updating team stats for {TeamName}: Mode={GameMode}, Score={Score}, Questions={Questions}, Correct={Correct}",
                 teamName, gameMode, score, questionsAnswered, correctAnswers);
-            await _httpClient.PutAsJsonAsync($"/api/teams/{teamName}/stats", new { gameMode, score, questionsAnswered, correctAnswers });
+            var response = await _httpClient.PutAsJsonAsync($"/api/teams/{teamName}/stats", new { gameMode, score, questionsAnswered, correctAnswers });
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Failed to update team stats for {TeamName}. Status: {StatusCode}, Error: {Error}", 
+                    teamName, response.StatusCode, errorContent);
+                // Don't throw, just log the warning - the game can continue without updating stats
+                return;
+            }
         }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Failed to update team stats for {TeamName}: {Message}", teamName, ex.Message);
-            throw new InvalidOperationException($"Failed to update team stats for {teamName}", ex);
+            // Don't throw - allow the game to continue even if update fails
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error updating team stats for {TeamName}", teamName);
-            throw;
+            // Don't throw - allow the game to continue even if update fails
         }
     }
 }
