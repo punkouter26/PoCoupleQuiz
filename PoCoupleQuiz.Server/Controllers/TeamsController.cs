@@ -60,23 +60,37 @@ public class TeamsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult> SaveTeam([FromBody] Team team)
     {
+        _logger.LogInformation("Attempting to save team: {TeamName}", team?.Name ?? "(null)");
+        
+        if (team == null)
+        {
+            _logger.LogWarning("Received null team object");
+            return BadRequest("Team object is required");
+        }
+
         if (!ModelState.IsValid)
         {
+            var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+            _logger.LogWarning("Model validation failed for team {TeamName}: {Errors}", team.Name, string.Join(", ", errors));
             return BadRequest(ModelState);
         }
 
         var validationResult = _teamNameValidator.Validate(team.Name);
         if (!validationResult.IsValid)
         {
+            _logger.LogWarning("Team name validation failed: {ErrorMessage}", validationResult.ErrorMessage);
             return BadRequest(validationResult.ErrorMessage);
         }
 
         if (team.TotalQuestionsAnswered < 0 || team.CorrectAnswers < 0)
         {
+            _logger.LogWarning("Invalid statistics for team {TeamName}: Questions={Questions}, Correct={Correct}", 
+                team.Name, team.TotalQuestionsAnswered, team.CorrectAnswers);
             return BadRequest("Statistics cannot be negative.");
         }
 
         await _teamService.SaveTeamAsync(team);
+        _logger.LogInformation("Successfully saved team: {TeamName}", team.Name);
         return Ok();
     }
 
