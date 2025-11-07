@@ -114,7 +114,7 @@ resource existingAppServicePlan 'Microsoft.Web/serverfarms@2024-04-01' existing 
 // App Service (web application)
 resource appService 'Microsoft.Web/sites@2024-04-01' = {
   name: appServiceName
-  location: location
+  location: 'eastus2' // Must match the location of the App Service Plan
   tags: union(tags, {
     'azd-service-name': serviceName
   })
