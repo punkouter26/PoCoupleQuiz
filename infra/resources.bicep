@@ -20,7 +20,7 @@ var sharedResourceGroupName = 'PoShared'
 var sharedAppServicePlanName = 'PoShared' // F1 tier plan in East US 2
 
 // Generate unique resource names
-var appServiceName = '${abbrs.webSitesAppService}${baseName}'
+var appServiceName = baseName // 'PoCoupleQuiz'
 var storageAccountName = toLower('${abbrs.storageStorageAccounts}${take(replace(baseName, '-', ''), 17)}')
 
 // ============================================================================
