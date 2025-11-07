@@ -107,7 +107,7 @@ resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-0
 
 // Reference to existing App Service Plan in PoShared resource group
 resource existingAppServicePlan 'Microsoft.Web/serverfarms@2024-04-01' existing = {
-  scope: resourceGroup(sharedResourceGroupName)
+  scope: resourceGroup(subscription().subscriptionId, sharedResourceGroupName)
   name: sharedAppServicePlanName
 }
 
