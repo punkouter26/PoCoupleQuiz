@@ -18,6 +18,7 @@ var sharedOpenAIDeploymentName = 'gpt-35-turbo'
 // Shared App Service Plan in PoShared resource group (existing resource)
 var sharedResourceGroupName = 'PoShared'
 var sharedAppServicePlanName = 'PoShared' // F1 tier plan in East US 2
+var sharedAppServicePlanId = '/subscriptions/${subscription().subscriptionId}/resourceGroups/${sharedResourceGroupName}/providers/Microsoft.Web/serverfarms/${sharedAppServicePlanName}'
 
 // Generate unique resource names
 var appServiceName = '${abbrs.webSitesAppService}${baseName}'
@@ -105,12 +106,6 @@ resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-0
   parent: storageAccount
 }
 
-// Reference to existing App Service Plan in PoShared resource group
-resource existingAppServicePlan 'Microsoft.Web/serverfarms@2024-04-01' existing = {
-  scope: resourceGroup(subscription().subscriptionId, sharedResourceGroupName)
-  name: sharedAppServicePlanName
-}
-
 // App Service (web application)
 resource appService 'Microsoft.Web/sites@2024-04-01' = {
   name: appServiceName
@@ -123,7 +118,7 @@ resource appService 'Microsoft.Web/sites@2024-04-01' = {
     type: 'SystemAssigned'
   }
   properties: {
-    serverFarmId: existingAppServicePlan.id
+    serverFarmId: sharedAppServicePlanId
     httpsOnly: true
     siteConfig: {
       linuxFxVersion: 'DOTNETCORE|9.0'
