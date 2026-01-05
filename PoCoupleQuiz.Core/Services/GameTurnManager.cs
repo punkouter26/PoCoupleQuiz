@@ -4,22 +4,12 @@ namespace PoCoupleQuiz.Core.Services;
 
 /// <summary>
 /// Service for managing game turn progression and player state.
+/// Stateless - uses GameQuestion to track which players have answered.
 /// </summary>
 public interface IGameTurnManager
 {
     /// <summary>
-    /// Initializes turn state for a new round.
-    /// </summary>
-    void InitializeTurn(Game game, GameQuestion question);
-
-    /// <summary>
-    /// Advances to the next player's turn.
-    /// </summary>
-    /// <returns>True if there are more players, false if round is complete.</returns>
-    bool AdvanceToNextPlayer(Game game, GameQuestion question);
-
-    /// <summary>
-    /// Gets the name of the current player.
+    /// Gets the name of the current player who should answer.
     /// </summary>
     string GetCurrentPlayerName(Game game, GameQuestion question);
 
@@ -29,35 +19,18 @@ public interface IGameTurnManager
     bool IsKingPlayerTurn(GameQuestion question);
 
     /// <summary>
-    /// Gets the current guessing player index.
+    /// Gets the index of the current guessing player.
     /// </summary>
     int GetCurrentGuessingPlayerIndex(Game game, GameQuestion question);
+
+    /// <summary>
+    /// Checks if there are more guessing players who need to answer.
+    /// </summary>
+    bool HasMoreGuessingPlayers(Game game, GameQuestion question);
 }
 
 public class GameTurnManager : IGameTurnManager
 {
-    private int _currentGuessingPlayerIndex;
-
-    public void InitializeTurn(Game game, GameQuestion question)
-    {
-        _currentGuessingPlayerIndex = 0;
-    }
-
-    public bool AdvanceToNextPlayer(Game game, GameQuestion question)
-    {
-        if (IsKingPlayerTurn(question))
-        {
-            // King has answered, move to first guessing player
-            return true;
-        }
-
-        // Advance guessing player index
-        _currentGuessingPlayerIndex++;
-        var guessingPlayers = game.Players.Where(p => !p.IsKingPlayer).ToList();
-
-        return _currentGuessingPlayerIndex < guessingPlayers.Count;
-    }
-
     public string GetCurrentPlayerName(Game game, GameQuestion question)
     {
         if (IsKingPlayerTurn(question))
@@ -66,19 +39,11 @@ public class GameTurnManager : IGameTurnManager
         }
 
         var guessingPlayers = game.Players.Where(p => !p.IsKingPlayer).ToList();
-
-        // Find unanswered players
         var unansweredPlayers = guessingPlayers
             .Where(p => !question.HasPlayerAnswered(p.Name))
             .ToList();
 
-        if (unansweredPlayers.Any())
-        {
-            _currentGuessingPlayerIndex = guessingPlayers.IndexOf(unansweredPlayers.First());
-            return unansweredPlayers.First().Name;
-        }
-
-        return guessingPlayers.ElementAtOrDefault(_currentGuessingPlayerIndex)?.Name ?? "";
+        return unansweredPlayers.FirstOrDefault()?.Name ?? "";
     }
 
     public bool IsKingPlayerTurn(GameQuestion question)
@@ -88,6 +53,14 @@ public class GameTurnManager : IGameTurnManager
 
     public int GetCurrentGuessingPlayerIndex(Game game, GameQuestion question)
     {
-        return _currentGuessingPlayerIndex;
+        var guessingPlayers = game.Players.Where(p => !p.IsKingPlayer).ToList();
+        var currentPlayerName = GetCurrentPlayerName(game, question);
+        return guessingPlayers.FindIndex(p => p.Name == currentPlayerName);
+    }
+
+    public bool HasMoreGuessingPlayers(Game game, GameQuestion question)
+    {
+        var guessingPlayers = game.Players.Where(p => !p.IsKingPlayer);
+        return guessingPlayers.Any(p => !question.HasPlayerAnswered(p.Name));
     }
 }

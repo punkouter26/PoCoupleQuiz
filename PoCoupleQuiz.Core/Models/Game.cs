@@ -7,11 +7,16 @@ public enum DifficultyLevel
     Hard
 }
 
+public enum GameMode
+{
+    KingPlayer
+}
+
 public class Game
 {
     public List<Player> Players { get; set; } = new();
-    public int CurrentKingPlayerIndex { get; set; } = 0; // New property to track current king player
-    public Player? KingPlayer => Players.Any() ? Players[CurrentKingPlayerIndex] : null; // Use index for KingPlayer
+    public int CurrentKingPlayerIndex { get; set; } = 0;
+    public Player? KingPlayer => Players.Any() ? Players[CurrentKingPlayerIndex] : null;
     public List<GameQuestion> Questions { get; set; } = new();
     public int CurrentRound { get; set; }
     public DifficultyLevel Difficulty { get; set; } = DifficultyLevel.Medium;
@@ -24,7 +29,7 @@ public class Game
     };
     public bool IsGameOver => CurrentRound >= MaxRounds;
 
-    public int MinimumPlayers => 2; // At least 1 king and 1 guessing player
+    public int MinimumPlayers => 2;
     public bool HasEnoughPlayers => Players.Count >= MinimumPlayers;
     public bool HasKingPlayer => KingPlayer != null;
 
@@ -71,29 +76,4 @@ public class Game
                      .All(p => question.HasPlayerAnswered(p.Name));
     }
 
-    public void UpdateScores(int roundIndex)
-    {
-        if (roundIndex >= Questions.Count) return;
-
-        var question = Questions[roundIndex];
-        foreach (var player in Players.Where(p => !p.IsKingPlayer))
-        {
-            if (question.HasPlayerMatched(player.Name))
-            {
-                player.Score++;
-                player.TotalCorrectGuesses++;
-            }
-            player.TotalGamesPlayed++;
-        }
-    }
-
-    /// <summary>
-    /// Calculates the score for a single answer match.
-    /// </summary>
-    /// <param name="isMatch">Whether the answer matched the king's answer.</param>
-    /// <returns>The score points to award (10 for match, 0 for no match).</returns>
-    public int CalculateScore(bool isMatch)
-    {
-        return isMatch ? 10 : 0;
-    }
 }

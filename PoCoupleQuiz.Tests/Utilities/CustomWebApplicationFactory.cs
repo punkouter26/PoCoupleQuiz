@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using PoCoupleQuiz.Core.Services;
-using PoCoupleQuiz.Tests.Utilities;
 using Microsoft.Extensions.Logging;
 using System.IO;
 using Microsoft.Extensions.Hosting;
+using Azure.Data.Tables;
 
 namespace PoCoupleQuiz.Tests.Utilities;
 
@@ -23,12 +23,13 @@ public class CustomWebApplicationFactory : WebApplicationFactory<PoCoupleQuiz.Se
             // Use in-memory configuration for testing
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["AzureStorage:ConnectionString"] = "UseDevelopmentStorage=true", // Use real Azurite for integration tests
                 ["AzureOpenAI:Endpoint"] = "https://test.openai.azure.com/",
                 ["AzureOpenAI:Key"] = "test-key-for-testing-only",
                 ["AzureOpenAI:DeploymentName"] = "test-deployment",
                 ["ApplicationInsights:ConnectionString"] = "", // Disable for tests
-                ["Logging:LogLevel:Default"] = "Warning" // Reduce log noise in tests
+                ["Logging:LogLevel:Default"] = "Warning", // Reduce log noise in tests
+                // Aspire connection string for Azurite (used by AddAzureTableClient)
+                ["ConnectionStrings:tables"] = "UseDevelopmentStorage=true"
             });
         });
 
@@ -39,12 +40,16 @@ public class CustomWebApplicationFactory : WebApplicationFactory<PoCoupleQuiz.Se
                 d.ServiceType == typeof(IQuestionService) ||
                 d.ServiceType == typeof(ITeamService) ||
                 d.ServiceType == typeof(IGameHistoryService) ||
-                d.ServiceType == typeof(IGameStateService)).ToList();
+                d.ServiceType == typeof(IGameStateService) ||
+                d.ServiceType == typeof(TableServiceClient)).ToList();
 
             foreach (var descriptor in descriptorsToRemove)
             {
                 services.Remove(descriptor);
             }
+
+            // Add mock TableServiceClient for tests (uses Azurite connection string)
+            services.AddSingleton(new TableServiceClient("UseDevelopmentStorage=true"));
 
             // Add test implementations
             services.AddSingleton<IQuestionService, MockQuestionService>();

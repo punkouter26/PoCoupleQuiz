@@ -9,15 +9,15 @@ namespace PoCoupleQuiz.Server.HealthChecks;
 
 /// <summary>
 /// Health check for Azure Table Storage connectivity.
-/// Validates connection string and attempts to query service.
+/// Uses Aspire-injected TableServiceClient for connection.
 /// </summary>
 public class AzureTableStorageHealthCheck : IHealthCheck
 {
-    private readonly IConfiguration _configuration;
+    private readonly TableServiceClient _tableServiceClient;
 
-    public AzureTableStorageHealthCheck(IConfiguration configuration)
+    public AzureTableStorageHealthCheck(TableServiceClient tableServiceClient)
     {
-        _configuration = configuration;
+        _tableServiceClient = tableServiceClient;
     }
 
     public async Task<HealthCheckResult> CheckHealthAsync(
@@ -26,31 +26,15 @@ public class AzureTableStorageHealthCheck : IHealthCheck
     {
         try
         {
-            var connectionString = _configuration["AzureStorage:ConnectionString"];
-
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                return HealthCheckResult.Degraded("Azure Storage connection string is not configured");
-            }
-
-            // For Azurite (local development)
-            if (connectionString.Contains("UseDevelopmentStorage=true") ||
-                connectionString.Contains("127.0.0.1:10002"))
-            {
-                var tableServiceClient = new TableServiceClient(connectionString);
-                await tableServiceClient.GetPropertiesAsync(cancellationToken);
-                return HealthCheckResult.Healthy("Connected to Azurite (local development storage)");
-            }
-
-            // For Azure Table Storage (production)
-            var serviceClient = new TableServiceClient(connectionString);
-            await serviceClient.GetPropertiesAsync(cancellationToken);
+            // Use Aspire-injected TableServiceClient (works with Azurite or Azure Storage)
+            await _tableServiceClient.GetPropertiesAsync(cancellationToken);
             return HealthCheckResult.Healthy("Connected to Azure Table Storage");
         }
         catch (Exception ex)
         {
-            return HealthCheckResult.Unhealthy(
-                "Azure Table Storage is unreachable",
+            // Return Degraded instead of Unhealthy so service can still start
+            return HealthCheckResult.Degraded(
+                "Azure Table Storage is unreachable - service may have limited functionality",
                 ex);
         }
     }

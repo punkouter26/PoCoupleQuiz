@@ -1,10 +1,24 @@
+:root {
+    --primary: #1976d2;
+    --primary-dark: #1565c0;
+    --primary-light: #42a5f5;
+    --accent: #ff4081;
+    --text-primary: #212121;
+    --text-secondary: #666666;
+    --background: #fafafa;
+    --surface: #ffffff;
+    --error: #dc3545;
+}
+
 html, body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     margin: 0;
     padding: 0;
     height: 100%;
     overflow-x: hidden;
     resize: none;
+    color: var(--text-primary);
+    background-color: var(--background);
 }
 
 #app {
@@ -41,13 +55,13 @@ h1:focus {
 }
 
 a, .btn-link {
-    color: #0071c1;
+    color: var(--primary);
 }
 
 .btn-primary {
     color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+    background-color: var(--primary);
+    border-color: var(--primary-dark);
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
@@ -63,11 +77,25 @@ a, .btn-link {
 }
 
 .invalid {
-    outline: 1px solid red;
+    outline: 1px solid var(--error);
 }
 
 .validation-message {
-    color: red;
+    color: var(--error);
+}
+
+/* Fix #9: Nav link contrast for WCAG AA compliance */
+.navbar-dark .nav-link {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.navbar-dark .nav-link:hover,
+.navbar-dark .nav-link:focus {
+    color: #ffffff !important;
+}
+
+.navbar-dark .navbar-brand {
+    color: #ffffff !important;
 }
 
 #blazor-error-ui {

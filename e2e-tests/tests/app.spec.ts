@@ -13,7 +13,7 @@ test.describe('Home Page', () => {
     await page.goto('/');
     
     // Wait for Blazor to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     // Wait a bit more for Blazor WASM to initialize
     await page.waitForTimeout(2000);
@@ -37,7 +37,7 @@ test.describe('Home Page', () => {
     });
 
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     // Wait for Blazor WASM to initialize
     await page.waitForTimeout(3000);
@@ -63,7 +63,7 @@ test.describe('Home Page', () => {
 
   test('should be responsive on mobile', async ({ page, viewport }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     // Wait for Blazor to initialize
     await page.waitForSelector('main', { state: 'visible', timeout: 10000 });
@@ -80,7 +80,7 @@ test.describe('Home Page', () => {
 test.describe('Game Flow', () => {
   test('should allow starting a new game', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     // Look for game setup elements
     // Note: Adjust selectors based on actual implementation
@@ -95,19 +95,19 @@ test.describe('Game Flow', () => {
 
   test('should display questions when game starts', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     // Navigate to game page if exists
     const gameLink = page.getByRole('link', { name: /game|play/i });
     if (await gameLink.isVisible()) {
       await gameLink.click();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
     }
   });
 
   test('should have timer component', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     // Check if timer component exists anywhere on the page
     const timerExists = await page.locator('[class*="timer"], [id*="timer"]').count() > 0;
@@ -118,13 +118,13 @@ test.describe('Game Flow', () => {
 test.describe('Leaderboard', () => {
   test('should display leaderboard page', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     // Try to navigate to leaderboard
     const leaderboardLink = page.getByRole('link', { name: /leaderboard|scoreboard|stats/i });
     if (await leaderboardLink.isVisible()) {
       await leaderboardLink.click();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       
       // Verify scoreboard component
       const scoreboard = page.locator('[class*="scoreboard"], [id*="scoreboard"]');
@@ -134,73 +134,13 @@ test.describe('Leaderboard', () => {
 
   test('should show team statistics', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     // Navigate to stats/leaderboard page
     const statsLink = page.getByRole('link', { name: /stats|teams|leaderboard/i });
     if (await statsLink.isVisible()) {
       await statsLink.click();
-      await page.waitForLoadState('networkidle');
-    }
-  });
-});
-
-test.describe('Diagnostics Page', () => {
-  test('should load diagnostics page', async ({ page }) => {
-    await page.goto('/diag');
-    await page.waitForLoadState('networkidle');
-    
-    // Wait for Blazor to initialize and content to load
-    await page.waitForSelector('h1', { state: 'visible', timeout: 10000 });
-    
-    // Verify diagnostics page loads with correct heading
-    const heading = page.locator('h1').filter({ hasText: /system diagnostics/i });
-    await expect(heading).toBeVisible();
-  });
-
-  test('should display health check status', async ({ page }) => {
-    await page.goto('/diag');
-    await page.waitForLoadState('networkidle');
-    
-    // Wait for Blazor to initialize and health checks to load
-    await page.waitForSelector('.card', { state: 'visible', timeout: 10000 });
-    
-    // Look for status cards
-    const statusCards = page.locator('.card');
-    const count = await statusCards.count();
-    expect(count).toBeGreaterThan(0);
-  });
-
-  test('should have refresh functionality', async ({ page }) => {
-    await page.goto('/diag');
-    await page.waitForLoadState('networkidle');
-    
-    // Look for refresh button
-    const refreshButton = page.getByRole('button', { name: /refresh|reload/i });
-    if (await refreshButton.isVisible()) {
-      await refreshButton.click();
-      await page.waitForTimeout(1000);
-    }
-  });
-
-  test('should be mobile responsive', async ({ page, viewport }) => {
-    await page.goto('/diag');
-    await page.waitForLoadState('networkidle');
-    
-    // Wait for Blazor to initialize
-    await page.waitForSelector('main', { state: 'visible', timeout: 10000 });
-    
-    // Verify page is usable on mobile
-    if (viewport && viewport.width < 768) {
-      const mainContent = page.locator('main');
-      await expect(mainContent).toBeVisible();
-      
-      // Check that cards stack vertically on mobile
-      const cards = page.locator('.card');
-      if (await cards.count() > 0) {
-        const firstCard = cards.first();
-        await expect(firstCard).toBeVisible();
-      }
+      await page.waitForLoadState('domcontentloaded');
     }
   });
 });
@@ -208,7 +148,7 @@ test.describe('Diagnostics Page', () => {
 test.describe('Responsive Design', () => {
   test('should have readable text on mobile', async ({ page, viewport }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     if (viewport && viewport.width < 768) {
       // Verify text is readable (not too small)
@@ -225,7 +165,7 @@ test.describe('Responsive Design', () => {
 
   test('should have touch-friendly controls on mobile', async ({ page, viewport }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     if (viewport && viewport.width < 768) {
       // Check button sizes (should be at least 44x44 for touch)
@@ -246,7 +186,7 @@ test.describe('Responsive Design', () => {
 
   test('should not have horizontal scroll on mobile', async ({ page, viewport }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
     if (viewport && viewport.width < 768) {
       // Check that page width doesn't exceed viewport

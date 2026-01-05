@@ -1,0 +1,42 @@
+flowchart TD
+    subgraph "User Entry"
+        A[🏠 Open App] --> B[📝 Enter Team Name]
+        B --> C[👥 Add Player Names]
+        C --> D[🎯 Select Difficulty<br/>Easy/Medium/Hard]
+    end
+
+    subgraph "Game Setup"
+        D --> E[👑 First Player = King]
+        E --> F[❓ Display Question]
+    end
+
+    subgraph "Gameplay Round"
+        F --> G[👑 King Types Answer]
+        G --> H[⏱️ Timer Counts Down]
+        H --> I[👥 Other Players Guess]
+        I --> J[📊 Reveal Answers]
+        J --> K{More Questions?}
+    end
+
+    subgraph "Next Round"
+        K -->|Yes| L[👑 Rotate King Player]
+        L --> F
+    end
+
+    subgraph "Game Complete"
+        K -->|No| M[🏆 Show Final Scores]
+        M --> N[📈 Display Leaderboard]
+        N --> O{Play Again?}
+        O -->|Yes| B
+        O -->|No| P[👋 Exit]
+    end
+
+    classDef userAction fill:#4A90E2,stroke:#2E5C8A,color:#fff
+    classDef gameAction fill:#50C878,stroke:#2E7D4E,color:#fff
+    classDef decision fill:#F39C12,stroke:#C87F0A,color:#fff
+    classDef endAction fill:#E74C3C,stroke:#C0392B,color:#fff
+
+    class A,B,C,D,G,I userAction
+    class E,F,H,J,L,M,N gameAction
+    class K,O decision
+    class P endAction

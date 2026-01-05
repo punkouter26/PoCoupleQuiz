@@ -3,41 +3,33 @@ using PoCoupleQuiz.Core.Models;
 namespace PoCoupleQuiz.Core.Services;
 
 /// <summary>
-/// Mock implementation of IQuestionService for development/testing when Azure OpenAI is not available
+/// Mock implementation of IQuestionService for development/testing when Azure AI Foundry is not available.
 /// </summary>
 public class MockQuestionService : IQuestionService
 {
     private int _questionCounter = 0;
 
-    private readonly string[] _easyQuestions = new[]
-    {
+    private readonly string[] _easyQuestions =
+    [
         "What is your partner's favorite color?",
         "Do they prefer coffee or tea?",
         "What is their favorite season?"
-    };
+    ];
 
-    private readonly string[] _mediumQuestions = new[]
-    {
+    private readonly string[] _mediumQuestions =
+    [
         "What is your partner's favorite food?",
         "Where was your first date?",
         "What is your partner's dream vacation destination?",
         "What time do they usually go to bed?"
-    };
+    ];
 
-    private readonly string[] _hardQuestions = new[]
-    {
+    private readonly string[] _hardQuestions =
+    [
         "What was their most defining life experience?",
         "How do they approach conflict resolution?",
         "What was their childhood ambition?"
-    };
-
-    private readonly Dictionary<string, string> _predefinedAnswers = new()
-    {
-        { "What is your partner's favorite color?", "Blue" },
-        { "What is your partner's favorite food?", "Pizza" },
-        { "Where was your first date?", "Restaurant" },
-        { "What is your partner's dream vacation destination?", "Paris" }
-    };
+    ];
 
     public Task<Question> GenerateQuestionAsync(string? difficulty = null)
     {
@@ -65,22 +57,10 @@ public class MockQuestionService : IQuestionService
         var normalizedAnswer1 = answer1.Trim().ToLower();
         var normalizedAnswer2 = answer2.Trim().ToLower();
 
-        // Simple similarity checks
-        if (normalizedAnswer1.Contains("january 1st") && normalizedAnswer2.Contains("1st of january"))
-            return Task.FromResult(true);
-
-        if (normalizedAnswer1.Contains("pizza") && normalizedAnswer2.Contains("pizza"))
+        // Simple similarity checks for testing
+        if (normalizedAnswer1.Contains(normalizedAnswer2) || normalizedAnswer2.Contains(normalizedAnswer1))
             return Task.FromResult(true);
 
         return Task.FromResult(false);
-    }
-
-    public Task<string> GenerateAnswerAsync(string question)
-    {
-        if (_predefinedAnswers.TryGetValue(question, out var answer))
-        {
-            return Task.FromResult(answer);
-        }
-        return Task.FromResult("I don't know");
     }
 }

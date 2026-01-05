@@ -36,8 +36,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IGameScoringService, GameScoringService>();
         services.AddSingleton<IPromptBuilder, PromptBuilder>();
         services.AddSingleton<IQuestionCache, QuestionCache>();
-        services.AddScoped<IConsoleLoggingService, ConsoleLoggingService>();
-        services.AddScoped<IConnectivityCheckService, ConnectivityCheckService>();
 
         return services;
     }

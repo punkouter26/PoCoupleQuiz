@@ -71,3 +71,10 @@ DEBUG/
 log.txt
 *.log 
 .azure
+
+## Test Results
+TestResults/
+**/TestResults/
+
+## Generated Coverage Reports
+docs/coverage/html/

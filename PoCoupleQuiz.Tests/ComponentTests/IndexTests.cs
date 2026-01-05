@@ -18,7 +18,6 @@ public class IndexTests : BunitContext
     private Mock<ITeamService> _mockTeamService = null!;
     private Mock<IGameStateService> _mockGameState = null!;
     private Mock<IJSRuntime> _mockJSRuntime = null!;
-    private Mock<NavigationManager> _mockNavigationManager = null!;
 
     public IndexTests()
     {
@@ -32,7 +31,7 @@ public class IndexTests : BunitContext
         _mockJSRuntime = new Mock<IJSRuntime>();
 
         // Setup JSRuntime to return null for localStorage calls (no saved preferences)
-        _mockJSRuntime.Setup(js => js.InvokeAsync<string>(
+        _mockJSRuntime.Setup(js => js.InvokeAsync<string?>(
             "localStorage.getItem",
             It.IsAny<object[]>()))
             .ReturnsAsync((string?)null);
@@ -74,9 +73,9 @@ public class IndexTests : BunitContext
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert
+        // Assert - Team name input + 3 player inputs = 4 total
         var inputs = cut.FindAll("input.form-control");
-        Assert.Equal(3, inputs.Count);
+        Assert.Equal(4, inputs.Count);
     }
 
     [Fact]
@@ -85,9 +84,9 @@ public class IndexTests : BunitContext
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert
-        var firstInput = cut.FindAll("input.form-control")[0];
-        Assert.Equal("King", firstInput.GetAttribute("placeholder"));
+        // Assert - Second input (index 1) is the first player input
+        var playerInputs = cut.FindAll("input.form-control");
+        Assert.Equal("King", playerInputs[1].GetAttribute("placeholder"));
     }
 
     [Fact]
@@ -98,7 +97,7 @@ public class IndexTests : BunitContext
 
         // Assert
         var helpText = cut.Find("small");
-        Assert.Contains("King answers questions", helpText.TextContent);
+        Assert.Contains("Starts as King", helpText.TextContent);
     }
 
     [Fact]
@@ -149,11 +148,12 @@ public class IndexTests : BunitContext
         var playerCountSelect = cut.FindAll("select")[0];
         var options = playerCountSelect.QuerySelectorAll("option");
 
-        Assert.Equal(4, options.Length); // 3, 4, 5, 6 players
-        Assert.Contains(options, o => o.TextContent == "3 Players");
-        Assert.Contains(options, o => o.TextContent == "4 Players");
-        Assert.Contains(options, o => o.TextContent == "5 Players");
-        Assert.Contains(options, o => o.TextContent == "6 Players");
+        Assert.Equal(5, options.Length); // 2, 3, 4, 5, 6 players
+        Assert.Contains(options, o => o.TextContent.Contains("2 Players"));
+        Assert.Contains(options, o => o.TextContent.Contains("3 Players"));
+        Assert.Contains(options, o => o.TextContent.Contains("4 Players"));
+        Assert.Contains(options, o => o.TextContent.Contains("5 Players"));
+        Assert.Contains(options, o => o.TextContent.Contains("6 Players"));
     }
 
     [Fact]
@@ -196,11 +196,12 @@ public class IndexTests : BunitContext
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert
+        // Assert - First input is team name, then player inputs
         var inputs = cut.FindAll("input.form-control");
-        Assert.Equal("King", inputs[0].GetAttribute("placeholder"));
-        Assert.Equal("Player 2", inputs[1].GetAttribute("placeholder"));
-        Assert.Equal("Player 3", inputs[2].GetAttribute("placeholder"));
+        Assert.Equal("Enter your team name", inputs[0].GetAttribute("placeholder"));
+        Assert.Equal("King", inputs[1].GetAttribute("placeholder"));
+        Assert.Equal("Player 2", inputs[2].GetAttribute("placeholder"));
+        Assert.Equal("Player 3", inputs[3].GetAttribute("placeholder"));
     }
 
     // Helper class for NavigationManager mock

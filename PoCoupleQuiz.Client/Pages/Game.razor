@@ -92,66 +92,97 @@
 
 <style>
     .game-container {
-        max-width: 1400px;
+        max-width: 1000px;
         margin: 0 auto;
-        padding: 20px 0;
+        padding: 10px;
     }
     
     .game-card {
-        min-height: 400px;
-        padding: 30px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-radius: 12px;
+        min-height: auto;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        margin-bottom: 15px;
     }
     
     .game-card h3 {
         color: #1b6ec2;
         font-weight: 600;
-        margin-bottom: 25px;
-        padding-bottom: 15px;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
         border-bottom: 2px solid #e9ecef;
+        font-size: 1.25rem;
     }
     
     .scoreboard-card {
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-radius: 12px;
-        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        padding: 15px;
     }
     
     .scoreboard-card h4 {
         color: #495057;
-        font-size: 1.1rem;
+        font-size: 1rem;
         font-weight: 600;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
     }
     
     .progress-card {
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-radius: 12px;
-        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        padding: 15px;
         background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
     }
     
     .progress-card h6 {
         color: #495057;
         font-weight: 600;
-        font-size: 1rem;
+        font-size: 0.9rem;
     }
     
     .progress-card strong {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
         color: #1b6ec2;
+    }
+    
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .col-md-8, .col-md-4 {
+        flex: 1;
+    }
+    
+    .col-md-8 {
+        min-width: 300px;
+        flex: 2;
+    }
+    
+    .col-md-4 {
+        min-width: 200px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .col-md-4 .mt-3 {
+        margin-top: 0 !important;
     }
     
     @@media (max-width: 768px) {
         .game-card {
-            padding: 20px;
-            min-height: 300px;
+            padding: 15px;
         }
         
-        .col-md-4 > .scoreboard-card,
-        .col-md-4 > .progress-card {
-            margin-top: 20px;
+        .row {
+            flex-direction: column;
+        }
+        
+        .col-md-8, .col-md-4 {
+            min-width: 100%;
         }
     }
 </style>
@@ -222,11 +253,8 @@
             
             currentQuestion = currentGame.Questions[currentGame.CurrentRound];
             
-            // Initialize TurnManager for this round
-            TurnManager.InitializeTurn(currentGame, currentQuestion);
-            
-            // Reset turn state for this round
-            isKingPlayerTurn = string.IsNullOrEmpty(currentQuestion.KingPlayerAnswer);
+            // Reset turn state for this round based on question state (stateless TurnManager)
+            isKingPlayerTurn = TurnManager.IsKingPlayerTurn(currentQuestion);
             currentGuessingPlayerIndex = 0;
             
             if (isKingPlayerTurn)
@@ -286,8 +314,8 @@
                 currentQuestion.RecordPlayerAnswer(currentPlayerName, currentAnswer.Trim());
                 Logger.LogInformation("Player {PlayerName} submitted answer for round {Round}", currentPlayerName, currentGame.CurrentRound);
                 
-                // Use TurnManager to check if there are more players
-                bool hasMorePlayers = TurnManager.AdvanceToNextPlayer(currentGame, currentQuestion);
+                // Use TurnManager to check if there are more players who haven't answered
+                bool hasMorePlayers = TurnManager.HasMoreGuessingPlayers(currentGame, currentQuestion);
                 if (hasMorePlayers)
                 {
                     // Next guessing player
@@ -332,12 +360,18 @@
             }
             else
             {
-                // Reset for next round - King player stays the same throughout the game
+                // Rotate the King player for the next round
+                currentGame.SetNextKingPlayer();
+                
+                // Update the guessing players list (excluding the new King)
+                guessingPlayers = currentGame.Players.Where(p => !p.IsKingPlayer).Select(p => p.Name).ToList();
+                
+                // Reset for next round
                 currentAnswer = "";
                 showResults = false;
                 isKingPlayerTurn = true; // Always start a new round with the king player's turn
                 currentGuessingPlayerIndex = 0;
-                currentPlayerName = currentGame.KingPlayer?.Name ?? ""; // King player remains the same
+                currentPlayerName = currentGame.KingPlayer?.Name ?? ""; // New King player
 
                 await LoadCurrentQuestion();
             }
@@ -382,23 +416,29 @@
                     }
                 }
             }
+
+            // Calculate total team score (sum of all guessing players)
+            var totalTeamScore = currentGame.Players.Where(p => !p.IsKingPlayer).Sum(p => p.Score);
+            
+            // Create a game identifier from player names
+            var playerNamesStr = string.Join(", ", currentGame.Players.Select(p => p.Name));
             
             var history = new GameHistory
             {
                 Date = DateTime.UtcNow,
-                Team1Name = currentGame.KingPlayer?.Name ?? "Unknown",
-                Team2Name = string.Join(", ", currentGame.Players.Where(p => !p.IsKingPlayer).Select(p => p.Name)),
+                Team1Name = playerNamesStr,  // Use player names as identifier
+                Team2Name = "",  // Not used in KingPlayer mode
                 GameMode = GameMode.KingPlayer,
-                Team1Score = 0, // King doesn't get scored in this mode
-                Team2Score = currentGame.Players.Where(p => !p.IsKingPlayer).Sum(p => p.Score),
+                Team1Score = totalTeamScore,
+                Team2Score = 0,
                 TotalQuestions = currentGame.Questions.Count,
-                AverageResponseTime = 30.0, // Default for now
+                AverageResponseTime = 30.0,
                 CategoryStats = System.Text.Json.JsonSerializer.Serialize(categoryStats),
                 MatchedAnswers = System.Text.Json.JsonSerializer.Serialize(matchedAnswers)
             };
             
             await GameHistoryService.SaveGameHistoryAsync(history);
-            Logger.LogInformation("Saved game history for game with king {KingName}", currentGame.KingPlayer?.Name);
+            Logger.LogInformation("Saved game history for players: {Players}", playerNamesStr);
         }
         catch (Exception ex)
         {

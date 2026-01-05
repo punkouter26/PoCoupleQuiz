@@ -109,7 +109,7 @@ public class QuestionDisplayTests : BunitContext
     }
 
     [Fact]
-    public void QuestionDisplay_ColorQuestion_GeneratesColorSuggestions()
+    public void QuestionDisplay_ColorQuestion_RendersWithoutError()
     {
         // Arrange
         var mockJSRuntime = new Mock<IJSRuntime>();
@@ -120,12 +120,8 @@ public class QuestionDisplayTests : BunitContext
             .Add(p => p.QuestionText, "What is your favorite color?")
             .Add(p => p.ShowResults, false));
 
-        // Get the component instance to check private fields via reflection or trigger suggestion display
+        // Assert - Component renders without errors
         var textarea = cut.Find("textarea");
-        textarea.Focus();
-
-        // After focusing, suggestions should be generated (they are in OnParametersSet)
-        // We can't directly test private fields, but we can verify the component renders without errors
         Assert.NotNull(textarea);
     }
 

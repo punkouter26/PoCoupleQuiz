@@ -24,7 +24,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:5000',
+    baseURL: 'http://127.0.0.1:5456',
     
     /* Ignore HTTPS errors for local development with self-signed certs */
     ignoreHTTPSErrors: true,
@@ -51,10 +51,14 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'dotnet run --project ../PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj',
-    url: 'http://localhost:5000/api/health',
+    command: 'dotnet run --project ../PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj --launch-profile http',
+    url: 'http://127.0.0.1:5456/api/health',
     reuseExistingServer: !process.env.CI,
     ignoreHTTPSErrors: true,
     timeout: 120 * 1000,
+    env: {
+      ASPNETCORE_ENVIRONMENT: 'Development',
+      ConnectionStrings__tables: 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;',
+    },
   },
 });

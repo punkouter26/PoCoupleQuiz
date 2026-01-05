@@ -46,6 +46,12 @@ namespace PoCoupleQuiz.Server
 
                 var builder = WebApplication.CreateBuilder(args);
 
+                // Add Aspire ServiceDefaults for observability, resilience, and service discovery
+                builder.AddServiceDefaults();
+
+                // Add Aspire Azure Tables client (receives connection from AppHost/Azurite)
+                builder.AddAzureTableServiceClient("tables");
+
                 // Use Serilog configuration extension
                 builder.Host.AddSerilogConfiguration();
 
@@ -56,8 +62,7 @@ namespace PoCoupleQuiz.Server
                 // Add services to the container.
                 builder.Services.AddControllersWithViews();
                 builder.Services.AddRazorPages();
-                builder.Services.AddEndpointsApiExplorer();
-                builder.Services.AddSwaggerGen();
+                builder.Services.AddOpenApi();
 
                 // Add health checks using extension method
                 builder.Services.AddHealthCheckConfiguration(builder.Configuration);
@@ -77,9 +82,6 @@ namespace PoCoupleQuiz.Server
                 // Register application services using extension method
                 builder.Services.AddPoCoupleQuizServices(builder.Configuration);
 
-                // Register server-specific services
-                builder.Services.AddScoped<PoCoupleQuiz.Server.Services.IBrowserLogService, PoCoupleQuiz.Server.Services.BrowserLogService>();
-
                 Log.Information("Application services configured successfully");
 
                 var app = builder.Build();
@@ -89,10 +91,9 @@ namespace PoCoupleQuiz.Server
                 // Configure the HTTP request pipeline.
                 if (app.Environment.IsDevelopment())
                 {
-                    Log.Information("Development environment detected, enabling WebAssembly debugging and Swagger");
+                    Log.Information("Development environment detected, enabling WebAssembly debugging and OpenAPI");
                     app.UseWebAssemblyDebugging();
-                    app.UseSwagger();
-                    app.UseSwaggerUI();
+                    app.MapOpenApi();
                 }
                 else
                 {
@@ -129,7 +130,10 @@ namespace PoCoupleQuiz.Server
                     };
                 });
 
-                app.UseHttpsRedirection();
+                // Skip HTTPS redirection for health check endpoints (Aspire uses HTTP for health checks)
+                app.UseWhen(context => !context.Request.Path.StartsWithSegments("/api/health") &&
+                                        !context.Request.Path.StartsWithSegments("/health"),
+                    appBuilder => appBuilder.UseHttpsRedirection());
 
                 app.UseBlazorFrameworkFiles();
                 app.UseStaticFiles();
@@ -169,6 +173,10 @@ namespace PoCoupleQuiz.Server
 
                 app.MapRazorPages();
                 app.MapControllers();
+                
+                // Map Aspire default endpoints (health, alive)
+                app.MapDefaultEndpoints();
+                
                 app.MapFallbackToFile("index.html");
 
                 Log.Information("Application startup completed successfully, starting web host");

@@ -5,27 +5,32 @@ metadata:
     template: azd-init@1.18.2
 
 # ============================================================================
-# AZURE DEPLOYMENT CONFIGURATION
+# AZURE DEPLOYMENT CONFIGURATION (.NET Aspire → Azure Container Apps)
 # ============================================================================
-# This configuration provisions Azure resources and deploys the application to
-# Azure App Service.
+# This configuration deploys the .NET Aspire application to Azure Container Apps.
+#
+# How it works:
+# - azd reads the Aspire AppHost project model
+# - Auto-provisions: Container Apps Environment, Container Registry, Log Analytics
+# - Builds container images and pushes to ACR
+# - Deploys containers to Azure Container Apps
 #
 # Local Development:
-# - Run: azd provision (provisions infrastructure only)
-# - Use: Azurite for Azure Table Storage emulation
-# - Use: dotnet run for the web server
+# - Run: dotnet run --project PoCoupleQuiz.AppHost
+# - Uses: Aspire Dashboard for orchestration
+# - Uses: Azurite for Azure Table Storage emulation
 #
 # Production Deployment:
 # - Run: azd up (provisions infrastructure AND deploys application)
-# - Deploys to: Azure App Service
+# - Deploys to: Azure Container Apps (ACA)
 # - Uses: Azure Table Storage, Azure OpenAI, Application Insights
 # ============================================================================
 
 services:
-    web:
-        project: ./PoCoupleQuiz.Server
-        host: appservice
+    app:
         language: dotnet
+        project: ./PoCoupleQuiz.AppHost/PoCoupleQuiz.AppHost.csproj
+        host: containerapp
 
 resourceGroup: PoCoupleQuiz
 

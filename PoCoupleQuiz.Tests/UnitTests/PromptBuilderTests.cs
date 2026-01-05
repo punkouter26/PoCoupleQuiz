@@ -27,8 +27,8 @@ public class PromptBuilderTests
         // First message should be system message
         var userMessages = messages.Skip(1).ToList();
         var hasEasyPrompt = userMessages.Any(m =>
-            m.ToString().Contains("simple", StringComparison.OrdinalIgnoreCase) ||
-            m.ToString().Contains("straightforward", StringComparison.OrdinalIgnoreCase));
+            m?.ToString()?.Contains("simple", StringComparison.OrdinalIgnoreCase) == true ||
+            m?.ToString()?.Contains("straightforward", StringComparison.OrdinalIgnoreCase) == true);
         Assert.True(hasEasyPrompt || userMessages.Count > 0); // At least has messages
     }
 
@@ -54,9 +54,9 @@ public class PromptBuilderTests
         Assert.True(messages.Count >= 2);
         var userMessages = messages.Skip(1).ToList();
         var hasHardPrompt = userMessages.Any(m =>
-            m.ToString().Contains("deeper", StringComparison.OrdinalIgnoreCase) ||
-            m.ToString().Contains("values", StringComparison.OrdinalIgnoreCase) ||
-            m.ToString().Contains("aspirations", StringComparison.OrdinalIgnoreCase));
+            m?.ToString()?.Contains("deeper", StringComparison.OrdinalIgnoreCase) == true ||
+            m?.ToString()?.Contains("values", StringComparison.OrdinalIgnoreCase) == true ||
+            m?.ToString()?.Contains("aspirations", StringComparison.OrdinalIgnoreCase) == true);
         Assert.True(hasHardPrompt || userMessages.Count > 0);
     }
 

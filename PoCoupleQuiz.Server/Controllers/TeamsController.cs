@@ -43,12 +43,6 @@ public class TeamsController : ControllerBase
     [ValidateTeamName]
     public async Task<ActionResult<Team>> GetTeam(string teamName)
     {
-        var validationResult = _teamNameValidator.Validate(teamName);
-        if (!validationResult.IsValid)
-        {
-            return BadRequest(validationResult.ErrorMessage);
-        }
-
         var team = await _teamService.GetTeamAsync(teamName);
         if (team == null)
         {
@@ -98,12 +92,6 @@ public class TeamsController : ControllerBase
     [ValidateTeamName]
     public async Task<ActionResult> UpdateTeamStats(string teamName, [FromBody] UpdateStatsRequest request)
     {
-        var validationResult = _teamNameValidator.Validate(teamName);
-        if (!validationResult.IsValid)
-        {
-            return BadRequest(validationResult.ErrorMessage);
-        }
-
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);

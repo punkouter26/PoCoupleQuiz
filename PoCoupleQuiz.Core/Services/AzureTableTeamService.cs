@@ -1,6 +1,5 @@
 using Azure;
 using Azure.Data.Tables;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PoCoupleQuiz.Core.Models;
 
@@ -11,17 +10,13 @@ public class AzureTableTeamService : ITeamService
     private readonly TableClient _tableClient;
     private readonly ILogger<AzureTableTeamService> _logger;
 
-    public AzureTableTeamService(IConfiguration configuration, ILogger<AzureTableTeamService> logger)
+    public AzureTableTeamService(TableServiceClient tableServiceClient, ILogger<AzureTableTeamService> logger)
     {
         _logger = logger;
-
-        var connectionString = configuration["AzureTableStorage:ConnectionString"]
-            ?? throw new ArgumentNullException("AzureTableStorage:ConnectionString", "Azure Storage connection string is required");
-
-        _tableClient = new TableClient(connectionString, "Teams");
+        _tableClient = tableServiceClient.GetTableClient("Teams");
         _tableClient.CreateIfNotExists();
 
-        _logger.LogInformation("AzureTableTeamService initialized successfully");
+        _logger.LogInformation("AzureTableTeamService initialized successfully with Aspire TableServiceClient");
     }
     public async Task<Team?> GetTeamAsync(string teamName)
     {

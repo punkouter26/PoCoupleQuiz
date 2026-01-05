@@ -1,29 +1,31 @@
 using System.Text.Json;
 using Azure.Data.Tables;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PoCoupleQuiz.Core.Models;
 
 namespace PoCoupleQuiz.Core.Services;
+
+public interface IGameHistoryService
+{
+    Task SaveGameHistoryAsync(GameHistory history);
+    Task<IEnumerable<GameHistory>> GetTeamHistoryAsync(string teamName);
+    Task<Dictionary<QuestionCategory, int>> GetTeamCategoryStatsAsync(string teamName);
+    Task<List<string>> GetTopMatchedAnswersAsync(string teamName, int count = 10);
+    Task<double> GetAverageResponseTimeAsync(string teamName);
+}
 
 public class GameHistoryService : IGameHistoryService
 {
     private readonly TableClient _tableClient;
     private readonly ILogger<GameHistoryService> _logger;
 
-    public GameHistoryService(IConfiguration configuration, ILogger<GameHistoryService> logger)
+    public GameHistoryService(TableServiceClient tableServiceClient, ILogger<GameHistoryService> logger)
     {
         _logger = logger;
-        var connectionString = configuration["AzureStorage:ConnectionString"] ?? throw new ArgumentNullException("AzureStorage:ConnectionString");
-
-        // Safely get the first 50 characters or the entire string if shorter
-        var connectionStringPrefix = connectionString.Length <= 50 ? connectionString : connectionString[..50];
-        _logger.LogDebug("Initializing GameHistoryService with connection string: {ConnectionStringPrefix}...", connectionStringPrefix);
-
-        _tableClient = new TableClient(connectionString, "GameHistory");
+        _tableClient = tableServiceClient.GetTableClient("GameHistory");
         _tableClient.CreateIfNotExists();
 
-        _logger.LogInformation("GameHistoryService initialized successfully");
+        _logger.LogInformation("GameHistoryService initialized successfully with Aspire TableServiceClient");
     }
 
     public async Task SaveGameHistoryAsync(GameHistory history)

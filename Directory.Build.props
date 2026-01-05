@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <!-- Common build settings for all projects -->
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    
+    <!-- AOT Analysis - disabled for Blazor WASM + MVC (not yet fully supported) -->
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <EnableSingleFileAnalyzer>false</EnableSingleFileAnalyzer>
+    
+    <!-- Suppress trimming warnings (IL2026, IL2110, IL2111) - MVC/Razor/JSON don't support trimming -->
+    <NoWarn>$(NoWarn);IL2026;IL2110;IL2111</NoWarn>
+    
+    <!-- Code Quality -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest</AnalysisLevel>
+  </PropertyGroup>
+</Project>

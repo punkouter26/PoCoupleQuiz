@@ -4,6 +4,9 @@ using PoCoupleQuiz.Core.Services;
 
 namespace PoCoupleQuiz.Server.Controllers;
 
+/// <summary>
+/// Controller for question generation and answer similarity checking using Azure AI Foundry.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class QuestionsController : ControllerBase
@@ -17,6 +20,9 @@ public class QuestionsController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>
+    /// Generates a quiz question using Azure AI Foundry.
+    /// </summary>
     [HttpPost("generate")]
     public async Task<ActionResult<Question>> GenerateQuestion([FromBody] GenerateQuestionRequest? request)
     {
@@ -33,6 +39,9 @@ public class QuestionsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Checks semantic similarity between two answers using Azure AI Foundry.
+    /// </summary>
     [HttpPost("check-similarity")]
     public async Task<ActionResult<bool>> CheckSimilarity([FromBody] CheckSimilarityRequest request)
     {
@@ -48,24 +57,7 @@ public class QuestionsController : ControllerBase
             return StatusCode(500, new { error = "Failed to check similarity" });
         }
     }
-
-    [HttpPost("generate-answer")]
-    public async Task<ActionResult<string>> GenerateAnswer([FromBody] GenerateAnswerRequest request)
-    {
-        try
-        {
-            _logger.LogInformation("Generating answer for question");
-            var answer = await _questionService.GenerateAnswerAsync(request.Question);
-            return Ok(answer);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating answer");
-            return StatusCode(500, new { error = "Failed to generate answer" });
-        }
-    }
 }
 
 public record GenerateQuestionRequest(string? Difficulty);
 public record CheckSimilarityRequest(string Answer1, string Answer2);
-public record GenerateAnswerRequest(string Question);

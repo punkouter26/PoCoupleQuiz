@@ -31,7 +31,7 @@ public class TeamNameValidatorTests
     public void Validate_NullTeamName_ReturnsError()
     {
         // Act
-        var result = _validator.Validate(null);
+        var result = _validator.Validate(null!);
 
         // Assert
         Assert.False(result.IsValid);

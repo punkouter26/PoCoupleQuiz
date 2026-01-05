@@ -33,12 +33,14 @@ public class AzureOpenAIHealthCheck : IHealthCheck
 
             if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(key))
             {
-                return HealthCheckResult.Degraded("Azure OpenAI is not configured - using mock service");
+                // Mock service is a valid configuration for development
+                return HealthCheckResult.Healthy("Azure OpenAI not configured - using mock service");
             }
 
             if (endpoint.Contains("your-resource-name") || key.Contains("your-") || string.IsNullOrEmpty(deploymentName))
             {
-                return HealthCheckResult.Degraded("Azure OpenAI configuration contains placeholder values - using mock service");
+                // Mock service is a valid configuration for development
+                return HealthCheckResult.Healthy("Azure OpenAI has placeholder values - using mock service");
             }
 
             // Test connection by creating client

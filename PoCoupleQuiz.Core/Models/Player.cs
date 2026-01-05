@@ -7,9 +7,9 @@ public class Player
     public bool IsKingPlayer { get; set; }
 
     // For tracking statistics
-    public int TotalGamesPlayed { get; set; }
+    public int TotalRoundsPlayed { get; set; }
     public int TotalCorrectGuesses { get; set; }
-    public double GuessAccuracy => TotalGamesPlayed > 0
-        ? (double)TotalCorrectGuesses / TotalGamesPlayed * 100
+    public double GuessAccuracy => TotalRoundsPlayed > 0
+        ? (double)TotalCorrectGuesses / TotalRoundsPlayed * 100
         : 0;
 }

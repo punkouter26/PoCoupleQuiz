@@ -1,5 +1,8 @@
 using Xunit;
 using PoCoupleQuiz.Core.Models;
+using PoCoupleQuiz.Core.Services;
+using Microsoft.Extensions.Logging;
+using Moq;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -9,32 +12,28 @@ namespace PoCoupleQuiz.Tests.UnitTests;
 public class GameBusinessLogicTests
 {
     [Fact]
-    public void CalculateScore_MatchingAnswer_Returns10Points()
+    public void GameScoringService_CalculateRoundScore_MatchingAnswer_Returns10Points()
     {
-        // Arrange
-        var game = new Game
-        {
-            Players = new List<Player>
-            {
-                new Player { Name = "Player1", IsKingPlayer = false, Score = 0 }
-            }
-        };
-
+        // Arrange - Using the GameScoringService instead of the removed Game.CalculateScore
+        var mockLogger = new Mock<ILogger<GameScoringService>>();
+        var scoringService = new GameScoringService(mockLogger.Object);
+        
         // Act
-        var score = game.CalculateScore(isMatch: true);
+        var score = scoringService.CalculateRoundScore(isMatch: true);
 
         // Assert
         Assert.Equal(10, score);
     }
 
     [Fact]
-    public void CalculateScore_NonMatchingAnswer_Returns0Points()
+    public void GameScoringService_CalculateRoundScore_NonMatchingAnswer_Returns0Points()
     {
         // Arrange
-        var game = new Game();
+        var mockLogger = new Mock<ILogger<GameScoringService>>();
+        var scoringService = new GameScoringService(mockLogger.Object);
 
         // Act
-        var score = game.CalculateScore(isMatch: false);
+        var score = scoringService.CalculateRoundScore(isMatch: false);
 
         // Assert
         Assert.Equal(0, score);

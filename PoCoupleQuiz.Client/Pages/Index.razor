@@ -1,14 +1,13 @@
 @page "/"
 @using PoCoupleQuiz.Core.Models
 @using PoCoupleQuiz.Core.Services
-@inject ITeamService TeamService
 @inject NavigationManager NavigationManager
 @inject IGameStateService GameState
 @inject IJSRuntime JSRuntime
 
 <style>
     .title-container {
-        background: linear-gradient(135deg, #FFD700, #FFA500);
+        background: linear-gradient(135deg, var(--primary-light, #42a5f5), var(--primary, #1976d2));
         padding: 0.75rem;
         border-radius: 10px;
         margin-bottom: 0.75rem;
@@ -16,22 +15,9 @@
         text-align: center;
     }
 
-    .game-title {
-        font-family: 'Comic Sans MS', cursive;
-        color: #FF4081;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        font-size: 1.3rem;
-        margin-bottom: 0.25rem;
-    }
-
-    .subtitle {
-        font-family: 'Comic Sans MS', cursive;
-        color: #673AB7;
-        font-size: 0.8rem;
-    }
-
     .setup-container {
-        background-color: #F8BBD0;
+        background-color: var(--surface, #ffffff);
+        border: 1px solid #e0e0e0;
         border-radius: 10px;
         padding: 0.75rem;
     }
@@ -46,8 +32,8 @@
     }
 
     .btn-primary {
-        background-color: #007bff;
-        border-color: #007bff;
+        background-color: var(--primary, #1976d2);
+        border-color: var(--primary, #1976d2);
         color: white;
         padding: 0.6rem 1rem;
         border-radius: 5px;
@@ -59,8 +45,8 @@
     }
 
     .btn-primary:hover {
-        background-color: #0056b3;
-        border-color: #0056b3;
+        background-color: var(--primary-dark, #1565c0);
+        border-color: var(--primary-dark, #1565c0);
     }
 
     .card {
@@ -97,10 +83,12 @@
         
         <div class="card">
             <h6 style="margin-bottom: 0.75rem;">Game Setup 🎲</h6>
-                <!-- Number of Players -->
+
+            <!-- Number of Players -->
             <div style="margin-bottom: 0.75rem;">
                 <label style="display: block; margin-bottom: 0.35rem; font-weight: bold;">Players:</label>
                 <select @onchange="OnPlayerCountChanged" class="form-control" value="@numberOfPlayers">
+                    <option value="2">2 Players (Couple Mode)</option>
                     <option value="3">3 Players</option>
                     <option value="4">4 Players</option>
                     <option value="5">5 Players</option>
@@ -113,19 +101,19 @@
                 <label style="display: block; margin-bottom: 0.35rem; font-weight: bold;">
                     Names:
                     <HelpTooltip Title="King Player"
-                                 Text="The first player is the 'King' who answers questions about themselves. Other players try to guess the King's answers to earn points."
+                                 Text="The first player starts as 'King' who answers questions about themselves. The King role rotates each round!"
                                  Example="If the King is Sarah, she answers 'What's your favorite color?', then others guess what Sarah answered" />
                 </label>
                 @for (int i = 0; i < numberOfPlayers; i++)
                 {
-                    int index = i; // Capture for lambda
+                    int index = i;
                     <div style="margin-bottom: 0.35rem;">
                         <input @bind="playerNames[index]" 
                                placeholder="@(index == 0 ? "King" : $"Player {index + 1}")" 
                                class="form-control" />
                         @if (index == 0)
                         {
-                            <small style="color: #666; font-style: italic; font-size: 0.75rem;">King answers questions</small>
+                            <small style="color: #666; font-style: italic; font-size: 0.75rem;">Starts as King (role rotates)</small>
                         }
                     </div>
                 }
@@ -190,7 +178,7 @@
             
             // Load player count
             var savedPlayerCount = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "playerCount");
-            if (int.TryParse(savedPlayerCount, out int count) && count >= 3 && count <= 10)
+            if (int.TryParse(savedPlayerCount, out int count) && count >= 2 && count <= 10)
             {
                 numberOfPlayers = count;
             }
@@ -249,14 +237,16 @@
         DifficultyLevel.Medium => "Standard questions with a balanced game length.",
         DifficultyLevel.Hard => "Challenging questions and more rounds for an in-depth game.",
         _ => string.Empty
-    };    private async Task StartGame()
+    };
+
+    private async Task StartGame()
     {
         // Validate that all player names are filled
         for (int i = 0; i < numberOfPlayers; i++)
         {
             if (string.IsNullOrWhiteSpace(playerNames[i]))
             {
-                await JSRuntime.InvokeVoidAsync("alert", $"Please enter a name for {(i == 0 ? "the King player" : $"Player {i + 1}")}");
+                await JSRuntime.InvokeVoidAsync("alert", $"Please enter a name for {(i == 0 ? "the first player" : $"Player {i + 1}")}");
                 return;
             }
         }
@@ -281,26 +271,16 @@
             Difficulty = selectedDifficulty
         };
         
-        // Add king player (first player)
+        // Add first player as king
         game.AddPlayer(new Player { Name = playerNames[0].Trim(), IsKingPlayer = true });
         
-        // Add guessing players
+        // Add other players
         for (int i = 1; i < numberOfPlayers; i++)
         {
             game.AddPlayer(new Player { Name = playerNames[i].Trim(), IsKingPlayer = false });
         }
 
-        // Save initial player stats
-        foreach (var player in game.Players)
-        {
-            await TeamService.SaveTeamAsync(new Team 
-            { 
-                Name = player.Name,
-                LastPlayed = DateTime.UtcNow
-            });
-        }
-
-        // Initialize game state with king player
+        // Initialize game state
         GameState.InitializeGame(game, playerNames[0].Trim());
 
         NavigationManager.NavigateTo("/game");

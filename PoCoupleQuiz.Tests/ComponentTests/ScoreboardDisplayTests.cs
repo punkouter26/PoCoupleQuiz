@@ -10,7 +10,7 @@ namespace PoCoupleQuiz.Tests.ComponentTests;
 /// <summary>
 /// bUnit tests for ScoreboardDisplay component
 /// </summary>
-public class ScoreboardDisplayTests : Bunit.TestContext
+public class ScoreboardDisplayTests : BunitContext
 {
     [Fact]
     public void ScoreboardDisplay_WithNoScores_DisplaysNoScoresMessage()

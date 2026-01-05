@@ -4,7 +4,7 @@
 @inject ITeamService TeamService
 @inject NavigationManager NavigationManager
 
-<h3>Top 10 Teams Leaderboard</h3>
+<h3>Player Leaderboard</h3>
 
 <div class="container mt-4">    @if (_isLoading)
     {
@@ -12,9 +12,9 @@
     }
     else
     {
-        @if (!_teams.Any())
+        @if (!_players.Any())
         {            <div class="alert alert-info text-center">
-                <h4>No Teams Yet!</h4>
+                <h4>No Players Yet!</h4>
                 <p>Be the first to play and appear on the leaderboard!</p>
                 <button class="btn btn-primary" @onclick="@(() => NavigationManager.NavigateTo("/"))">Start Playing</button>
             </div>
@@ -26,7 +26,7 @@
                     <thead>
                         <tr>
                             <th>Rank</th>
-                            <th>Team Name</th>
+                            <th>Player Name</th>
                             <th>Correct %</th>
                             <th>Questions Answered</th>
                             <th>Correct Answers</th>
@@ -36,15 +36,15 @@
                     <tbody>
                         @{
                             var rank = 1;
-                            foreach (var team in _teams)
+                            foreach (var player in _players)
                             {
                                 <tr>
                                     <td>@rank</td>
-                                    <td>@team.Name</td>
-                                    <td>@team.CorrectPercentage.ToString("F1")%</td>
-                                    <td>@team.TotalQuestionsAnswered</td>
-                                    <td>@team.CorrectAnswers</td>
-                                    <td>@team.LastPlayed.ToLocalTime().ToString("g")</td>
+                                    <td>@player.Name</td>
+                                    <td>@player.CorrectPercentage.ToString("F1")%</td>
+                                    <td>@player.TotalQuestionsAnswered</td>
+                                    <td>@player.CorrectAnswers</td>
+                                    <td>@player.LastPlayed.ToLocalTime().ToString("g")</td>
                                 </tr>
                                 rank++;
                             }
@@ -56,7 +56,7 @@
 </div>
 
 @code {
-    private IEnumerable<Team> _teams = Array.Empty<Team>();
+    private IEnumerable<Team> _players = Array.Empty<Team>();
     private bool _isLoading = true;
 
     protected override async Task OnInitializedAsync()
@@ -64,8 +64,8 @@
         try
         {
             _isLoading = true;
-            var allTeams = await TeamService.GetAllTeamsAsync();
-            _teams = allTeams
+            var allPlayers = await TeamService.GetAllTeamsAsync();
+            _players = allPlayers
                 .Where(t => t.TotalQuestionsAnswered > 0)
                 .OrderByDescending(t => t.CorrectPercentage)
                 .ThenByDescending(t => t.TotalQuestionsAnswered)
@@ -74,7 +74,7 @@
         }        catch (Exception)
         {
             // Handle error - could add error state here
-            _teams = Array.Empty<Team>();
+            _players = Array.Empty<Team>();
         }
         finally
         {

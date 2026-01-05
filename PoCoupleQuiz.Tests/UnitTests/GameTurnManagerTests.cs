@@ -17,17 +17,17 @@ public class GameTurnManagerTests
     }
 
     [Fact]
-    public void InitializeTurn_ResetsState()
+    public void GetCurrentGuessingPlayerIndex_NoPlayersAnswered_ReturnsZero()
     {
-        // Arrange
+        // Arrange - TurnManager is now stateless, uses question state
         var game = CreateTestGame();
-        var question = new GameQuestion { Question = "Test?" };
+        var question = new GameQuestion { Question = "Test?", KingPlayerAnswer = "King's answer" };
 
         // Act
-        _turnManager.InitializeTurn(game, question);
+        var index = _turnManager.GetCurrentGuessingPlayerIndex(game, question);
 
-        // Assert
-        Assert.Equal(0, _turnManager.GetCurrentGuessingPlayerIndex(game, question));
+        // Assert - First unanswered player is at index 0
+        Assert.Equal(0, index);
     }
 
     [Fact]
@@ -67,10 +67,9 @@ public class GameTurnManagerTests
     [Fact]
     public void GetCurrentPlayerName_KingTurn_ReturnsKingName()
     {
-        // Arrange
+        // Arrange - Stateless manager uses question state
         var game = CreateTestGame();
-        var question = new GameQuestion { Question = "Test?" };
-        _turnManager.InitializeTurn(game, question);
+        var question = new GameQuestion { Question = "Test?" }; // No king answer yet
 
         // Act
         var playerName = _turnManager.GetCurrentPlayerName(game, question);
@@ -80,7 +79,7 @@ public class GameTurnManagerTests
     }
 
     [Fact]
-    public void GetCurrentPlayerName_GuessingTurn_ReturnsGuessingPlayer()
+    public void GetCurrentPlayerName_GuessingTurn_ReturnsFirstUnansweredPlayer()
     {
         // Arrange
         var game = CreateTestGame();
@@ -89,32 +88,34 @@ public class GameTurnManagerTests
             Question = "Test?",
             KingPlayerAnswer = "King's answer"
         };
-        _turnManager.InitializeTurn(game, question);
 
         // Act
         var playerName = _turnManager.GetCurrentPlayerName(game, question);
 
-        // Assert
+        // Assert - Returns first unanswered guessing player
         Assert.Contains(playerName, new[] { "Player1", "Player2" });
     }
 
     [Fact]
-    public void AdvanceToNextPlayer_FromKingToGuessing_ReturnsTrue()
+    public void HasMoreGuessingPlayers_NoPlayersAnswered_ReturnsTrue()
     {
         // Arrange
         var game = CreateTestGame();
-        var question = new GameQuestion { Question = "Test?" };
-        _turnManager.InitializeTurn(game, question);
+        var question = new GameQuestion 
+        { 
+            Question = "Test?",
+            KingPlayerAnswer = "King's answer"
+        };
 
         // Act
-        var hasMore = _turnManager.AdvanceToNextPlayer(game, question);
+        var hasMore = _turnManager.HasMoreGuessingPlayers(game, question);
 
         // Assert
         Assert.True(hasMore);
     }
 
     [Fact]
-    public void AdvanceToNextPlayer_AllPlayersAnswered_ReturnsFalse()
+    public void HasMoreGuessingPlayers_AllPlayersAnswered_ReturnsFalse()
     {
         // Arrange
         var game = CreateTestGame();
@@ -125,14 +126,31 @@ public class GameTurnManagerTests
         };
         question.RecordPlayerAnswer("Player1", "Answer1");
         question.RecordPlayerAnswer("Player2", "Answer2");
-        _turnManager.InitializeTurn(game, question);
 
-        // Advance through all players
-        _turnManager.AdvanceToNextPlayer(game, question);
-        var hasMore = _turnManager.AdvanceToNextPlayer(game, question);
+        // Act
+        var hasMore = _turnManager.HasMoreGuessingPlayers(game, question);
 
         // Assert
         Assert.False(hasMore);
+    }
+
+    [Fact]
+    public void GetCurrentPlayerName_SomePlayersAnswered_ReturnsNextUnansweredPlayer()
+    {
+        // Arrange
+        var game = CreateTestGame();
+        var question = new GameQuestion
+        {
+            Question = "Test?",
+            KingPlayerAnswer = "King's answer"
+        };
+        question.RecordPlayerAnswer("Player1", "Answer1");
+
+        // Act
+        var playerName = _turnManager.GetCurrentPlayerName(game, question);
+
+        // Assert - Player2 hasn't answered yet
+        Assert.Equal("Player2", playerName);
     }
 
     private Game CreateTestGame()

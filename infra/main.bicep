@@ -6,61 +6,59 @@ targetScope = 'subscription'
 param environmentName string
 
 @minLength(1)
-@description('Primary location for all resources')
+@description('The location used for all deployed resources')
 param location string
 
-// Tags that should be applied to all resources.
+@description('Id of the user or app to assign application roles')
+param principalId string = ''
+
+@description('Name of the resource group')
+param resourceGroupName string = 'PoCoupleQuiz'
+
 var tags = {
   'azd-env-name': environmentName
 }
 
-// Generate resource group name from solution name
-var resourceGroupName = 'PoCoupleQuiz'
-
-// Organize resources in a resource group
-resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+resource rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: resourceGroupName
   location: location
   tags: tags
 }
-
 module resources 'resources.bicep' = {
   scope: rg
   name: 'resources'
   params: {
     location: location
     tags: tags
-    serviceName: 'web'
+    principalId: principalId
   }
 }
 
-// ============================================================================
-// OUTPUTS FOR AZURE DEPLOYMENT
-// ============================================================================
-// These outputs are used by azd for deployment and local development configuration.
-// Run 'azd env get-values' to see these values.
-// ============================================================================
+module storage 'storage/storage.module.bicep' = {
+  name: 'storage'
+  scope: rg
+  params: {
+    location: location
+  }
+}
+module storage_roles 'storage-roles/storage-roles.module.bicep' = {
+  name: 'storage-roles'
+  scope: rg
+  params: {
+    location: location
+    principalId: resources.outputs.MANAGED_IDENTITY_PRINCIPAL_ID
+    principalType: 'ServicePrincipal'
+    storage_outputs_name: storage.outputs.name
+  }
+}
 
-// Azure subscription and resource group
-output AZURE_LOCATION string = location
-output AZURE_TENANT_ID string = tenant().tenantId
-output AZURE_RESOURCE_GROUP string = rg.name
-
-// Application Insights (for app telemetry)
-output APPLICATIONINSIGHTS_CONNECTION_STRING string = resources.outputs.APPLICATION_INSIGHTS_CONNECTION_STRING
-output APPLICATIONINSIGHTS_INSTRUMENTATION_KEY string = resources.outputs.APPLICATION_INSIGHTS_INSTRUMENTATION_KEY
-
-// Log Analytics (for monitoring)
-output LOG_ANALYTICS_WORKSPACE_ID string = resources.outputs.LOG_ANALYTICS_WORKSPACE_ID
-
-// Azure OpenAI (shared resource)
-output AZURE_OPENAI_ENDPOINT string = resources.outputs.OPENAI_ENDPOINT
-output AZURE_OPENAI_DEPLOYMENT_NAME string = resources.outputs.OPENAI_DEPLOYMENT_NAME
-
-// Azure Storage Account
-output AZURE_STORAGE_ACCOUNT_NAME string = resources.outputs.STORAGE_ACCOUNT_NAME
-
-// App Service (web application)
-output SERVICE_WEB_NAME string = resources.outputs.SERVICE_WEB_NAME
-output SERVICE_WEB_URI string = resources.outputs.SERVICE_WEB_URI
-output APP_SERVICE_URL string = resources.outputs.APP_SERVICE_URL
+output MANAGED_IDENTITY_CLIENT_ID string = resources.outputs.MANAGED_IDENTITY_CLIENT_ID
+output MANAGED_IDENTITY_NAME string = resources.outputs.MANAGED_IDENTITY_NAME
+output AZURE_LOG_ANALYTICS_WORKSPACE_NAME string = resources.outputs.AZURE_LOG_ANALYTICS_WORKSPACE_NAME
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = resources.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT
+output AZURE_CONTAINER_REGISTRY_MANAGED_IDENTITY_ID string = resources.outputs.AZURE_CONTAINER_REGISTRY_MANAGED_IDENTITY_ID
+output AZURE_CONTAINER_REGISTRY_NAME string = resources.outputs.AZURE_CONTAINER_REGISTRY_NAME
+output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = resources.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_NAME
+output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = resources.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_ID
+output AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN string = resources.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN
+output STORAGE_TABLEENDPOINT string = storage.outputs.tableEndpoint

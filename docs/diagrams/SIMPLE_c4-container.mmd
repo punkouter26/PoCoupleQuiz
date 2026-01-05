@@ -1,0 +1,29 @@
+graph TB
+    subgraph Browser
+        Blazor[🖥️ Blazor WASM]
+    end
+
+    subgraph Server
+        API[⚙️ Web API]
+        Services[📦 Services]
+    end
+
+    subgraph Azure
+        Storage[💾 Table Storage]
+        OpenAI[🤖 OpenAI]
+        Insights[📊 App Insights]
+    end
+
+    Blazor --> API
+    API --> Services
+    Services --> Storage
+    Services --> OpenAI
+    API --> Insights
+
+    classDef client fill:#61AFEF,stroke:#3B8FD0,color:#fff
+    classDef server fill:#98C379,stroke:#6FA855,color:#fff
+    classDef azure fill:#E06C75,stroke:#C85360,color:#fff
+
+    class Blazor client
+    class API,Services server
+    class Storage,OpenAI,Insights azure
