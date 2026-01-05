@@ -28,11 +28,6 @@ namespace PoCoupleQuiz.Server
                 .AddEnvironmentVariables()
                 .Build();
 
-            // Ensure DEBUG directory exists
-            var debugPath = Path.Combine(Directory.GetCurrentDirectory(), "DEBUG");
-            if (!Directory.Exists(debugPath))
-                Directory.CreateDirectory(debugPath);
-
             // Configure basic Serilog for startup
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(configuration)
