@@ -1,28 +1,14 @@
-# ============================================================================
-# Po.CoupleQuiz - Simple CI/CD Pipeline
-# ============================================================================
-# This workflow builds and deploys the application to Azure App Service
-#
-# Steps:
-# 1. Build the .NET application
-# 2. Deploy to Azure via azd (using OIDC federated credentials)
-#
-# Triggers:
-# - Push to master branch
-# - Manual workflow_dispatch
-# ============================================================================
-
-name: CI/CD Pipeline
+# Deploy .NET Aspire app to Azure Container Apps via azd
+name: Deploy to ACA
 
 on:
   push:
-    branches:
-      - master
+    branches: [master]
   workflow_dispatch:
 
 permissions:
-  id-token: write      # Required for OIDC authentication to Azure
-  contents: read       # Required to checkout code
+  id-token: write
+  contents: read
 
 env:
   AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
@@ -30,91 +16,31 @@ env:
   AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
   AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
   AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
-  DOTNET_VERSION: '10.0.x'
 
 jobs:
-  # ==========================================================================
-  # Build and Deploy to Azure
-  # ==========================================================================
-  build-and-deploy:
-    name: Build and Deploy to Azure
+  deploy:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
-    
     steps:
-      # ----------------------------------------------------------------------
-      # Checkout Code
-      # ----------------------------------------------------------------------
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      # ----------------------------------------------------------------------
-      # Setup .NET
-      # ----------------------------------------------------------------------
-      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-      
-      # ----------------------------------------------------------------------
-      # Build Application
-      # ----------------------------------------------------------------------
-      - name: 🏗️ Build Application
-        run: |
-          echo "::group::Building solution..."
-          dotnet build --configuration Release
-          echo "✅ Build successful!"
-          echo "::endgroup::"
-      
-      # ----------------------------------------------------------------------
-      # Install Azure Developer CLI (with fallback)
-      # ----------------------------------------------------------------------
+          dotnet-version: '10.0.x'
+
       - name: Install azd
+        run: curl -fsSL https://aka.ms/install-azd.sh | bash
+
+      - name: Login to Azure
         run: |
-          echo "::group::Installing Azure Developer CLI..."
-          # Try the action first
-          curl -fsSL https://aka.ms/install-azd.sh | bash
-          echo "✅ azd installed successfully"
-          echo "::endgroup::"
-      
-      # ----------------------------------------------------------------------
-      # Authenticate to Azure using OIDC
-      # ----------------------------------------------------------------------
-      - name: 🔐 Log in to Azure (OIDC)
-        run: |
-          echo "::group::Authenticating to Azure using OIDC..."
           azd auth login \
-            --client-id "${{ env.AZURE_CLIENT_ID }}" \
+            --client-id "$AZURE_CLIENT_ID" \
             --federated-credential-provider "github" \
-            --tenant-id "${{ env.AZURE_TENANT_ID }}"
-          echo "✅ Successfully authenticated to Azure"
-          echo "::endgroup::"
-      
-      # ----------------------------------------------------------------------
-      # Provision Infrastructure (if needed)
-      # ----------------------------------------------------------------------
-      - name: 🏗️ Provision Azure Infrastructure
-        run: |
-          echo "::group::Provisioning infrastructure..."
-          azd provision --no-prompt
-          echo "::endgroup::"
-      
-      # ----------------------------------------------------------------------
-      # Deploy Application
-      # ----------------------------------------------------------------------
-      - name: 🚀 Deploy Application to Azure
-        run: |
-          echo "::group::Deploying application..."
-          azd deploy --no-prompt
-          echo "✅ Deployment successful!"
-          echo "::endgroup::"
-      
-      # ----------------------------------------------------------------------
-      # Output Deployment Information
-      # ----------------------------------------------------------------------
-      - name: 📋 Get Deployment URLs
-        run: |
-          echo "::group::Deployment Information"
-          azd env get-values
-          echo "::endgroup::"
+            --tenant-id "$AZURE_TENANT_ID"
+
+      - name: Provision and Deploy
+        run: azd up --no-prompt
+
+      - name: Show endpoints
+        run: azd env get-values | grep -E "ENDPOINT|URL|FQDN"
 
