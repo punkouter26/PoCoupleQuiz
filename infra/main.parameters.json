@@ -10,6 +10,15 @@
       },
       "location": {
         "value": "${AZURE_LOCATION}"
+      },
+      "openAiEndpoint": {
+        "value": "https://poshared-openai.cognitiveservices.azure.com/"
+      },
+      "openAiKey": {
+        "value": "${AZURE_OPENAI_KEY}"
+      },
+      "openAiDeployment": {
+        "value": "gpt-4o"
       }
     }
   }

@@ -15,6 +15,16 @@ param principalId string = ''
 @description('Name of the resource group')
 param resourceGroupName string = 'PoCoupleQuiz'
 
+@description('Azure OpenAI endpoint URL')
+param openAiEndpoint string = ''
+
+@secure()
+@description('Azure OpenAI API key')
+param openAiKey string = ''
+
+@description('Azure OpenAI deployment name')
+param openAiDeployment string = 'gpt-4o'
+
 var tags = {
   'azd-env-name': environmentName
 }
@@ -62,3 +72,6 @@ output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = resources.outputs.AZURE_CO
 output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = resources.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_ID
 output AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN string = resources.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN
 output STORAGE_TABLEENDPOINT string = storage.outputs.tableEndpoint
+output OPENAI_ENDPOINT string = openAiEndpoint
+output OPENAI_DEPLOYMENT string = openAiDeployment
+output OPENAI_KEY string = openAiKey
