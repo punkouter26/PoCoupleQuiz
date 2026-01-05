@@ -26,8 +26,15 @@ public class AzureTableStorageHealthCheck : IHealthCheck
     {
         try
         {
-            // Use Aspire-injected TableServiceClient (works with Azurite or Azure Storage)
-            await _tableServiceClient.GetPropertiesAsync(cancellationToken);
+            // List tables to verify connectivity using data-plane operations only
+            // This works with Storage Table Data Contributor role (no service-level permissions needed)
+            var tables = _tableServiceClient.QueryAsync(cancellationToken: cancellationToken);
+            int tableCount = 0;
+            await foreach (var _ in tables.ConfigureAwait(false))
+            {
+                tableCount++;
+                if (tableCount >= 1) break; // Only need to verify we can list at least one table
+            }
             return HealthCheckResult.Healthy("Connected to Azure Table Storage");
         }
         catch (Exception ex)
