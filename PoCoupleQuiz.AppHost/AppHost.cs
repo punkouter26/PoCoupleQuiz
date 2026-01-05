@@ -13,23 +13,13 @@ var storage = builder.AddAzureStorage("storage")
 var tables = storage.AddTables("tables");
 
 // ============================================================================
-// AZURE OPENAI CONFIGURATION
-// ============================================================================
-// Use shared Azure OpenAI Foundry service from PoShared resource group
-var openAiEndpoint = builder.AddParameter("openAiEndpoint", secret: false);
-var openAiKey = builder.AddParameter("openAiKey", secret: true);
-var openAiDeployment = builder.AddParameter("openAiDeployment", secret: false);
-
-// ============================================================================
 // SERVER PROJECT
 // ============================================================================
 // The Server project hosts both the API and the Blazor WASM client
+// Azure OpenAI configuration is loaded from Key Vault at runtime
 var server = builder.AddProject<Projects.PoCoupleQuiz_Server>("server")
     .WithExternalHttpEndpoints()
     .WithReference(tables)
-    .WaitFor(storage)
-    .WithEnvironment("AzureOpenAI__Endpoint", openAiEndpoint)
-    .WithEnvironment("AzureOpenAI__Key", openAiKey)
-    .WithEnvironment("AzureOpenAI__DeploymentName", openAiDeployment);
+    .WaitFor(storage);
 
 builder.Build().Run();

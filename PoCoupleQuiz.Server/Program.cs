@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+using Azure.Identity;
 using Serilog;
 using Serilog.Events;
 using System;
@@ -40,6 +41,19 @@ namespace PoCoupleQuiz.Server
                 Log.Information("Application Directory: {Directory}", Directory.GetCurrentDirectory());
 
                 var builder = WebApplication.CreateBuilder(args);
+
+                // Add Azure Key Vault configuration
+                var keyVaultUri = builder.Configuration["KeyVault:VaultUri"] 
+                    ?? Environment.GetEnvironmentVariable("KEYVAULT_URI")
+                    ?? "https://kv-pocouplequiz.vault.azure.net/";
+                
+                if (!string.IsNullOrEmpty(keyVaultUri))
+                {
+                    Log.Information("Loading configuration from Key Vault: {KeyVaultUri}", keyVaultUri);
+                    builder.Configuration.AddAzureKeyVault(
+                        new Uri(keyVaultUri),
+                        new DefaultAzureCredential());
+                }
 
                 // Add Aspire ServiceDefaults for observability, resilience, and service discovery
                 builder.AddServiceDefaults();
