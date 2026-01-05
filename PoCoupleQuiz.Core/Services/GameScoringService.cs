@@ -24,6 +24,11 @@ public interface IGameScoringService
 
 public class GameScoringService : IGameScoringService
 {
+    /// <summary>
+    /// Points awarded per correct answer.
+    /// </summary>
+    public const int PointsPerCorrectAnswer = 10;
+    
     private readonly ILogger<GameScoringService> _logger;
 
     public GameScoringService(ILogger<GameScoringService> logger)
@@ -58,11 +63,11 @@ public class GameScoringService : IGameScoringService
                 var player = game.Players.FirstOrDefault(p => p.Name == playerAnswer.Key);
                 if (player != null && isSimilar)
                 {
-                    player.Score += 10; // Standard 10 points for correct match
+                    player.Score += PointsPerCorrectAnswer;
 
                     _logger.LogInformation(
-                        "Player {PlayerName} - Answer: {Answer}, Match: {IsMatch}, Score: +10",
-                        playerAnswer.Key, playerAnswer.Value, isSimilar);
+                        "Player {PlayerName} - Answer: {Answer}, Match: {IsMatch}, Score: +{Points}",
+                        playerAnswer.Key, playerAnswer.Value, isSimilar, PointsPerCorrectAnswer);
                 }
             }
             catch (Exception ex)

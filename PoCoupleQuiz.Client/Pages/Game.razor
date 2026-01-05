@@ -455,8 +455,9 @@
             foreach (var player in currentGame.Players)
             {
                 // Calculate questions answered and correct answers for this player
+                // Each correct answer awards PointsPerCorrectAnswer points, so divide score to get count
                 int questionsAnswered = currentGame.MaxRounds;
-                int correctAnswers = player.Score; // In this game, score = number of correct guesses
+                int correctAnswers = player.Score / GameScoringService.PointsPerCorrectAnswer;
                 
                 await TeamService.UpdateTeamStatsAsync(
                     player.Name, 
