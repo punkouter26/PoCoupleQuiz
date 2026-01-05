@@ -298,7 +298,7 @@
             {
                 // King player submitting their answer
                 currentQuestion.KingPlayerAnswer = currentAnswer.Trim();
-                Logger.LogInformation("King player {KingName} submitted answer for round {Round}", currentPlayerName, currentGame.CurrentRound);
+                Logger.LogInformation("King player {KingName} submitted answer for round {Round}", currentPlayerName, currentGame.CurrentRound + 1);
                 
                 // Move to first guessing player
                 if (guessingPlayers.Any())
@@ -312,7 +312,7 @@
             {
                 // Guessing player submitting their answer
                 currentQuestion.RecordPlayerAnswer(currentPlayerName, currentAnswer.Trim());
-                Logger.LogInformation("Player {PlayerName} submitted answer for round {Round}", currentPlayerName, currentGame.CurrentRound);
+                Logger.LogInformation("Player {PlayerName} submitted answer for round {Round}", currentPlayerName, currentGame.CurrentRound + 1);
                 
                 // Use TurnManager to check if there are more players who haven't answered
                 bool hasMorePlayers = TurnManager.HasMoreGuessingPlayers(currentGame, currentQuestion);
@@ -502,7 +502,7 @@
             // Use GameScoringService to evaluate all answers at once
             await ScoringService.EvaluateAnswersAsync(currentGame, currentQuestion, QuestionService);
             
-            Logger.LogInformation("Evaluated answers for round {Round}", currentGame.CurrentRound);
+            Logger.LogInformation("Evaluated answers for round {Round}", currentGame.CurrentRound + 1);
         }
         catch (Exception ex)
         {
