@@ -62,14 +62,6 @@ resource containerAppEnvironment 'Microsoft.App/managedEnvironments@2024-02-02-p
     }
   }
   tags: tags
-
-  resource aspireDashboard 'dotNetComponents' = {
-    name: 'aspire-dashboard'
-    properties: {
-      componentType: 'AspireDashboard'
-    }
-  }
-
 }
 
 output MANAGED_IDENTITY_CLIENT_ID string = managedIdentity.properties.clientId
