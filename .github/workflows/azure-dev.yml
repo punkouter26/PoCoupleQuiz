@@ -137,7 +137,7 @@ jobs:
               --max-replicas 3 \
               --env-vars \
                 "ASPNETCORE_ENVIRONMENT=Production" \
-                "KeyVault__VaultUri=https://kv-poshared.vault.azure.net/" \
+                "SKIP_KEYVAULT=true" \
                 "PoCoupleQuiz__AzureStorage__ConnectionString=${{ steps.keyvault.outputs.storage-conn }}" \
                 "PoCoupleQuiz__AzureOpenAI__Endpoint=${{ steps.keyvault.outputs.openai-endpoint }}" \
                 "PoCoupleQuiz__AzureOpenAI__ApiKey=${{ steps.keyvault.outputs.openai-key }}" \
@@ -152,7 +152,7 @@ jobs:
               --image $IMAGE \
               --set-env-vars \
                 "ASPNETCORE_ENVIRONMENT=Production" \
-                "KeyVault__VaultUri=https://kv-poshared.vault.azure.net/" \
+                "SKIP_KEYVAULT=true" \
                 "PoCoupleQuiz__AzureStorage__ConnectionString=${{ steps.keyvault.outputs.storage-conn }}" \
                 "PoCoupleQuiz__AzureOpenAI__Endpoint=${{ steps.keyvault.outputs.openai-endpoint }}" \
                 "PoCoupleQuiz__AzureOpenAI__ApiKey=${{ steps.keyvault.outputs.openai-key }}" \
