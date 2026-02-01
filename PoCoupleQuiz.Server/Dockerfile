@@ -10,11 +10,13 @@ COPY PoCoupleQuiz.Core/*.csproj PoCoupleQuiz.Core/
 COPY PoCoupleQuiz.Client/*.csproj PoCoupleQuiz.Client/
 COPY PoCoupleQuiz.Server/*.csproj PoCoupleQuiz.Server/
 COPY PoCoupleQuiz.ServiceDefaults/*.csproj PoCoupleQuiz.ServiceDefaults/
+COPY PoCoupleQuiz.AppHost/*.csproj PoCoupleQuiz.AppHost/
+COPY PoCoupleQuiz.Tests/*.csproj PoCoupleQuiz.Tests/
 
-# Restore dependencies
+# Restore dependencies for the Server project only
 RUN dotnet restore PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj
 
-# Copy everything else
+# Copy everything else (only what's needed for build)
 COPY PoCoupleQuiz.Core/ PoCoupleQuiz.Core/
 COPY PoCoupleQuiz.Client/ PoCoupleQuiz.Client/
 COPY PoCoupleQuiz.Server/ PoCoupleQuiz.Server/
@@ -22,7 +24,7 @@ COPY PoCoupleQuiz.ServiceDefaults/ PoCoupleQuiz.ServiceDefaults/
 
 # Build and publish
 WORKDIR /src/PoCoupleQuiz.Server
-RUN dotnet publish -c Release -o /app/publish --no-restore
+RUN dotnet publish -c Release -o /app/publish
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
