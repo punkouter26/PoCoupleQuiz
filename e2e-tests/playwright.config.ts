@@ -6,6 +6,14 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   
+  /* Individual test timeout - Blazor WASM can take time to load */
+  timeout: 90 * 1000,
+  
+  /* Expect timeout for assertions */
+  expect: {
+    timeout: 20 * 1000,
+  },
+  
   /* Run tests in files in parallel */
   fullyParallel: true,
   
@@ -51,13 +59,14 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'dotnet run --project ../PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj --launch-profile http',
+    command: 'dotnet run --project ../PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj --launch-profile e2e-testing',
     url: 'http://127.0.0.1:5456/api/health',
     reuseExistingServer: !process.env.CI,
     ignoreHTTPSErrors: true,
     timeout: 120 * 1000,
     env: {
       ASPNETCORE_ENVIRONMENT: 'Development',
+      SKIP_KEYVAULT: 'true',
       ConnectionStrings__tables: 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;',
     },
   },

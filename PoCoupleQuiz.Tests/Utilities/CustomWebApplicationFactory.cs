@@ -12,10 +12,31 @@ namespace PoCoupleQuiz.Tests.Utilities;
 
 public class CustomWebApplicationFactory : WebApplicationFactory<PoCoupleQuiz.Server.Program>
 {
+    private readonly string? _azuriteConnectionString;
+
+    public CustomWebApplicationFactory() : this(null)
+    {
+    }
+
+    /// <summary>
+    /// Creates factory with optional Testcontainers Azurite connection string.
+    /// </summary>
+    /// <param name="azuriteConnectionString">Connection string from AzuriteFixture, or null for in-memory services</param>
+    public CustomWebApplicationFactory(string? azuriteConnectionString)
+    {
+        _azuriteConnectionString = azuriteConnectionString;
+        // Set the environment variable before the factory creates the host
+        // Use Testing environment and skip Key Vault
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
+        Environment.SetEnvironmentVariable("SKIP_KEYVAULT", "true");
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         var projectDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "PoCoupleQuiz.Server"));
         var clientAppContentRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "PoCoupleQuiz.Client", "wwwroot"));
+
+        var connectionString = _azuriteConnectionString ?? "UseDevelopmentStorage=true";
 
         builder.UseContentRoot(projectDir);
         builder.UseWebRoot(clientAppContentRoot); builder.ConfigureAppConfiguration((context, config) =>
@@ -29,7 +50,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<PoCoupleQuiz.Se
                 ["ApplicationInsights:ConnectionString"] = "", // Disable for tests
                 ["Logging:LogLevel:Default"] = "Warning", // Reduce log noise in tests
                 // Aspire connection string for Azurite (used by AddAzureTableClient)
-                ["ConnectionStrings:tables"] = "UseDevelopmentStorage=true"
+                ["ConnectionStrings:tables"] = connectionString
             });
         });
 
@@ -49,7 +70,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<PoCoupleQuiz.Se
             }
 
             // Add mock TableServiceClient for tests (uses Azurite connection string)
-            services.AddSingleton(new TableServiceClient("UseDevelopmentStorage=true"));
+            services.AddSingleton(new TableServiceClient(connectionString));
 
             // Add test implementations
             services.AddSingleton<IQuestionService, MockQuestionService>();

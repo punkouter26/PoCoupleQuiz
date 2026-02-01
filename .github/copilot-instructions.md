@@ -1,36 +1,73 @@
-1. Project Identity & SDK Standards
-Unified ID Strategy: Use the Solution name (e.g., PoAppName) as the master identifier for Azure Resource Groups and ACA environments. Use the short prefix (PoApp) for project namespaces.
-Modern SDK Standards: Target .NET 10 and C# 14 exclusively. Enforce Central Package Management (CPM) via Directory.Packages.props with CentralPackageTransitivePinning enabled.
-Use context7 mcp to get latest version of .NET 10
-Use CLI to install any missing tools
-AOT-First Syntax: * Enable <IsAotCompatible>true</IsAotCompatible> and <TreatWarningsAsErrors>true</TreatWarningsAsErrors>.
-2. Orchestration & Inner-Loop (The Aspire Way)
-Aspire Ecosystem: Use dotnet new aspire-starter. The AppHost is the source of truth for local orchestration and service discovery.
-Dynamic Endpoints: Avoid hardcoded ports in launchsettings.json. Rely on Aspire’s named references (e.g., builder.AddProject<Projects.MyApi>("api")) for internal networking.
-Developer Command Center: Enhance the Aspire Dashboard by adding Custom Resource Actions to the AppHost (e.g., "Seed Database," "Clear Cache," "Reset Azurite").
-Startup & Persistence: Use .WaitFor(resource) for sequencing and .WithLifetime(ContainerLifetime.Persistent) for infrastructure (databases/Redis) to eliminate cold-start delays.
-3. Architecture: Flattened Vertical Slice (VSA)
-Feature Folders: Keep Endpoints, DTOs, and Business Logic together within a single feature folder. Logic must be self-contained.
-Result Pattern: Use the ErrorOr library. Minimal APIs must use the .Match() extension to return TypedResults.
-Data Access: Use lightweight expression visitors to map DTO filters directly to the TableClient (Azure Table Storage), keeping slices storage-agnostic without a heavy ORM.
-Logic Enforcement: Use NetArchTest to automatically fail builds if architectural rules (e.g., prohibited dependencies) are breached.
-4. UI & Security (BFF Pattern)
-Secure BFF: The API acts as the security proxy for the Blazor WASM client via YARP.
-Cookie-Only Security: The WASM client handles Secure Cookies only; it never touches JWTs.
-Rendering & Hydration: * Prioritize Static SSR for initial loads; hydrate to Interactive WASM only when necessary.
-Use [PersistentComponentState] to eliminate flickering.
-State Management: Use standard Component Parameters for parent-child flow. Use a Scoped StateContainer only for truly global cross-page state (e.g., User Preferences).
-Dev Proxy: In development, let the AppHost proxy traffic to the Blazor dev server to preserve hot-reload functionality.
-5. Secret & Configuration Management
-Zero-Trust Config: Use the Azure Key Vault Configuration Provider. Secrets are fetched at runtime via Managed Identity.
-Store all secrets and keys in the container
-6. Resilience & Observability
-Native Resilience: Apply .AddStandardResilienceHandler() (Polly) to all HttpClient and Storage client configurations in ServiceDefaults.
-Source-Generated Logging: Use LoggerMessage Delegates (Source Generators) instead of Serilog where performance is critical. Follow a "Context-First" policy.
-Health Probes: Use standard MapHealthChecks("/health"). Ensure Readiness checks include connectivity tests for all backing services.
-Telemetry: Enable OpenTelemetry for tracing and custom metrics, exported directly to Azure Monitor (Application Insights).
-7. Infrastructure & Deployment
-Provisioning: Use Azure Developer CLI (azd up) to generate Bicep modules from the Aspire model.
-Make sure github CI CD also deploys the app as ACA to Azure / Keep YML simple and just build and deploy what is needed
+# PoCoupleQuiz - AI Coding Agent Instructions
 
+## Architecture Overview
+This is a **.NET 10 Aspire** application with Blazor WebAssembly frontend and ASP.NET Core API backend. The solution uses **Vertical Slice Architecture** where features are organized by business capability, not technical layer.
 
+### Project Structure
+- **PoCoupleQuiz.AppHost** - Aspire orchestration (defines service dependencies, runs Azurite locally)
+- **PoCoupleQuiz.Server** - API controllers + hosts Blazor WASM client
+- **PoCoupleQuiz.Client** - Blazor WebAssembly UI (communicates via HTTP to Server)
+- **PoCoupleQuiz.Core** - Shared models, services, validators (no UI/HTTP dependencies)
+- **PoCoupleQuiz.ServiceDefaults** - Shared Aspire configuration (OpenTelemetry, health checks, resilience)
+
+### Data Flow
+Client (Blazor WASM) → Server (ASP.NET API) → Azure Table Storage (or Azurite locally)
+
+## Key Patterns
+
+### Service Registration
+All services are registered in `PoCoupleQuiz.Core/Extensions/ServiceCollectionExtensions.cs`. Follow this pattern:
+```csharp
+services.AddSingleton<ITeamService, AzureTableTeamService>();
+services.AddScoped<IGameStateService, GameStateService>();
+```
+
+### Client-Server Communication
+Client services in `PoCoupleQuiz.Client/Services/` wrap HTTP calls to server APIs. Example: `HttpQuestionService` calls `/api/questions/*` endpoints.
+
+### Azure OpenAI Integration
+`IQuestionService` has two implementations:
+- `AzureOpenAIQuestionService` - Production (requires Key Vault secrets)
+- `MockQuestionService` - Local development fallback (used when `AzureOpenAI:ApiKey` is empty)
+
+### Logging
+Use **Serilog** with structured logging. Include context with properties:
+```csharp
+_logger.LogInformation("Game initialized - Players: {PlayerCount}", game.Players.Count);
+```
+
+## Development Commands
+
+```powershell
+# Start locally (launches Azurite container + all services via Aspire)
+dotnet run --project PoCoupleQuiz.AppHost
+
+# Run tests
+dotnet test PoCoupleQuiz.Tests
+
+# Run E2E tests (requires app running)
+cd e2e-tests && npx playwright test
+
+# Deploy to Azure Container Apps
+azd auth login && azd up
+```
+
+## Testing Conventions
+- **Unit tests**: `PoCoupleQuiz.Tests/UnitTests/` - Use `[Trait("Category", "Unit")]`
+- **Integration tests**: `PoCoupleQuiz.Tests/IntegrationTests/` - Use `[Trait("Category", "Integration")]`
+- **E2E tests**: `e2e-tests/` - Playwright tests in TypeScript
+- Use **Moq** for mocking, **xUnit** for assertions
+
+## Package Management
+Uses **Central Package Management** via `Directory.Packages.props`. Add new packages there, not in individual `.csproj` files.
+
+## Key Files to Reference
+- [docs/adr/](docs/adr/) - Architecture Decision Records explain the "why" behind choices
+- [PoCoupleQuiz.Core/Models/Game.cs](PoCoupleQuiz.Core/Models/Game.cs) - Core game domain model
+- [PoCoupleQuiz.Core/Services/](PoCoupleQuiz.Core/Services/) - Business logic implementations
+- [infra/main.bicep](infra/main.bicep) - Azure infrastructure definitions
+
+## Game Domain Concepts
+- **King Player**: One player answers questions about themselves; others guess
+- **Difficulty**: Easy (3 rounds), Medium (5 rounds), Hard (7 rounds)
+- **Scoring**: Only guessing players earn points for correct matches

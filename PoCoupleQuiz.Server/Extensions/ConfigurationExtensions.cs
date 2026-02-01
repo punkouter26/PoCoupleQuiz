@@ -20,12 +20,17 @@ public static class ConfigurationExtensions
 
     /// <summary>
     /// Adds and configures health checks for the application.
+    /// Includes startup warmup check that waits for dependencies.
     /// </summary>
     public static IServiceCollection AddHealthCheckConfiguration(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         services.AddHealthChecks()
+            // Startup check with warmup - waits for storage to be ready
+            .AddCheck<StartupHealthCheck>(
+                "startup",
+                tags: new[] { "ready", "startup" })
             .AddCheck<AzureTableStorageHealthCheck>(
                 "azure_table_storage",
                 tags: new[] { "ready", "storage" })

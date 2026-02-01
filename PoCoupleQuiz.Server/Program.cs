@@ -37,29 +37,52 @@ namespace PoCoupleQuiz.Server
             try
             {
                 Log.Information("=== PoCoupleQuiz Application Starting ===");
-                Log.Information("Environment: {Environment}", Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production");
+                var currentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+                Log.Information("Environment: {Environment}", currentEnvironment);
                 Log.Information("Application Directory: {Directory}", Directory.GetCurrentDirectory());
 
                 var builder = WebApplication.CreateBuilder(args);
 
-                // Add Azure Key Vault configuration
+                // Add Azure Key Vault configuration (skip for Testing environment or if SKIP_KEYVAULT is set)
+                var isTestEnvironment = string.Equals(currentEnvironment, "Testing", StringComparison.OrdinalIgnoreCase);
+                var skipKeyVault = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SKIP_KEYVAULT"));
                 var keyVaultUri = builder.Configuration["KeyVault:VaultUri"] 
                     ?? Environment.GetEnvironmentVariable("KEYVAULT_URI")
-                    ?? "https://kv-pocouplequiz.vault.azure.net/";
+                    ?? "https://kv-poshared.vault.azure.net/";
                 
-                if (!string.IsNullOrEmpty(keyVaultUri))
+                if (!string.IsNullOrEmpty(keyVaultUri) && !isTestEnvironment && !skipKeyVault)
                 {
                     Log.Information("Loading configuration from Key Vault: {KeyVaultUri}", keyVaultUri);
                     builder.Configuration.AddAzureKeyVault(
                         new Uri(keyVaultUri),
                         new DefaultAzureCredential());
                 }
+                else if (isTestEnvironment || skipKeyVault)
+                {
+                    Log.Information("Skipping Key Vault configuration (Testing={IsTest}, SkipKeyVault={SkipKV})", 
+                        isTestEnvironment, skipKeyVault);
+                }
 
                 // Add Aspire ServiceDefaults for observability, resilience, and service discovery
                 builder.AddServiceDefaults();
 
-                // Add Aspire Azure Tables client (receives connection from AppHost/Azurite)
-                builder.AddAzureTableServiceClient("tables");
+                // Add Azure Tables client
+                // When using Azure Storage from Key Vault (USE_AZURE_STORAGE=true), the connection string
+                // comes from Key Vault secret: PoCoupleQuiz--AzureStorage--ConnectionString
+                // Otherwise, Aspire provides the connection from AppHost (Azurite or provisioned storage)
+                var useAzureStorage = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("USE_AZURE_STORAGE"));
+                var storageConnectionString = builder.Configuration["PoCoupleQuiz:AzureStorage:ConnectionString"];
+                
+                if (useAzureStorage && !string.IsNullOrEmpty(storageConnectionString))
+                {
+                    Log.Information("Using Azure Storage connection from Key Vault");
+                    builder.Services.AddSingleton(new Azure.Data.Tables.TableServiceClient(storageConnectionString));
+                }
+                else
+                {
+                    // Use Aspire-managed Azure Tables client (from AppHost/Azurite)
+                    builder.AddAzureTableServiceClient("tables");
+                }
 
                 // Use Serilog configuration extension
                 builder.Host.AddSerilogConfiguration();
@@ -106,7 +129,7 @@ namespace PoCoupleQuiz.Server
                 }
                 else
                 {
-                    Log.Information("Production environment detected, configuring production middleware");
+                    Log.Information("Production environment detected, configuring production middleware");;
                     app.UseExceptionHandler("/Error");
                     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                     app.UseHsts();
@@ -148,7 +171,8 @@ namespace PoCoupleQuiz.Server
                 app.UseStaticFiles();
                 app.UseRouting();
 
-                // Map health check endpoints
+                // Map health check endpoints (custom detailed endpoint)
+                // Note: /health and /alive are mapped by MapDefaultEndpoints from ServiceDefaults
                 app.MapHealthChecks("/api/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
                 {
                     ResponseWriter = async (context, report) =>
@@ -169,11 +193,6 @@ namespace PoCoupleQuiz.Server
                         });
                         await context.Response.WriteAsync(result);
                     }
-                });
-                app.MapHealthChecks("/health");
-                app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-                {
-                    Predicate = check => check.Tags.Contains("live")
                 });
                 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
                 {

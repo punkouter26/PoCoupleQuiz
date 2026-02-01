@@ -43,6 +43,20 @@ cd e2e-tests && npx playwright test
 
 ### Deploy to Azure
 
+#### Option 1: GitHub Actions CI/CD (Recommended)
+
+Push to `master` branch triggers automatic build and deployment to Azure Container Apps.
+
+**Required GitHub Repository Variables** (Settings → Secrets and variables → Actions → Variables):
+| Variable | Value |
+|----------|-------|
+| `AZURE_CLIENT_ID` | `a94305eb-92da-498f-aeac-986441135a9a` |
+| `AZURE_TENANT_ID` | `1639b208-d5bf-4d71-9096-06163884a5e4` |
+
+**Required GitHub Environment**: Create a `production` environment in Settings → Environments.
+
+#### Option 2: Manual Deployment
+
 ```powershell
 azd auth login
 azd up

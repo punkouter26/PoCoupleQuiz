@@ -53,12 +53,16 @@ public class AzureOpenAIQuestionService : IQuestionService
         _promptBuilder = promptBuilder;
         _questionCache = questionCache;
 
-        var endpoint = configuration["AzureOpenAI:Endpoint"] 
-            ?? throw new ArgumentNullException("AzureOpenAI:Endpoint", "Azure AI Foundry endpoint is required");
-        var key = configuration["AzureOpenAI:Key"] 
-            ?? throw new ArgumentNullException("AzureOpenAI:Key", "Azure AI Foundry API key is required");
-        _deploymentName = configuration["AzureOpenAI:DeploymentName"] 
-            ?? throw new ArgumentNullException("AzureOpenAI:DeploymentName", "Azure AI Foundry deployment name is required");
+        // Read from PoCoupleQuiz-prefixed config (Key Vault) or fallback to AzureOpenAI config
+        var endpoint = configuration["PoCoupleQuiz:AzureOpenAI:Endpoint"] 
+            ?? configuration["AzureOpenAI:Endpoint"] 
+            ?? throw new ArgumentNullException("AzureOpenAI:Endpoint", "Azure OpenAI endpoint is required");
+        var key = configuration["PoCoupleQuiz:AzureOpenAI:ApiKey"] 
+            ?? configuration["AzureOpenAI:Key"] 
+            ?? throw new ArgumentNullException("AzureOpenAI:Key", "Azure OpenAI API key is required");
+        _deploymentName = configuration["PoCoupleQuiz:AzureOpenAI:DeploymentName"] 
+            ?? configuration["AzureOpenAI:DeploymentName"] 
+            ?? throw new ArgumentNullException("AzureOpenAI:DeploymentName", "Azure OpenAI deployment name is required");
 
         _client = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
 
