@@ -78,3 +78,4 @@ TestResults/
 
 ## Generated Coverage Reports
 docs/coverage/html/
+docs/node_modules/
