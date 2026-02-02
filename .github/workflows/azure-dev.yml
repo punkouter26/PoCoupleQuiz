@@ -15,10 +15,11 @@ permissions:
 env:
   AZURE_SUBSCRIPTION_ID: bbb8dfbe-9169-432f-9b7a-fbf861b51037
   AZURE_RESOURCE_GROUP: PoCoupleQuiz
+  AZURE_SHARED_RG: PoShared
   AZURE_LOCATION: eastus2
   CONTAINER_APP_NAME: pocouplequiz-server
-  CONTAINER_APP_ENV: cae-pocouplequiz
-  REGISTRY_NAME: crpocouplequiz
+  CONTAINER_APP_ENV: cae-poshared
+  REGISTRY_NAME: crposhared
   IMAGE_NAME: pocouplequiz-server
 
 jobs:
@@ -54,8 +55,8 @@ jobs:
       - name: Create Container Registry (if not exists)
         if: github.event_name != 'pull_request'
         run: |
-          az acr show --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || \
-          az acr create --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --sku Basic --admin-enabled true
+          az acr show --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.AZURE_SHARED_RG }} || \
+          az acr create --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.AZURE_SHARED_RG }} --sku Basic --admin-enabled true
 
       - name: Login to Azure Container Registry
         if: github.event_name != 'pull_request'
