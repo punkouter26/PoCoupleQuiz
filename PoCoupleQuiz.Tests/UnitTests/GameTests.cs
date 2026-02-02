@@ -102,7 +102,7 @@ namespace PoCoupleQuiz.Tests
         }
 
         #region UI Rendering Tests
-        [Trait("Category", "Component")]
+        [Trait("Category", "Unit")]
         [Fact]
         public async Task Index_ShouldRenderCorrectly()
         {
@@ -117,7 +117,7 @@ namespace PoCoupleQuiz.Tests
             Assert.Contains("Game Setup", heading.TextContent);
         }
 
-        [Trait("Category", "Component")]
+        [Trait("Category", "Unit")]
         [Fact]
         public async Task Leaderboard_ShouldRenderCorrectly()
         {
@@ -127,9 +127,9 @@ namespace PoCoupleQuiz.Tests
             // Act - Allow time for component to initialize
             await Task.Delay(100);
 
-            // Assert
-            var heading = cut.Find("h3");
-            Assert.Contains("Leaderboard", heading.TextContent);
+            // Assert - Check for the Hall of Fame title (updated from h3 to h1 during UI/UX refresh)
+            var heading = cut.Find("h1.leaderboard-title");
+            Assert.Contains("Hall of Fame", heading.TextContent);
         }
         #endregion
 

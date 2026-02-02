@@ -20,7 +20,8 @@ public class StartupHealthCheck : IHealthCheck
     private static volatile bool _isReady = false;
     private static readonly object _lock = new();
     private static DateTime _lastCheck = DateTime.MinValue;
-    private static readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(5);
+    private static HealthCheckResult? _cachedResult;
+    private static readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(30);
 
     public StartupHealthCheck(
         TableServiceClient tableServiceClient,
@@ -39,18 +40,18 @@ public class StartupHealthCheck : IHealthCheck
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        // If already marked ready, return immediately
-        if (_isReady)
+        // If already marked ready, return cached result immediately
+        if (_isReady && _cachedResult.HasValue)
         {
-            return HealthCheckResult.Healthy("Application startup complete");
+            return _cachedResult.Value;
         }
 
         // Throttle checks to avoid hammering the storage
         lock (_lock)
         {
-            if (DateTime.UtcNow - _lastCheck < _checkInterval)
+            if (DateTime.UtcNow - _lastCheck < _checkInterval && _cachedResult.HasValue)
             {
-                return HealthCheckResult.Degraded("Startup warmup in progress...");
+                return _cachedResult.Value;
             }
             _lastCheck = DateTime.UtcNow;
         }
@@ -65,8 +66,9 @@ public class StartupHealthCheck : IHealthCheck
             if (connected)
             {
                 _isReady = true;
+                _cachedResult = HealthCheckResult.Healthy("Application startup complete - storage connected");
                 _logger.LogInformation("Startup health check: Azure Table Storage is ready");
-                return HealthCheckResult.Healthy("Application startup complete - storage connected");
+                return _cachedResult.Value;
             }
             
             return HealthCheckResult.Degraded("Waiting for Azure Table Storage to become available...");
@@ -119,5 +121,6 @@ public class StartupHealthCheck : IHealthCheck
     {
         _isReady = false;
         _lastCheck = DateTime.MinValue;
+        _cachedResult = null;
     }
 }

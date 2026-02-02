@@ -117,14 +117,13 @@ public static class ConfigurationExtensions
     {
         return hostBuilder.UseSerilog((context, services, configuration) =>
         {
+            // Note: Console sink is configured in appsettings.json with CompactJsonFormatter
+            // Do not add another Console sink here to avoid duplicate log output
             configuration
                 .ReadFrom.Configuration(context.Configuration)
                 .ReadFrom.Services(services)
                 .Enrich.FromLogContext()
-                .Enrich.WithProperty("Application", "PoCoupleQuiz")
-                .WriteTo.Console(
-                    outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
-                .WriteTo.Debug();
+                .Enrich.WithProperty("Application", "PoCoupleQuiz");
 
             // Add Application Insights in production
             if (context.HostingEnvironment.IsProduction())

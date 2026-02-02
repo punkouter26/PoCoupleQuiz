@@ -100,9 +100,6 @@
             <div style="margin-bottom: 0.75rem;">
                 <label style="display: block; margin-bottom: 0.35rem; font-weight: bold;">
                     Names:
-                    <HelpTooltip Title="King Player"
-                                 Text="The first player starts as 'King' who answers questions about themselves. The King role rotates each round!"
-                                 Example="If the King is Sarah, she answers 'What's your favorite color?', then others guess what Sarah answered" />
                 </label>
                 @for (int i = 0; i < numberOfPlayers; i++)
                 {
@@ -123,9 +120,6 @@
             <div style="margin-bottom: 0.75rem;">
                 <label style="display: block; margin-bottom: 0.35rem; font-weight: bold;">
                     Difficulty:
-                    <HelpTooltip Title="Difficulty Levels"
-                                 Text="Difficulty determines the number of rounds. Easy = 3 rounds, Medium = 5 rounds, Hard = 7 rounds. The King role rotates each round."
-                                 Example="In Medium difficulty, each player gets a chance to be King, and 2 players will be King twice" />
                 </label>
                 <select @bind="selectedDifficulty" class="form-control">
                     <option value="@DifficultyLevel.Easy">Easy (3 rounds)</option>

@@ -1,5 +1,11 @@
 # PoCoupleQuiz
 
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![Blazor WASM](https://img.shields.io/badge/Blazor-WebAssembly-512BD4?logo=blazor)](https://blazor.net/)
+[![Aspire](https://img.shields.io/badge/Aspire-13.1.0-512BD4)](https://learn.microsoft.com/en-us/dotnet/aspire/)
+[![Azure](https://img.shields.io/badge/Azure-Container%20Apps-0078D4?logo=microsoftazure)](https://azure.microsoft.com/services/container-apps/)
+[![License](https://img.shields.io/badge/License-Demo-gray)](LICENSE)
+
 An interactive web-based quiz application designed for couples and friends to test how well they know each other. Built with **.NET 10**, **Blazor WebAssembly**, and **Azure Container Apps**.
 
 ## What & Why
@@ -88,11 +94,27 @@ This deploys to Azure Container Apps using the Aspire model.
 
 ## Documentation
 
-- [agents.md](agents.md) - Coding standards and rules
-- [docs/PRD.md](docs/PRD.md) - Product Requirements Document
-- [docs/adr/](docs/adr/) - Architecture Decision Records
-- [docs/diagrams/](docs/diagrams/) - Architecture diagrams (Mermaid + SVG)
-- [docs/kql/](docs/kql/) - Application Insights KQL queries
+| Document | Description |
+|----------|-------------|
+| [Architecture Overview](docs/product/architecture-overview.md) | System design and patterns |
+| [Developer Walkthrough](docs/product/walkthrough.md) | Getting started guide |
+| [Features](docs/product/features.md) | Complete feature documentation |
+| [PRD](docs/PRD.md) | Product Requirements Document |
+| [ADRs](docs/adr/) | Architecture Decision Records |
+| [Diagrams](docs/diagrams/) | Architecture diagrams (Mermaid + SVG) |
+| [KQL Queries](docs/kql/) | Application Insights monitoring |
+| [API Reference](docs/api/) | REST API documentation & .http files |
+| [Key Vault Mapping](docs/mapping/keyvault-mapping.md) | Secret configuration reference |
+| [Coding Standards](agents.md) | AI agent coding rules |
+
+## API Documentation
+
+When running locally, OpenAPI documentation is available at:
+```
+https://localhost:7001/openapi/v1.json
+```
+
+For quick API testing, use the [REST Client](docs/api/api-endpoints.http) with VS Code.
 
 ## Key Features
 
@@ -111,9 +133,70 @@ This deploys to Azure Container Apps using the Aspire model.
 - **BFF Pattern**: Server acts as security proxy for client
 - **Result Pattern**: ErrorOr for explicit error handling
 
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| "Connection refused" on startup | Ensure Docker is running and Azurite container is active |
+| "MockQuestionService being used" | Normal for local dev - Azure OpenAI secrets not configured |
+| Tests skipped | Azure OpenAI integration tests require API keys |
+| "Key Vault access denied" | Check managed identity has `Key Vault Secrets User` role |
+| Blazor debugging not working | Use Edge/Chrome, ensure WASM debugging is enabled in launch settings |
+
+### Logs & Diagnostics
+
+```powershell
+# View Aspire dashboard logs
+# Open https://localhost:17011 after starting AppHost
+
+# Check health endpoints
+curl https://localhost:7001/health/ready
+curl https://localhost:7001/api/health
+
+# View Application Insights (production)
+# Use KQL queries in docs/kql/
+```
+
+### Reset Local State
+
+```powershell
+# Stop and remove Azurite container
+docker stop azurite && docker rm azurite
+
+# Clear .NET build artifacts
+dotnet clean && dotnet build
+```
+
 ## Contributing
 
-Follow the coding standards in [agents.md](agents.md) and ensure all tests pass.
+### Getting Started
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Follow coding standards in [agents.md](agents.md)
+4. Ensure tests pass: `dotnet test`
+5. Submit a pull request
+
+### Code Quality Checklist
+
+- [ ] Unit tests for new functionality
+- [ ] No compiler warnings
+- [ ] XML documentation for public APIs
+- [ ] Follows Vertical Slice Architecture
+- [ ] Uses structured logging with Serilog
+- [ ] Validates inputs with FluentValidation patterns
+
+### Commit Message Format
+
+```
+<type>: <description>
+
+[optional body]
+```
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ## License
 

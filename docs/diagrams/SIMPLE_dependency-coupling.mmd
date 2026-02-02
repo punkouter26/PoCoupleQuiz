@@ -1,0 +1,22 @@
+%%{init: {'theme': 'base'}}%%
+flowchart TB
+    subgraph High["🔴 High Coupling"]
+        GS["GameState"]
+        AI["OpenAI"]
+        DB["Storage"]
+    end
+    
+    subgraph Med["🟡 Medium"]
+        Page["Game.razor"]
+        Ctrl["Controllers"]
+    end
+    
+    Page --> GS
+    Page --> Ctrl
+    Ctrl --> AI
+    Ctrl --> DB
+    
+    classDef high fill:#ef4444,color:#fff
+    classDef med fill:#f97316,color:#fff
+    class GS,AI,DB high
+    class Page,Ctrl med

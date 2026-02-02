@@ -1,0 +1,32 @@
+// Real-Time Player Sessions Dashboard
+// Shows active game sessions with player engagement metrics
+// Use with Azure Workbooks for live dashboards
+
+// Active sessions in last 30 minutes
+let ActiveWindow = 30m;
+
+requests
+| where timestamp > ago(ActiveWindow)
+| where name contains "api/teams" or name contains "api/questions"
+| extend SessionId = tostring(customDimensions["TeamName"])
+| where isnotempty(SessionId)
+| summarize 
+    LastActivity = max(timestamp),
+    RequestCount = count(),
+    DistinctEndpoints = dcount(name),
+    AvgDuration = avg(duration)
+    by SessionId
+| extend 
+    MinutesSinceActivity = datetime_diff('minute', now(), LastActivity),
+    SessionStatus = iff(datetime_diff('minute', now(), LastActivity) < 5, "🟢 Active", 
+                   iff(datetime_diff('minute', now(), LastActivity) < 15, "🟡 Idle", "🔴 Inactive"))
+| project 
+    SessionId,
+    SessionStatus,
+    LastActivity,
+    MinutesSinceActivity,
+    RequestCount,
+    DistinctEndpoints,
+    AvgDurationMs = round(AvgDuration, 2)
+| order by LastActivity desc
+| take 50

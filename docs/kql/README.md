@@ -18,6 +18,11 @@ All queries are numbered and categorized for easy navigation:
 | `08-custom-metric-question-latency.kql` | **Custom Metrics** | AI question generation latency monitoring |
 | `09-custom-metric-active-players.kql` | **Custom Metrics** | Real-time active player count (observable gauge) |
 | `10-custom-metric-storage-performance.kql` | **Custom Metrics** | Azure Table Storage operation performance |
+| `11-realtime-player-sessions.kql` | **Live Dashboard** | Active game sessions with player engagement (30min window) |
+| `12-openai-latency-percentiles.kql` | **AI Performance** | OpenAI P50/P95/P99 latency with SLO breach detection |
+| `13-error-correlation.kql` | **Root Cause** | Exception correlation with triggering requests |
+| `14-deployment-impact.kql` | **DevOps** | Before/after deployment metric comparison |
+| `15-user-journey-funnel.kql` | **Conversion** | Game flow funnel with drop-off analysis |
 
 ---
 

@@ -1,0 +1,154 @@
+### PoCoupleQuiz API - REST Client Collection
+### Use with VS Code REST Client extension (humao.rest-client)
+### Base URL configured for local development
+
+@baseUrl = https://localhost:7001
+@contentType = application/json
+
+###############################################################################
+# HEALTH ENDPOINTS
+###############################################################################
+
+### Health Check - Liveness
+GET {{baseUrl}}/health/live HTTP/1.1
+
+### Health Check - Readiness (includes dependencies)
+GET {{baseUrl}}/health/ready HTTP/1.1
+
+### Health Check - Detailed (version, build, environment)
+GET {{baseUrl}}/api/health HTTP/1.1
+
+###############################################################################
+# TEAMS ENDPOINTS
+###############################################################################
+
+### Get All Teams
+GET {{baseUrl}}/api/teams HTTP/1.1
+
+### Get Team by Name
+@teamName = CoupleA
+GET {{baseUrl}}/api/teams/{{teamName}} HTTP/1.1
+
+### Create/Save Team
+POST {{baseUrl}}/api/teams HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "name": "CoupleA",
+    "totalQuestionsAnswered": 0,
+    "correctAnswers": 0,
+    "lastPlayed": "2026-02-01T12:00:00Z"
+}
+
+### Update Team Stats (after a game round)
+@updateTeamName = CoupleA
+PUT {{baseUrl}}/api/teams/{{updateTeamName}}/stats HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "score": 10,
+    "isCorrect": true
+}
+
+###############################################################################
+# QUESTIONS ENDPOINTS
+###############################################################################
+
+### Generate Question - Easy Difficulty
+POST {{baseUrl}}/api/questions/generate HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "difficulty": "Easy"
+}
+
+### Generate Question - Medium Difficulty
+POST {{baseUrl}}/api/questions/generate HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "difficulty": "Medium"
+}
+
+### Generate Question - Hard Difficulty
+POST {{baseUrl}}/api/questions/generate HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "difficulty": "Hard"
+}
+
+### Check Answer Similarity (AI-powered semantic matching)
+POST {{baseUrl}}/api/questions/check-similarity HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "answer1": "pizza",
+    "answer2": "Italian pizza with pepperoni"
+}
+
+### Check Answer Similarity - Exact Match Test
+POST {{baseUrl}}/api/questions/check-similarity HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "answer1": "blue",
+    "answer2": "blue"
+}
+
+### Check Answer Similarity - No Match Test
+POST {{baseUrl}}/api/questions/check-similarity HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "answer1": "cats",
+    "answer2": "motorcycles"
+}
+
+###############################################################################
+# GAME HISTORY ENDPOINTS
+###############################################################################
+
+### Save Game History
+POST {{baseUrl}}/api/game-history HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "team1Name": "Alice",
+    "team2Name": "Bob",
+    "totalQuestions": 5,
+    "team1Score": 30,
+    "team2Score": 20,
+    "gameMode": "Medium",
+    "playedAt": "2026-02-01T14:30:00Z"
+}
+
+### Get Game History for Team
+@historyTeamName = Alice
+GET {{baseUrl}}/api/game-history/{{historyTeamName}} HTTP/1.1
+
+### Get Recent Games (last 10)
+GET {{baseUrl}}/api/game-history/recent HTTP/1.1
+
+###############################################################################
+# ERROR SCENARIOS (for testing error handling)
+###############################################################################
+
+### Invalid Team Name (contains special characters)
+GET {{baseUrl}}/api/teams/Invalid@Name! HTTP/1.1
+
+### Missing Required Fields
+POST {{baseUrl}}/api/teams HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "name": ""
+}
+
+### Invalid Similarity Check (missing fields)
+POST {{baseUrl}}/api/questions/check-similarity HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+    "answer1": "test"
+}

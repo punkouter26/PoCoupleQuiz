@@ -1,0 +1,73 @@
+name: Update Mermaid Diagrams
+
+on:
+  push:
+    paths:
+      - 'docs/diagrams/*.mmd'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-svgs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Mermaid CLI
+        run: npm install -g @mermaid-js/mermaid-cli
+
+      - name: Generate SVGs from Mermaid files
+        run: |
+          echo "🔍 Finding Mermaid files..."
+          cd docs/diagrams
+          
+          for mmd_file in *.mmd; do
+            if [ -f "$mmd_file" ]; then
+              svg_file="${mmd_file%.mmd}.svg"
+              echo "📊 Converting $mmd_file → $svg_file"
+              mmdc -i "$mmd_file" -o "$svg_file" -b transparent
+            fi
+          done
+          
+          echo "✅ SVG generation complete"
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          git diff --quiet docs/diagrams/*.svg || echo "changes=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/diagrams/*.svg
+          git commit -m "chore: auto-generate SVGs from Mermaid diagrams [skip ci]"
+          git push
+
+      - name: Summary
+        run: |
+          echo "## 📊 Mermaid Diagram Update" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          cd docs/diagrams
+          for mmd_file in *.mmd; do
+            svg_file="${mmd_file%.mmd}.svg"
+            if [ -f "$svg_file" ]; then
+              echo "| $mmd_file | ✅ SVG updated |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $mmd_file | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done

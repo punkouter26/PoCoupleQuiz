@@ -3,55 +3,127 @@
 <RadzenTheme Theme="material" />
 <RadzenNotification />
 <RadzenDialog />
-<RadzenTooltip />
-<RadzenContextMenu />
+@* RadzenTooltip and RadzenContextMenu removed - not used in this app *@
 
 <PageTitle>PoCoupleQuiz</PageTitle>
 
 <style>
-    .rz-layout header {
-        background-color: #1976d2;
+    .modern-header {
+        background: var(--gradient-primary);
         color: white;
-        padding: 0.75rem 1rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 0.75rem 1.5rem;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        position: sticky;
+        top: 0;
+        z-index: 100;
     }
 
-    .rz-layout header h5 {
-        margin: 0;
-        font-size: 1.25rem;
-    }
-
-    .rz-layout main {
-        padding: 0.5rem;
+    .header-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         max-width: 1200px;
         margin: 0 auto;
     }
 
-    @@media (min-width: 768px) {
-        .rz-layout main {
+    .brand {
+        font-size: 1.4rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .brand-icon {
+        font-size: 1.5rem;
+    }
+
+    .nav-links {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .nav-link {
+        color: rgba(255, 255, 255, 0.9);
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+
+    .nav-link:hover {
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+    }
+
+    .nav-link.active {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .modern-main {
+        padding: 1.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        min-height: calc(100vh - 60px);
+    }
+
+    .page-container {
+        animation: pageSlideIn 0.4s ease-out forwards;
+    }
+
+    @@keyframes pageSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .modern-header {
+            padding: 0.5rem 1rem;
+        }
+        
+        .brand {
+            font-size: 1.1rem;
+        }
+        
+        .nav-link {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.9rem;
+        }
+        
+        .modern-main {
             padding: 1rem;
         }
     }
 </style>
 
 <AppErrorBoundary>
-    <div class="rz-layout">
-        <header>
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <h5>PoCoupleQuiz</h5>
-            </div>
-        </header>
-        <main>
+    <header class="modern-header">
+        <div class="header-content">
+            <a href="/" class="brand" style="color: white; text-decoration: none;">
+                <span class="brand-icon">💕</span>
+                <span>PoCoupleQuiz</span>
+            </a>
+            <nav class="nav-links">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    🏠 Home
+                </NavLink>
+                <NavLink class="nav-link" href="leaderboard">
+                    🏆 Leaderboard
+                </NavLink>
+            </nav>
+        </div>
+    </header>
+    <main class="modern-main">
+        <div class="page-container">
             @Body
-        </main>
-    </div>
+        </div>
+    </main>
 </AppErrorBoundary>
-
-@code {
-    bool _drawerOpen = true;
-
-    void DrawerToggle()
-    {
-        _drawerOpen = !_drawerOpen;
-    }
-}

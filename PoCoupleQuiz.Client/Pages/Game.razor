@@ -82,12 +82,12 @@
     }
 </div>
 
-@* Floating Action Button for Next Round *@
+@* Next Round Button *@
 @if (currentGame != null && showResults && !currentGame.IsGameOver)
 {
-    <FloatingActionButton Icon="→" 
-                         Title="Next Round" 
-                         OnClick="@NextRound" />
+    <button class="next-round-fab" @onclick="NextRound" title="Next Round">
+        <span>→</span>
+    </button>
 }
 
 <style>
@@ -183,6 +183,38 @@
         
         .col-md-8, .col-md-4 {
             min-width: 100%;
+        }
+    }
+
+    .next-round-fab {
+        position: fixed;
+        bottom: 90px;
+        right: 20px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        cursor: pointer;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .next-round-fab:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+    }
+
+    @@media (min-width: 769px) {
+        .next-round-fab {
+            bottom: 30px;
         }
     }
 </style>

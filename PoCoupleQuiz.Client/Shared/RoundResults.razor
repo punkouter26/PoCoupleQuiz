@@ -1,27 +1,122 @@
 @using PoCoupleQuiz.Core.Models
 
-<div class="results-container mt-4">
-    <h5>Round Results</h5>
-    <div class="alert alert-success">
-        <strong>King's Answer:</strong> @KingAnswer
+<div class="results-container mt-4 state-transition">
+    <h5 class="results-header">🎉 Round Results</h5>
+    
+    <div class="king-answer-card">
+        <div class="answer-icon">👑</div>
+        <div class="answer-content">
+            <span class="answer-label">King's Answer</span>
+            <span class="answer-text">@KingAnswer</span>
+        </div>
     </div>
     
     @foreach (var playerAnswer in PlayerAnswers)
     {
         var isMatch = MatchedPlayers.Contains(playerAnswer.Key);
-        <div class="alert @(isMatch ? "alert-success" : "alert-warning")">
-            <strong>@playerAnswer.Key:</strong> @playerAnswer.Value 
-            @if (isMatch) { <span class="badge bg-success ms-2">✓ Match!</span> }
+        <div class="player-answer-card @(isMatch ? "match-animate" : "mismatch-animate") @(isMatch ? "matched" : "not-matched")">
+            <div class="answer-icon">@(isMatch ? "✅" : "❌")</div>
+            <div class="answer-content">
+                <span class="answer-label">@playerAnswer.Key</span>
+                <span class="answer-text">@playerAnswer.Value</span>
+            </div>
+            @if (isMatch)
+            {
+                <span class="match-badge">+10 pts</span>
+            }
         </div>
     }
     
-    <RadzenButton Click="OnNextRound" Text="Next Round" ButtonStyle="ButtonStyle.Primary" class="mt-3" />
+    <RadzenButton Click="OnNextRound" Text="Next Round →" ButtonStyle="ButtonStyle.Primary" class="mt-4 next-round-btn" />
 </div>
 
 <style>
     .results-container {
-        border-top: 2px solid #e0e0e0;
-        padding-top: 1rem;
+        padding-top: 1.5rem;
+    }
+    
+    .results-header {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #1e1b4b;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .king-answer-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        border: 2px solid #f59e0b;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+    }
+    
+    .player-answer-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .player-answer-card.matched {
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        border: 2px solid #10b981;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+    
+    .player-answer-card.not-matched {
+        background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+        border: 2px solid #f87171;
+        box-shadow: 0 4px 12px rgba(248, 113, 113, 0.15);
+    }
+    
+    .answer-icon {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+    
+    .answer-content {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+    
+    .answer-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .answer-text {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1e1b4b;
+    }
+    
+    .match-badge {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+    
+    .next-round-btn {
+        width: 100%;
+        padding: 0.875rem !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
     }
 </style>
 

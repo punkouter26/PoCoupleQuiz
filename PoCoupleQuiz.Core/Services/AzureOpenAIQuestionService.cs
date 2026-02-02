@@ -19,12 +19,14 @@ public class AzureOpenAIQuestionService : IQuestionService
 {
     private readonly AzureOpenAIClient _client;
     private readonly string _deploymentName;
-    private readonly IPromptBuilder _promptBuilder;
-    private readonly IQuestionCache _questionCache;
     private readonly ResiliencePipeline _resiliencePipeline;
     private readonly ILogger<AzureOpenAIQuestionService> _logger;
     private string _lastQuestion = string.Empty;
-    
+
+    // Inline cache (was IQuestionCache)
+    private readonly Dictionary<string, (Question Question, DateTime Timestamp)> _cache = new();
+    private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(10);
+
     private readonly string[] _fallbackQuestions =
     [
         "What is their favorite food?",
@@ -41,27 +43,23 @@ public class AzureOpenAIQuestionService : IQuestionService
     private readonly Random _random = new();
 
     /// <summary>
-    /// Initializes the Azure AI Foundry question service with injected dependencies.
+    /// Initializes the Azure AI Foundry question service.
     /// </summary>
     public AzureOpenAIQuestionService(
         IConfiguration configuration,
-        ILogger<AzureOpenAIQuestionService> logger,
-        IPromptBuilder promptBuilder,
-        IQuestionCache questionCache)
+        ILogger<AzureOpenAIQuestionService> logger)
     {
         _logger = logger;
-        _promptBuilder = promptBuilder;
-        _questionCache = questionCache;
 
         // Read from PoCoupleQuiz-prefixed config (Key Vault) or fallback to AzureOpenAI config
-        var endpoint = configuration["PoCoupleQuiz:AzureOpenAI:Endpoint"] 
-            ?? configuration["AzureOpenAI:Endpoint"] 
+        var endpoint = configuration["PoCoupleQuiz:AzureOpenAI:Endpoint"]
+            ?? configuration["AzureOpenAI:Endpoint"]
             ?? throw new ArgumentNullException("AzureOpenAI:Endpoint", "Azure OpenAI endpoint is required");
-        var key = configuration["PoCoupleQuiz:AzureOpenAI:ApiKey"] 
-            ?? configuration["AzureOpenAI:Key"] 
+        var key = configuration["PoCoupleQuiz:AzureOpenAI:ApiKey"]
+            ?? configuration["AzureOpenAI:Key"]
             ?? throw new ArgumentNullException("AzureOpenAI:Key", "Azure OpenAI API key is required");
-        _deploymentName = configuration["PoCoupleQuiz:AzureOpenAI:DeploymentName"] 
-            ?? configuration["AzureOpenAI:DeploymentName"] 
+        _deploymentName = configuration["PoCoupleQuiz:AzureOpenAI:DeploymentName"]
+            ?? configuration["AzureOpenAI:DeploymentName"]
             ?? throw new ArgumentNullException("AzureOpenAI:DeploymentName", "Azure OpenAI deployment name is required");
 
         _client = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
@@ -96,21 +94,20 @@ public class AzureOpenAIQuestionService : IQuestionService
     public async Task<Question> GenerateQuestionAsync(string? difficulty = null)
     {
         var normalizedDifficulty = difficulty ?? "medium";
-        var cacheKey = _questionCache.BuildCacheKey(normalizedDifficulty, _lastQuestion);
+        var cacheKey = $"question_{normalizedDifficulty}_{_lastQuestion ?? "none"}";
 
-        // Check cache first
-        var cachedQuestion = _questionCache.GetCachedQuestion(cacheKey);
-        if (cachedQuestion != null)
+        // Check cache first (inline cache logic)
+        if (_cache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow - cached.Timestamp < _cacheExpiration)
         {
-            _logger.LogDebug("Returning cached question: {QuestionText}", cachedQuestion.Text);
-            _lastQuestion = cachedQuestion.Text;
-            return cachedQuestion;
+            _logger.LogDebug("Returning cached question: {QuestionText}", cached.Question.Text);
+            _lastQuestion = cached.Question.Text;
+            return cached.Question;
         }
 
         try
         {
-            // Use injected PromptBuilder
-            var messages = _promptBuilder.BuildChatMessages(normalizedDifficulty, _lastQuestion);
+            // Inline prompt building (was IPromptBuilder)
+            var messages = BuildChatMessages(normalizedDifficulty, _lastQuestion);
 
             _logger.LogInformation("Generating question via Azure AI Foundry - Difficulty: {Difficulty}", normalizedDifficulty);
 
@@ -126,8 +123,8 @@ public class AzureOpenAIQuestionService : IQuestionService
             var questionText = response.Value.Content[0].Text.Trim();
             var question = new Question { Text = questionText, Category = QuestionCategory.Preferences };
 
-            // Cache the result
-            _questionCache.CacheQuestion(cacheKey, question);
+            // Cache the result (inline)
+            _cache[cacheKey] = (question, DateTime.UtcNow);
             _lastQuestion = questionText;
 
             _logger.LogInformation("Generated question: {QuestionText}", questionText);
@@ -179,7 +176,7 @@ public class AzureOpenAIQuestionService : IQuestionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error checking answer similarity via Azure AI Foundry");
-            
+
             // Fallback to simple substring matching
             return answer1.Contains(answer2, StringComparison.OrdinalIgnoreCase) ||
                    answer2.Contains(answer1, StringComparison.OrdinalIgnoreCase);
@@ -203,5 +200,34 @@ public class AzureOpenAIQuestionService : IQuestionService
         _lastQuestion = fallbackText;
         _logger.LogWarning("Using fallback question: {FallbackText}", fallbackText);
         return new Question { Text = fallbackText, Category = QuestionCategory.Preferences };
+    }
+
+    private static List<ChatMessage> BuildChatMessages(string difficulty, string? lastQuestion = null)
+    {
+        var messages = new List<ChatMessage>
+        {
+            new SystemChatMessage("You are a creative quiz game assistant. Generate fun, appropriate questions for couples to answer about each other. Questions should be light-hearted and suitable for all audiences.")
+        };
+
+        var difficultyPrompt = difficulty.ToLowerInvariant() switch
+        {
+            "easy" => "Generate a simple, straightforward question about basic preferences or daily habits. Examples: 'What is their favorite color?', 'What do they usually eat for breakfast?'",
+            "medium" => "Generate a moderately thoughtful question about interests, opinions, or memories. Examples: 'What is their dream vacation destination?', 'What movie could they watch over and over?'",
+            "hard" => "Generate a deeper question about values, aspirations, or specific memories. Examples: 'What is their biggest fear?', 'What childhood memory do they treasure most?'",
+            _ => "Generate a fun question about their preferences, habits, or interests."
+        };
+
+        messages.Add(new UserChatMessage(difficultyPrompt));
+
+        if (!string.IsNullOrEmpty(lastQuestion))
+        {
+            messages.Add(new UserChatMessage($"Generate a NEW question that is different from this one: '{lastQuestion}'. Make it creative and engaging."));
+        }
+        else
+        {
+            messages.Add(new UserChatMessage("Generate ONE creative question. Return ONLY the question text, nothing else."));
+        }
+
+        return messages;
     }
 }

@@ -1,0 +1,22 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#6366f1'}}}%%
+flowchart LR
+    subgraph Client["Client"]
+        UI["UI"]
+        Svc["Services"]
+        State["State"]
+    end
+
+    subgraph Server["Server"]
+        API["API"]
+        Logic["Logic"]
+    end
+
+    subgraph Cloud["Azure"]
+        DB[("Storage")]
+        AI["OpenAI"]
+    end
+
+    UI --> Svc --> API --> Logic
+    Logic --> DB
+    Logic --> AI
+    State --> UI

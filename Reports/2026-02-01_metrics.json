@@ -1,0 +1,86 @@
+{
+  "reportDate": "2026-02-01T00:00:00Z",
+  "reportType": "CodeQualityMetrics",
+  "version": "1.0.0",
+  "summary": {
+    "totalFiles": 45,
+    "totalLines": 4850,
+    "averageMaintainabilityIndex": 68,
+    "averageCyclomaticComplexity": 8,
+    "filesAboveComplexityThreshold": 2,
+    "filesBelowMaintainabilityThreshold": 2
+  },
+  "thresholds": {
+    "maintainabilityIndexMin": 60,
+    "cyclomaticComplexityMax": 15,
+    "depthOfInheritanceMax": 4
+  },
+  "highComplexityFiles": [
+    {
+      "file": "PoCoupleQuiz.Client/Pages/Game.razor",
+      "lines": 527,
+      "estimatedCyclomaticComplexity": 18,
+      "estimatedMaintainabilityIndex": 52,
+      "recommendation": "Split into KingPlayerView, GuessingPlayerView, RoundSummary components"
+    },
+    {
+      "file": "PoCoupleQuiz.Core/Services/AzureOpenAIQuestionService.cs",
+      "lines": 204,
+      "estimatedCyclomaticComplexity": 14,
+      "estimatedMaintainabilityIndex": 58,
+      "recommendation": "Consider extracting retry logic to separate class"
+    }
+  ],
+  "lowMaintainabilityFiles": [
+    {
+      "file": "PoCoupleQuiz.Client/Pages/Game.razor",
+      "maintainabilityIndex": 52,
+      "reason": "High line count (527) with mixed concerns"
+    },
+    {
+      "file": "PoCoupleQuiz.Core/Services/AzureOpenAIQuestionService.cs",
+      "maintainabilityIndex": 58,
+      "reason": "Complex retry and caching logic inline"
+    }
+  ],
+  "packageAudit": {
+    "totalPackages": 48,
+    "outdatedPackages": 0,
+    "securityVulnerabilities": 0,
+    "recentUpgrades": [
+      "OpenTelemetry 1.14.0 → 1.15.0 (7 packages)"
+    ]
+  },
+  "testCoverage": {
+    "totalTests": 151,
+    "passed": 146,
+    "skipped": 5,
+    "failed": 0,
+    "coverageEstimate": "75%"
+  },
+  "architectureMetrics": {
+    "projectCount": 6,
+    "depthOfInheritance": {
+      "max": 2,
+      "average": 1.2
+    },
+    "classCoupling": {
+      "highCouplingClasses": []
+    }
+  },
+  "delta": {
+    "comparedTo": null,
+    "maintainabilityChange": null,
+    "complexityChange": null,
+    "linesChanged": null,
+    "newIssues": [],
+    "resolvedIssues": []
+  },
+  "aiReadiness": {
+    "structuredLogging": true,
+    "openTelemetryEnabled": true,
+    "healthEndpointsJson": true,
+    "semanticConventions": "partial",
+    "analyticsEndpoint": false
+  }
+}

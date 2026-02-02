@@ -19,14 +19,10 @@ public class QuestionServiceIntegrationTests
         _configuration = TestConfiguration.GetConfiguration();
         _mockLogger = new Mock<ILogger<AzureOpenAIQuestionService>>();
         
-        // AzureOpenAIQuestionService now requires IPromptBuilder and IQuestionCache
-        var promptBuilder = new PromptBuilder();
-        var questionCache = new QuestionCache();
+        // AzureOpenAIQuestionService now has prompt building and caching inlined
         _questionService = new AzureOpenAIQuestionService(
             _configuration, 
-            _mockLogger.Object,
-            promptBuilder,
-            questionCache);
+            _mockLogger.Object);
     }
 
     [Fact(Skip = "Requires Azure OpenAI API Key and Endpoint. Remove Skip to run.")]

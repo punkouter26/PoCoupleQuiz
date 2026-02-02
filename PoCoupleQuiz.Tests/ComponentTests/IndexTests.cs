@@ -73,9 +73,9 @@ public class IndexTests : BunitContext
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert - Team name input + 3 player inputs = 4 total
+        // Assert - 3 player inputs only (no team name input)
         var inputs = cut.FindAll("input.form-control");
-        Assert.Equal(4, inputs.Count);
+        Assert.Equal(3, inputs.Count);
     }
 
     [Fact]
@@ -84,9 +84,9 @@ public class IndexTests : BunitContext
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert - Second input (index 1) is the first player input
+        // Assert - First input (index 0) is the King player input
         var playerInputs = cut.FindAll("input.form-control");
-        Assert.Equal("King", playerInputs[1].GetAttribute("placeholder"));
+        Assert.Equal("King", playerInputs[0].GetAttribute("placeholder"));
     }
 
     [Fact]
@@ -196,12 +196,11 @@ public class IndexTests : BunitContext
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert - First input is team name, then player inputs
+        // Assert - Only player inputs exist (King, Player 2, Player 3)
         var inputs = cut.FindAll("input.form-control");
-        Assert.Equal("Enter your team name", inputs[0].GetAttribute("placeholder"));
-        Assert.Equal("King", inputs[1].GetAttribute("placeholder"));
-        Assert.Equal("Player 2", inputs[2].GetAttribute("placeholder"));
-        Assert.Equal("Player 3", inputs[3].GetAttribute("placeholder"));
+        Assert.Equal("King", inputs[0].GetAttribute("placeholder"));
+        Assert.Equal("Player 2", inputs[1].GetAttribute("placeholder"));
+        Assert.Equal("Player 3", inputs[2].GetAttribute("placeholder"));
     }
 
     // Helper class for NavigationManager mock

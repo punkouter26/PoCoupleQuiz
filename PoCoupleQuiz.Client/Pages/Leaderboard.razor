@@ -4,56 +4,250 @@
 @inject ITeamService TeamService
 @inject NavigationManager NavigationManager
 
-<h3>Player Leaderboard</h3>
+<div class="leaderboard-page state-transition">
+    <div class="leaderboard-header">
+        <h1 class="leaderboard-title">🏆 Hall of Fame</h1>
+        <p class="leaderboard-subtitle">Top players who know their partners best</p>
+    </div>
 
-<div class="container mt-4">    @if (_isLoading)
-    {
-        <SkeletonLoader Type="leaderboard" />
-    }
-    else
-    {
-        @if (!_players.Any())
-        {            <div class="alert alert-info text-center">
-                <h4>No Players Yet!</h4>
-                <p>Be the first to play and appear on the leaderboard!</p>
-                <button class="btn btn-primary" @onclick="@(() => NavigationManager.NavigateTo("/"))">Start Playing</button>
-            </div>
+    <div class="container">
+        @if (_isLoading)
+        {
+            <SkeletonLoader Type="leaderboard" />
         }
         else
         {
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Player Name</th>
-                            <th>Correct %</th>
-                            <th>Questions Answered</th>
-                            <th>Correct Answers</th>
-                            <th>Last Played</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @{
-                            var rank = 1;
-                            foreach (var player in _players)
-                            {
-                                <tr>
-                                    <td>@rank</td>
-                                    <td>@player.Name</td>
-                                    <td>@player.CorrectPercentage.ToString("F1")%</td>
-                                    <td>@player.TotalQuestionsAnswered</td>
-                                    <td>@player.CorrectAnswers</td>
-                                    <td>@player.LastPlayed.ToLocalTime().ToString("g")</td>
-                                </tr>
-                                rank++;
-                            }
+            @if (!_players.Any())
+            {
+                <div class="empty-state">
+                    <div class="empty-icon">🎮</div>
+                    <h4>No Players Yet!</h4>
+                    <p>Be the first to play and claim the crown!</p>
+                    <button class="btn btn-primary btn-lg" @onclick="@(() => NavigationManager.NavigateTo("/"))">
+                        Start Playing →
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="leaderboard-list">
+                    @{
+                        var rank = 1;
+                        foreach (var player in _players)
+                        {
+                            var rankClass = rank <= 3 ? $"rank-{rank}" : "rank-other";
+                            <div class="leaderboard-card @rankClass state-transition" style="animation-delay: @(rank * 0.05)s">
+                                <div class="rank-section">
+                                    <span class="rank-badge">@GetRankDisplay(rank)</span>
+                                </div>
+                                <div class="player-section">
+                                    <span class="player-name">@player.Name</span>
+                                    <span class="player-meta">Last played @GetTimeAgo(player.LastPlayed)</span>
+                                </div>
+                                <div class="stats-section">
+                                    <div class="stat">
+                                        <span class="stat-value">@player.CorrectPercentage.ToString("F0")%</span>
+                                        <span class="stat-label">Accuracy</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-value">@player.CorrectAnswers</span>
+                                        <span class="stat-label">Correct</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-value">@player.TotalQuestionsAnswered</span>
+                                        <span class="stat-label">Total</span>
+                                    </div>
+                                </div>
+                                @if (rank <= 3)
+                                {
+                                    <div class="trophy-badge">@GetTrophyEmoji(rank)</div>
+                                }
+                            </div>
+                            rank++;
                         }
-                    </tbody>                </table>
-            </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<style>
+    .leaderboard-page {
+        min-height: calc(100vh - 80px);
+        padding: 2rem 1rem;
+    }
+    
+    .leaderboard-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+    
+    .leaderboard-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+    }
+    
+    .leaderboard-subtitle {
+        color: #6b7280;
+        font-size: 1.1rem;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state h4 {
+        color: #1e1b4b;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state p {
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+    
+    .leaderboard-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .leaderboard-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .leaderboard-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(99, 102, 241, 0.15);
+    }
+    
+    .leaderboard-card.rank-1 {
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border: 2px solid #f59e0b;
+    }
+    
+    .leaderboard-card.rank-2 {
+        background: linear-gradient(135deg, #f8fafc 0%, #e5e7eb 100%);
+        border: 2px solid #9ca3af;
+    }
+    
+    .leaderboard-card.rank-3 {
+        background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+        border: 2px solid #f97316;
+    }
+    
+    .rank-section {
+        flex-shrink: 0;
+    }
+    
+    .rank-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        font-size: 1.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+    }
+    
+    .rank-1 .rank-badge { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .rank-2 .rank-badge { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }
+    .rank-3 .rank-badge { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+    
+    .player-section {
+        flex-grow: 1;
+        min-width: 0;
+    }
+    
+    .player-name {
+        display: block;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1e1b4b;
+    }
+    
+    .player-meta {
+        font-size: 0.85rem;
+        color: #9ca3af;
+    }
+    
+    .stats-section {
+        display: flex;
+        gap: 1.5rem;
+    }
+    
+    .stat {
+        text-align: center;
+    }
+    
+    .stat-value {
+        display: block;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #6366f1;
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .trophy-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        font-size: 2rem;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    }
+    
+    @@media (max-width: 640px) {
+        .stats-section {
+            display: none;
+        }
+        
+        .leaderboard-card {
+            padding: 1rem;
+        }
+        
+        .rank-badge {
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
         }
     }
-</div>
+</style>
 
 @code {
     private IEnumerable<Team> _players = Array.Empty<Team>();
@@ -71,7 +265,8 @@
                 .ThenByDescending(t => t.TotalQuestionsAnswered)
                 .Take(10)
                 .ToList();
-        }        catch (Exception)
+        }
+        catch (Exception)
         {
             // Handle error - could add error state here
             _players = Array.Empty<Team>();
@@ -81,5 +276,30 @@
             _isLoading = false;
             StateHasChanged();
         }
+    }
+    
+    private string GetRankDisplay(int rank) => rank switch
+    {
+        1 => "🥇",
+        2 => "🥈",
+        3 => "🥉",
+        _ => rank.ToString()
+    };
+    
+    private string GetTrophyEmoji(int rank) => rank switch
+    {
+        1 => "👑",
+        2 => "⭐",
+        3 => "✨",
+        _ => ""
+    };
+    
+    private string GetTimeAgo(DateTimeOffset lastPlayed)
+    {
+        var diff = DateTimeOffset.UtcNow - lastPlayed;
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+        return lastPlayed.ToLocalTime().ToString("MMM d");
     }
 }

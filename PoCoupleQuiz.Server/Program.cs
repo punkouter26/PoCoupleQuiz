@@ -95,6 +95,21 @@ namespace PoCoupleQuiz.Server
                 builder.Services.AddControllersWithViews();
                 builder.Services.AddRazorPages();
                 builder.Services.AddOpenApi();
+                
+                // Add Swagger/OpenAPI with UI
+                builder.Services.AddEndpointsApiExplorer();
+                builder.Services.AddSwaggerGen(options =>
+                {
+                    options.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
+                    {
+                        Title = "PoCoupleQuiz API",
+                        Version = "v1",
+                        Description = "Interactive quiz game API for couples and friends"
+                    });
+                });
+
+                // Add SignalR for real-time features
+                builder.Services.AddSignalR();
 
                 // Add health checks using extension method
                 builder.Services.AddHealthCheckConfiguration(builder.Configuration);
@@ -102,9 +117,8 @@ namespace PoCoupleQuiz.Server
                 // Add HTTP context accessor for telemetry enrichment
                 builder.Services.AddHttpContextAccessor();
 
-                // Add Application Insights with custom telemetry initializer
+                // Add Application Insights
                 builder.Services.AddApplicationInsightsTelemetry();
-                builder.Services.AddSingleton<Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer, PoCoupleQuiz.Server.Telemetry.CustomTelemetryInitializer>();
 
                 // Configure OpenTelemetry using extension method
                 builder.Services.AddOpenTelemetryConfiguration(
@@ -126,6 +140,15 @@ namespace PoCoupleQuiz.Server
                     Log.Information("Development environment detected, enabling WebAssembly debugging and OpenAPI");
                     app.UseWebAssemblyDebugging();
                     app.MapOpenApi();
+                    
+                    // Enable Swagger UI in development
+                    app.UseSwagger();
+                    app.UseSwaggerUI(options =>
+                    {
+                        options.SwaggerEndpoint("/swagger/v1/swagger.json", "PoCoupleQuiz API v1");
+                        options.RoutePrefix = "swagger";
+                        options.DocumentTitle = "PoCoupleQuiz API Explorer";
+                    });
                 }
                 else
                 {
@@ -137,9 +160,6 @@ namespace PoCoupleQuiz.Server
 
                 // Add global exception handling middleware
                 app.UseMiddleware<GlobalExceptionMiddleware>();
-
-                // Add custom telemetry middleware for performance tracking
-                app.UseTelemetryMiddleware();
 
                 // Configure Serilog request logging
                 app.UseSerilogRequestLogging(options =>
@@ -178,18 +198,34 @@ namespace PoCoupleQuiz.Server
                     ResponseWriter = async (context, report) =>
                     {
                         context.Response.ContentType = "application/json";
+                        var assembly = typeof(Program).Assembly;
+                        var version = assembly.GetName().Version?.ToString() ?? "1.0.0";
+                        var buildDate = System.IO.File.GetLastWriteTimeUtc(assembly.Location).ToString("o");
+                        
                         var result = System.Text.Json.JsonSerializer.Serialize(new
                         {
                             status = report.Status.ToString(),
+                            version = version,
+                            buildDate = buildDate,
+                            environment = app.Environment.EnvironmentName,
+                            machineName = Environment.MachineName,
+                            timestamp = DateTime.UtcNow.ToString("o"),
                             checks = report.Entries.Select(e => new
                             {
                                 name = e.Key,
                                 status = e.Value.Status.ToString(),
                                 description = e.Value.Description,
                                 duration = e.Value.Duration.TotalMilliseconds,
+                                tags = e.Value.Tags.ToArray(),
                                 exception = e.Value.Exception?.Message
                             }),
-                            totalDuration = report.TotalDuration.TotalMilliseconds
+                            totalDuration = report.TotalDuration.TotalMilliseconds,
+                            aiMetadata = new
+                            {
+                                serviceName = "PoCoupleQuiz",
+                                aspireVersion = "13.1.0",
+                                runtimeVersion = Environment.Version.ToString()
+                            }
                         });
                         await context.Response.WriteAsync(result);
                     }
@@ -201,6 +237,9 @@ namespace PoCoupleQuiz.Server
 
                 app.MapRazorPages();
                 app.MapControllers();
+                
+                // Map SignalR hub for real-time game updates
+                app.MapHub<Hubs.GameHub>("/hubs/game");
                 
                 // Map Aspire default endpoints (health, alive)
                 app.MapDefaultEndpoints();

@@ -84,7 +84,8 @@ test.describe('Home Page', () => {
     }
     
     // Wait for the header specifically - this is the key element in MainLayout
-    const header = page.locator('header h5, .rz-layout header h5');
+    // Using .brand class which is more stable than element selectors
+    const header = page.locator('header.modern-header .brand, header .brand');
     await expect(header.first()).toBeVisible({ timeout: 20000 });
     
     // Verify the header contains the app name

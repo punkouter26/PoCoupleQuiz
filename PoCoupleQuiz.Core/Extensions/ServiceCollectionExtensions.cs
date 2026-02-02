@@ -34,8 +34,6 @@ public static class ServiceCollectionExtensions
         // Register Phase 2 refactored services
         services.AddScoped<IGameTurnManager, GameTurnManager>();
         services.AddScoped<IGameScoringService, GameScoringService>();
-        services.AddSingleton<IPromptBuilder, PromptBuilder>();
-        services.AddSingleton<IQuestionCache, QuestionCache>();
 
         return services;
     }

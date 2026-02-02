@@ -19,6 +19,9 @@ public static class ClientServiceExtensions
         // Note: This will make HTTP calls to the server's API
         services.AddScoped<IQuestionService, HttpQuestionService>();
 
+        // SignalR service for real-time game updates
+        services.AddScoped<IGameHubService, GameHubService>();
+
         return services;
     }
 }

@@ -7,7 +7,7 @@
     "watch-diagrams": "mmdc -i diagrams/*.mmd -o diagrams/ -t default -b transparent -w"
   },
   "devDependencies": {
-    "@mermaid-js/mermaid-cli": "^11.4.1"
+    "@mermaid-js/mermaid-cli": "^11.12.0"
   },
   "keywords": [
     "documentation",

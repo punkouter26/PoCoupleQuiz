@@ -23,9 +23,9 @@ public class ScoreboardDisplayTests : BunitContext
         var cut = Render<ScoreboardDisplay>(parameters => parameters
             .Add(p => p.Scoreboard, new Dictionary<string, int>()));
 
-        // Assert
+        // Assert - Updated text to match UI/UX refresh
         var paragraph = cut.Find("p");
-        Assert.Contains("No scores to display", paragraph.TextContent);
+        Assert.Contains("No scores yet", paragraph.TextContent);
     }
 
     [Fact]
@@ -169,8 +169,8 @@ public class ScoreboardDisplayTests : BunitContext
         var cut = Render<ScoreboardDisplay>(parameters => parameters
             .Add(p => p.Scoreboard, scoreboard));
 
-        // Assert
-        var header = cut.Find("h4");
-        Assert.Equal("Current Scores", header.TextContent);
+        // Assert - Updated text to match UI/UX refresh
+        var header = cut.Find("h4.scoreboard-header");
+        Assert.Contains("Scoreboard", header.TextContent);
     }
 }

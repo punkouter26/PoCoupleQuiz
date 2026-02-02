@@ -1,0 +1,82 @@
+// User Journey Funnel Analysis
+// Tracks complete game flow from start to finish
+// Identifies drop-off points and conversion rates
+
+// Define game flow stages
+let FunnelStages = datatable(Stage:int, StageName:string, EndpointPattern:string) [
+    1, "Home Page Load", "GET /",
+    2, "Team Registration", "POST /api/teams",
+    3, "Start Game (Generate Question)", "POST /api/questions/generate",
+    4, "Answer Submitted", "PUT /api/teams/.*/stats",
+    5, "Answer Similarity Check", "POST /api/questions/check-similarity",
+    6, "Game Completed (History Saved)", "POST /api/game-history"
+];
+
+// Track user journeys through funnel
+let UserJourneys = 
+    requests
+    | where timestamp > ago(24h)
+    | extend 
+        SessionId = coalesce(
+            tostring(customDimensions["TeamName"]),
+            tostring(session_Id),
+            client_IP
+        )
+    | where isnotempty(SessionId);
+
+// Count users at each stage
+let Stage1 = UserJourneys | where name matches regex "GET /" or name == "" | summarize Stage1_Users = dcount(SessionId);
+let Stage2 = UserJourneys | where name contains "POST /api/teams" and not(name contains "stats") | summarize Stage2_Users = dcount(SessionId);
+let Stage3 = UserJourneys | where name == "POST /api/questions/generate" | summarize Stage3_Users = dcount(SessionId);
+let Stage4 = UserJourneys | where name matches regex "PUT /api/teams/.*/stats" | summarize Stage4_Users = dcount(SessionId);
+let Stage5 = UserJourneys | where name == "POST /api/questions/check-similarity" | summarize Stage5_Users = dcount(SessionId);
+let Stage6 = UserJourneys | where name == "POST /api/game-history" | summarize Stage6_Users = dcount(SessionId);
+
+// Build funnel
+Stage1 | extend dummy = 1
+| join kind=inner (Stage2 | extend dummy = 1) on dummy
+| join kind=inner (Stage3 | extend dummy = 1) on dummy
+| join kind=inner (Stage4 | extend dummy = 1) on dummy
+| join kind=inner (Stage5 | extend dummy = 1) on dummy
+| join kind=inner (Stage6 | extend dummy = 1) on dummy
+| project-away dummy*
+| extend 
+    Funnel = pack_array(
+        pack("Stage", "1. Home Page", "Users", Stage1_Users, "Rate", 100.0),
+        pack("Stage", "2. Team Registration", "Users", Stage2_Users, "Rate", round(100.0 * Stage2_Users / Stage1_Users, 1)),
+        pack("Stage", "3. Start Game", "Users", Stage3_Users, "Rate", round(100.0 * Stage3_Users / Stage1_Users, 1)),
+        pack("Stage", "4. Submit Answer", "Users", Stage4_Users, "Rate", round(100.0 * Stage4_Users / Stage1_Users, 1)),
+        pack("Stage", "5. Check Similarity", "Users", Stage5_Users, "Rate", round(100.0 * Stage5_Users / Stage1_Users, 1)),
+        pack("Stage", "6. Complete Game", "Users", Stage6_Users, "Rate", round(100.0 * Stage6_Users / Stage1_Users, 1))
+    )
+| mv-expand Funnel
+| project 
+    Stage = tostring(Funnel["Stage"]),
+    UniqueUsers = toint(Funnel["Users"]),
+    ConversionRate = todouble(Funnel["Rate"]);
+
+// Alternative: Step-by-step drop-off analysis
+requests
+| where timestamp > ago(24h)
+| extend Stage = case(
+    name matches regex "GET /", 1,
+    name contains "POST /api/teams" and not(name contains "stats"), 2,
+    name == "POST /api/questions/generate", 3,
+    name matches regex "PUT /api/teams/.*/stats", 4,
+    name == "POST /api/questions/check-similarity", 5,
+    name == "POST /api/game-history", 6,
+    0
+)
+| where Stage > 0
+| summarize MaxStageReached = max(Stage) by session_Id
+| summarize UsersReachingStage = count() by MaxStageReached
+| order by MaxStageReached asc
+| extend StageName = case(
+    MaxStageReached == 1, "Dropped at Home",
+    MaxStageReached == 2, "Dropped at Registration", 
+    MaxStageReached == 3, "Dropped at First Question",
+    MaxStageReached == 4, "Dropped During Game",
+    MaxStageReached == 5, "Dropped Near End",
+    MaxStageReached == 6, "Completed Game",
+    "Unknown"
+)

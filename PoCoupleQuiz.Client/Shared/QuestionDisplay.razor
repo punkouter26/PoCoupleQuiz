@@ -45,55 +45,100 @@
 <style>
     .question-container {
         width: 100%;
+        animation: fadeSlide 0.3s ease-out;
     }
     
     .question-text {
-        color: #1b6ec2;
-        font-size: 1.5rem;
-        font-weight: 600;
+        font-size: 1.75rem;
+        font-weight: 700;
         margin-bottom: 30px;
-        padding: 20px;
-        background: linear-gradient(135deg, #e7f3ff 0%, #f8f9fa 100%);
-        border-radius: 12px;
-        border-left: 4px solid #1b6ec2;
+        padding: 24px 28px;
+        background: linear-gradient(135deg, #f0f4ff 0%, #e8f4fd 50%, #fdf4ff 100%);
+        border-radius: 16px;
+        border-left: 5px solid;
+        border-image: linear-gradient(180deg, #667eea 0%, #764ba2 100%) 1;
         text-align: center;
+        position: relative;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
+    }
+    
+    .question-text::before {
+        content: '"';
+        position: absolute;
+        top: 10px;
+        left: 15px;
+        font-size: 3rem;
+        color: rgba(102, 126, 234, 0.2);
+        font-family: Georgia, serif;
+        line-height: 1;
+    }
+    
+    .question-text::after {
+        content: '"';
+        position: absolute;
+        bottom: 0;
+        right: 15px;
+        font-size: 3rem;
+        color: rgba(102, 126, 234, 0.2);
+        font-family: Georgia, serif;
+        line-height: 1;
+    }
+    
+    /* Gradient text effect for question */
+    .question-text {
+        background-clip: text;
+        -webkit-background-clip: initial;
+        color: #4338ca;
     }
     
     .king-interface, .player-interface {
         padding: 25px;
-        border-radius: 12px;
+        border-radius: 16px;
         background: #ffffff;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
     }
     
     .king-interface {
-        border: 2px solid #ffc107;
-        background: linear-gradient(135deg, #fffbf0 0%, #ffffff 100%);
+        border: 2px solid #f59e0b;
+        background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
     }
     
     .player-interface {
-        border: 2px solid #1b6ec2;
-        background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
+        border: 2px solid #6366f1;
+        background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
     }
     
     .king-interface h5,
     .player-interface h5 {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin-bottom: 10px;
-        color: #495057;
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: #1e1b4b;
     }
     
     .king-interface p,
     .player-interface p {
-        color: #6c757d;
+        color: #6b7280;
         margin-bottom: 20px;
-        font-size: 1rem;
+        font-size: 1.05rem;
     }
     
     /* Answer input section */
     .answer-input-section {
         margin-bottom: 1rem;
+    }
+    
+    @@media (max-width: 768px) {
+        .question-text {
+            font-size: 1.3rem;
+            padding: 20px;
+        }
+        
+        .question-text::before,
+        .question-text::after {
+            font-size: 2rem;
+        }
     }
 </style>
 

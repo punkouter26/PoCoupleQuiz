@@ -8,16 +8,17 @@
 - **Multi-player Support**: Supports 2+ players with one designated "King Player"
 - **Dynamic Question Categories**: Questions spanning relationships, hobbies, childhood, future, preferences, and values
 - **Difficulty Levels**: Easy (3 rounds), Medium (5 rounds), Hard (7 rounds)
-- **Real-time Scoring**: Live scoreboard with player rankings
+- **Real-time Scoring**: Live scoreboard with player rankings and animations
 - **Game Statistics**: Track accuracy, games played, and performance over time
-- **Responsive Design**: Optimized for desktop and mobile devices
-- **Azure Integration**: Cloud-hosted with Azure Table Storage for data persistence
+- **Responsive Design**: Optimized for desktop and mobile devices with modern 2026 UI
+- **Azure Integration**: Cloud-hosted with Azure Table Storage, OpenAI, and Application Insights
 
 ### Architecture
-- **Frontend**: Blazor WebAssembly for interactive UI
-- **Backend**: .NET 9 Web API with clean architecture principles
+- **Frontend**: Blazor WebAssembly with Radzen components
+- **Backend**: .NET 10 Web API with Vertical Slice Architecture
 - **Database**: Azure Table Storage (Azurite for local development)
-- **Deployment**: Azure App Service with CI/CD via GitHub Actions
+- **AI**: Azure OpenAI GPT-4o for question generation and answer matching
+- **Deployment**: Azure Container Apps via .NET Aspire 13.1.0
 
 ## UI Pages & Components
 
@@ -26,40 +27,32 @@
 #### 1. Home Page (`Index.razor`)
 - **Purpose**: Main landing page and game setup
 - **Components**:
-  - Welcome message and game description
+  - Welcome message with gradient branding
   - Player registration form
-  - Difficulty selection
-  - "Start Game" button
-  - Navigation to other pages
+  - Difficulty selection (Easy/Medium/Hard)
+  - "Start Game" button with hover animations
+  - Navigation to Leaderboard
 
 #### 2. Game Page (`Game.razor`)
 - **Purpose**: Main gameplay interface
 - **Components**:
-  - Current question display
-  - King player indicator
+  - QuestionDisplay - Shows current question with typography styling
+  - King player indicator with crown emoji
   - Answer input forms for guessing players
   - Round progress indicator
-  - Real-time scoring updates
-  - Timer component for each round
-  - Submit answers functionality
+  - ScoreboardDisplay - Real-time scoring with progress bars
+  - RoundResults - Match/mismatch animations with icons
 
 #### 3. Leaderboard Page (`Leaderboard.razor`)
-- **Purpose**: Display current game scores and rankings
+- **Purpose**: Display global player rankings
 - **Components**:
-  - ScoreboardDisplay component
-  - Player rankings table
-  - Current round information
-  - Game progress visualization
+  - Hall of Fame header with gradient styling
+  - Rank badges (🥇🥈🥉) for top 3
+  - Trophy decorations (👑⭐✨)
+  - Player cards with accuracy stats
+  - Time-ago formatting for last played
 
-#### 4. Statistics Page (`Statistics.razor`)
-- **Purpose**: Historical game data and player analytics
-- **Components**:
-  - Player accuracy statistics
-  - Games played history
-  - Performance trends
-  - Category-based analysis
-
-#### 5. Diagnostics Page (`Diag.razor`)
+#### 4. Diagnostics Page (`Diag.razor`)
 - **Purpose**: System health monitoring and troubleshooting
 - **Components**:
   - Azure Table Storage connection status
@@ -72,49 +65,53 @@
 #### 1. MainLayout (`MainLayout.razor`)
 - **Purpose**: Application shell and navigation
 - **Features**:
-  - Responsive navigation menu
-  - Consistent header/footer
-  - Mobile-friendly hamburger menu
+  - Modern gradient header (sticky positioning)
+  - Inline navigation links (Home, Leaderboard)
+  - Brand icon with heart emoji
+  - No sidebar (removed for cleaner design)
 
-#### 2. ScoreboardDisplay (`ScoreboardDisplay.razor`)
-- **Purpose**: Reusable scoring component
+#### 2. QuestionDisplay (`QuestionDisplay.razor`)
+- **Purpose**: Display questions with enhanced typography
 - **Features**:
-  - Player score visualization
-  - Ranking indicators
-  - Real-time updates
+  - Gradient text styling
+  - Decorative quotation marks (::before/::after)
+  - 1.75rem font size for readability
+  - Box shadow and rounded corners
 
-#### 3. GameTimer (`GameTimer.razor`)
-- **Purpose**: Round timing functionality
+#### 3. ScoreboardDisplay (`ScoreboardDisplay.razor`)
+- **Purpose**: Real-time scoring visualization
 - **Features**:
-  - Countdown timer
-  - Visual progress indicator
-  - Auto-submission on timeout
+  - Rank emojis (🥇🥈🥉)
+  - Progress bars showing relative scores
+  - +Points gained indicators with animations
+  - Haptic feedback on mobile (score increase)
+  - Score increase animation (scale pulse)
 
-#### 4. LoadingState (`LoadingState.razor`)
-- **Purpose**: Loading indicators and state management
+#### 4. RoundResults (`RoundResults.razor`)
+- **Purpose**: Show round outcome with feedback
 - **Features**:
-  - Spinner animations
-  - Progress messages
-  - Error handling
+  - ✅/❌ icons for match/mismatch
+  - Match celebration animation (pulse)
+  - Mismatch shake animation
+  - +10 pts badge for correct matches
+  - King's answer highlight (gold theme)
 
-#### 5. NavMenu (`NavMenu.razor`)
-- **Purpose**: Application navigation
-- **Features**:
-  - Route-based highlighting
-  - Responsive design
-  - Quick access to all pages
+#### 5. SkeletonLoader (`SkeletonLoader.razor`)
+- **Purpose**: Loading state placeholders
+- **Types**: question, leaderboard, game
+- **Features**: Shimmer animation, consistent sizing
 
 #### 6. AppErrorBoundary (`AppErrorBoundary.razor`)
 - **Purpose**: Global error handling
 - **Features**:
   - Graceful error display
-  - Error reporting
-  - Recovery options
+  - Error logging to Application Insights
+  - Recovery button
 
 ### Technical Requirements
 - **Responsive Design**: Must work on screens 320px and larger
 - **Performance**: Page load times under 3 seconds
-- **Accessibility**: WCAG 2.1 AA compliance
+- **Accessibility**: WCAG 2.1 AA compliance goals
 - **Browser Support**: Chrome, Firefox, Safari, Edge (latest 2 versions)
-- **Real-time Updates**: WebSocket or SignalR integration for live scoring
-- **Offline Capability**: Service worker for basic offline functionality
+- **Animations**: CSS keyframes for state transitions (pageSlideIn, fadeSlide)
+- **Color Palette**: Indigo primary (#6366f1), Pink accent (#ec4899)

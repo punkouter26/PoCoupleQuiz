@@ -1,0 +1,44 @@
+# PoCoupleQuiz - Copilot Ignore Configuration
+# Exclude build outputs and dependencies from AI context
+
+# Build outputs
+bin/
+obj/
+out/
+dist/
+publish/
+
+# Node modules
+node_modules/
+e2e-tests/node_modules/
+docs/node_modules/
+
+# Test results
+TestResults/
+test-results/
+coverage/
+*.trx
+
+# IDE and tooling
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Generated files
+*.g.cs
+*.designer.cs
+wwwroot/lib/
+
+# Package caches
+packages/
+.nuget/
+
+# Infrastructure outputs
+infra/.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Logs
+logs/
+*.log

@@ -1,0 +1,70 @@
+{
+  "projectName": "PoCoupleQuiz",
+  "lastUpdated": "2026-02-01T21:20:00Z",
+  "runtime": ".NET 10.0.2",
+  "aspireVersion": "10.1.0",
+  "health": {
+    "buildStatus": "GREEN",
+    "unitTestsPassed": 73,
+    "unitTestsFailed": 0,
+    "integrationTestsPassed": 91,
+    "integrationTestsFailed": 0,
+    "skippedTests": 5,
+    "compileErrors": 0,
+    "compileWarnings": 0,
+    "formattingIssues": 0
+  },
+  "metrics": {
+    "totalSourceFiles": 85,
+    "csharpFiles": 69,
+    "razorComponents": 16,
+    "linesOfCode": 7417,
+    "totalTests": 169,
+    "outdatedPackages": 0,
+    "todoComments": 0,
+    "projectCount": 6
+  },
+  "technicalDebt": {
+    "score": 92,
+    "resolved": [
+      "Updated 18 outdated NuGet packages",
+      "Fixed 4 whitespace formatting violations",
+      "Fixed 4 failing component tests",
+      "Updated deprecated Testcontainers API",
+      "Upgraded Radzen.Blazor 8.1.8 → 8.7.4",
+      "Upgraded bunit 2.0.22-preview → 2.5.3 stable"
+    ],
+    "remaining": [
+      "5 skipped tests (require Azure OpenAI credentials or specific environment)"
+    ]
+  },
+  "modernization": {
+    "score": 95,
+    "strengths": [
+      ".NET 10 LTS with latest Aspire 10.1.0",
+      "Vertical Slice Architecture implemented",
+      "OpenTelemetry + Serilog structured logging",
+      "Central Package Management enabled",
+      "Azure Key Vault integration",
+      "All packages at latest versions",
+      ".copilotignore configured for AI context optimization"
+    ]
+  },
+  "tuningSequence": {
+    "completed": ["PoTuneClean1", "PoTuneMetric2"],
+    "next": "PoTuneBestPractice3",
+    "remaining": ["PoTuneUiUx4", "PoTuneDocs5"]
+  },
+  "artifacts": {
+    "metricsFile": "Metrics.txt",
+    "copilotIgnore": ".copilotignore",
+    "adrs": [
+      "docs/adr/001-use-serilog-for-structured-logging.md",
+      "docs/adr/002-use-azure-table-storage.md",
+      "docs/adr/003-use-key-vault-references-for-secrets.md",
+      "docs/adr/004-use-radzen-blazor-components.md",
+      "docs/adr/005-use-vertical-slice-architecture.md",
+      "docs/adr/006-upgrade-to-dotnet-10.md"
+    ]
+  }
+}

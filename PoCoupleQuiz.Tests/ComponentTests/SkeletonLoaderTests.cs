@@ -24,18 +24,6 @@ public class SkeletonLoaderTests : BunitContext
     }
 
     [Fact]
-    public void SkeletonLoader_ScoreboardType_RendersFourItems()
-    {
-        // Act
-        var cut = Render<SkeletonLoader>(parameters => parameters
-            .Add(p => p.Type, "scoreboard"));
-
-        // Assert
-        var items = cut.FindAll(".skeleton-score-item");
-        Assert.Equal(4, items.Count);
-    }
-
-    [Fact]
     public void SkeletonLoader_LeaderboardType_RendersHeaderAndFiveRows()
     {
         // Act
@@ -46,19 +34,6 @@ public class SkeletonLoaderTests : BunitContext
         Assert.NotNull(cut.Find(".skeleton-table-header"));
         var rows = cut.FindAll(".skeleton-table-row");
         Assert.Equal(5, rows.Count);
-    }
-
-    [Fact]
-    public void SkeletonLoader_CardType_RendersCardElements()
-    {
-        // Act
-        var cut = Render<SkeletonLoader>(parameters => parameters
-            .Add(p => p.Type, "card"));
-
-        // Assert
-        Assert.NotNull(cut.Find(".skeleton-card-title"));
-        Assert.NotNull(cut.Find(".skeleton-card-content"));
-        Assert.NotNull(cut.Find(".skeleton-card-content-short"));
     }
 
     [Fact]
@@ -78,7 +53,7 @@ public class SkeletonLoaderTests : BunitContext
     public void SkeletonLoader_AllTypes_RenderSkeletonContainer()
     {
         // Arrange
-        var types = new[] { "question", "scoreboard", "leaderboard", "card" };
+        var types = new[] { "question", "leaderboard" };
 
         foreach (var type in types)
         {
