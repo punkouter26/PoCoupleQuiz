@@ -119,13 +119,14 @@ jobs:
           EXISTS=$(az containerapp show --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query name -o tsv 2>/dev/null || echo "")
           
           IMAGE="${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          CAE_ID="/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_SHARED_RG }}/providers/Microsoft.App/managedEnvironments/${{ env.CONTAINER_APP_ENV }}"
           
           if [ -z "$EXISTS" ]; then
             echo "Creating new Container App..."
             az containerapp create \
               --name ${{ env.CONTAINER_APP_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --environment ${{ env.CONTAINER_APP_ENV }} \
+              --environment "$CAE_ID" \
               --image $IMAGE \
               --registry-server ${{ env.REGISTRY_NAME }}.azurecr.io \
               --registry-username ${{ steps.acr-creds.outputs.username }} \
