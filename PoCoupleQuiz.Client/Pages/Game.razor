@@ -484,7 +484,9 @@
         {
             if (currentGame == null) return;
             
-            foreach (var player in currentGame.Players)
+            // Only update stats for guessing players, not the King Player
+            // The King Player provides answers but doesn't participate in guessing
+            foreach (var player in currentGame.Players.Where(p => !p.IsKingPlayer))
             {
                 // Calculate questions answered and correct answers for this player
                 // Each correct answer awards PointsPerCorrectAnswer points, so divide score to get count

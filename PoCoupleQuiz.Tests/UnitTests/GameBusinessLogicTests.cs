@@ -120,4 +120,30 @@ public class GameBusinessLogicTests
         Assert.Contains(25, orderedScores);
         Assert.Contains(20, orderedScores);
     }
+
+    [Fact]
+    public void GetScoreboard_ExcludesKingPlayer_OnlyShowsGuessingPlayers()
+    {
+        // Arrange - King Player should not appear on scoreboard
+        var game = new Game
+        {
+            Players = new List<Player>
+            {
+                new Player { Name = "King Player", Score = 0, IsKingPlayer = true },
+                new Player { Name = "Player 2", Score = 30, IsKingPlayer = false },
+                new Player { Name = "Player 3", Score = 20, IsKingPlayer = false }
+            }
+        };
+
+        // Act
+        var scoreboard = game.GetScoreboard();
+
+        // Assert - Only guessing players should be on the scoreboard
+        Assert.Equal(2, scoreboard.Count);
+        Assert.False(scoreboard.ContainsKey("King Player"));
+        Assert.True(scoreboard.ContainsKey("Player 2"));
+        Assert.True(scoreboard.ContainsKey("Player 3"));
+        Assert.Equal(30, scoreboard["Player 2"]);
+        Assert.Equal(20, scoreboard["Player 3"]);
+    }
 }
