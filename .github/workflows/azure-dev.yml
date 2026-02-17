@@ -126,12 +126,11 @@ jobs:
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
             echo "Deployment attempt $ATTEMPT/$MAX_ATTEMPTS"
 
-            if az webapp deploy \
+            if az webapp deployment source config-zip \
               --name ${{ env.APP_SERVICE_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --src-path ./app-package.zip \
-              --type zip \
-              --track-status true; then
+              --src ./app-package.zip \
+              --timeout 600; then
               echo "Deployment succeeded on attempt $ATTEMPT"
               break
             fi
