@@ -1,4 +1,4 @@
-# Build and Deploy .NET Blazor Web App to Azure App Service
+# Build and Deploy .NET 10 Blazor Web App to Azure App Service
 name: Build and Deploy to App Service
 
 on:
@@ -42,7 +42,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Run Unit Tests
-        run: dotnet test --no-build --configuration Release --filter "Category=Unit" --verbosity normal || true
+        run: dotnet test --no-build --configuration Release --filter "Category=Unit" --verbosity normal
 
       - name: Publish
         run: dotnet publish PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj --configuration Release --output ./publish
@@ -72,94 +72,88 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Create Web App (if not exists)
+      - name: Ensure App Service exists with .NET 10
         run: |
           PLAN_ID="/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_SHARED_RG }}/providers/Microsoft.Web/serverfarms/${{ env.APP_SERVICE_PLAN }}"
           
-          az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || \
-          az webapp create \
+          if ! az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} &>/dev/null; then
+            az webapp create \
+              --name ${{ env.APP_SERVICE_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --plan $PLAN_ID \
+              --runtime "DOTNETCORE:10.0"
+          fi
+          
+          # Ensure runtime is .NET 10
+          az webapp config set \
             --name ${{ env.APP_SERVICE_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --plan $PLAN_ID \
-            --runtime "DOTNETCORE:8.0"
+            --linux-fx-version "DOTNETCORE|10.0"
 
-      - name: Package deployment bundle
+      - name: Deploy to App Service
         run: |
           cd ./publish
           zip -r ../publish-app.zip .
-
-      - name: Deploy to App Service (with retry)
-        run: |
-          for attempt in {1..5}; do
-            echo "Deploy attempt $attempt/5"
-
+          cd ..
+          
+          for attempt in {1..3}; do
+            echo "Deploy attempt $attempt/3"
             if az webapp deploy \
               --name ${{ env.APP_SERVICE_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
               --src-path ./publish-app.zip \
-              --type zip; then
-              echo "✅ Deployment succeeded"
+              --type zip \
+              --clean true; then
+              echo "Deployment succeeded"
               break
             fi
-
-            if [ "$attempt" -eq 5 ]; then
-              echo "❌ Deployment failed after 5 attempts"
+            if [ "$attempt" -eq 3 ]; then
+              echo "Deployment failed after 3 attempts"
               exit 1
             fi
-
-            echo "⏳ Deployment failed, waiting 20s before retry..."
-            sleep 20
+            echo "Retrying in 15s..."
+            sleep 15
           done
 
-      - name: Get secrets from Key Vault
-        id: keyvault
+      - name: Configure App Settings from Key Vault
         run: |
           APPINSIGHTS_CONN=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--ApplicationInsights--ConnectionString" --query value -o tsv 2>/dev/null || echo "")
           STORAGE_CONN=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureStorage--ConnectionString" --query value -o tsv 2>/dev/null || echo "")
+          OPENAI_ENDPOINT=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureOpenAI--Endpoint" --query value -o tsv 2>/dev/null || echo "")
+          OPENAI_KEY=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureOpenAI--ApiKey" --query value -o tsv 2>/dev/null || echo "")
+          OPENAI_DEPLOYMENT=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureOpenAI--DeploymentName" --query value -o tsv 2>/dev/null || echo "")
           
-          echo "::add-mask::$APPINSIGHTS_CONN"
-          echo "::add-mask::$STORAGE_CONN"
-          
-          echo "appinsights-conn=$APPINSIGHTS_CONN" >> $GITHUB_OUTPUT
-          echo "storage-conn=$STORAGE_CONN" >> $GITHUB_OUTPUT
-
-      - name: Configure App Settings
-        run: |
           az webapp config appsettings set \
             --name ${{ env.APP_SERVICE_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --settings \
               ASPNETCORE_ENVIRONMENT=Production \
-              ApplicationInsights__ConnectionString="${{ steps.keyvault.outputs.appinsights-conn }}" \
-              PoCoupleQuiz__ApplicationInsights__ConnectionString="${{ steps.keyvault.outputs.appinsights-conn }}" \
-              PoCoupleQuiz__AzureStorage__ConnectionString="${{ steps.keyvault.outputs.storage-conn }}" \
+              ApplicationInsights__ConnectionString="$APPINSIGHTS_CONN" \
+              AzureStorage__ConnectionString="$STORAGE_CONN" \
+              AzureOpenAI__Endpoint="$OPENAI_ENDPOINT" \
+              AzureOpenAI__Key="$OPENAI_KEY" \
+              AzureOpenAI__DeploymentName="$OPENAI_DEPLOYMENT" \
               USE_AZURE_STORAGE=true \
               SKIP_KEYVAULT=true
 
-      - name: Restart Web App
-        run: az webapp restart --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
-
-      - name: Get App URL
+      - name: Restart and Verify Health
         run: |
-          URL=$(az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query defaultHostName -o tsv)
-          echo "🚀 Application deployed to: https://$URL"
-          echo "DEPLOYMENT_URL=https://$URL" >> $GITHUB_ENV
-
-      - name: Verify Health Endpoint
-        run: |
-          APP_URL=$(az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query defaultHostName -o tsv)
+          az webapp restart --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
           
-          for i in {1..30}; do
+          APP_URL=$(az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query defaultHostName -o tsv)
+          echo "Application URL: https://$APP_URL"
+          
+          for i in {1..20}; do
             HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$APP_URL/health" 2>/dev/null || echo "000")
             if [ "$HEALTH_STATUS" = "200" ]; then
-              echo "✅ Health check passed (HTTP $HEALTH_STATUS)"
-              echo "Application is running at: https://$APP_URL"
+              echo "Health check passed (HTTP $HEALTH_STATUS)"
+              curl -s "https://$APP_URL/health" | head -c 500
               exit 0
             fi
-            echo "⏳ Health check attempt $i/30 (HTTP $HEALTH_STATUS), retrying in 5s..."
+            echo "Health check attempt $i/20 (HTTP $HEALTH_STATUS), retrying in 5s..."
             sleep 5
           done
-          echo "⚠️  Health check did not return 200, but app may still be warming up"
-          exit 0
+          echo "Health check did not return 200 after 20 attempts"
+          exit 1
 
 

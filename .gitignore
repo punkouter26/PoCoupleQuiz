@@ -83,3 +83,10 @@ TestResults/
 ## Generated Coverage Reports
 docs/coverage/html/
 docs/node_modules/
+
+## Publish artifacts
+publish/
+publish-app/
+*.zip
+*.png
+!wwwroot/**/*.png
