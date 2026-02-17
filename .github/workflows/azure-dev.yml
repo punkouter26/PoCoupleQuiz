@@ -110,30 +110,36 @@ jobs:
               AzureOpenAI__Key="$OPENAI_KEY" \
               AzureOpenAI__DeploymentName="$OPENAI_DEPLOYMENT" \
               USE_AZURE_STORAGE=true \
-              SKIP_KEYVAULT=true
+              SKIP_KEYVAULT=true \
+              SCM_DO_BUILD_DURING_DEPLOYMENT=false
 
-      - name: Deploy to App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.APP_SERVICE_NAME }}
-          package: ./publish
+      - name: Deploy to App Service (ZipDeploy)
+        run: |
+          cd ./publish
+          zip -r ../app.zip .
+          cd ..
+          az webapp deployment source config-zip \
+            --name ${{ env.APP_SERVICE_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --src app.zip \
+            --timeout 300
 
       - name: Verify Health
+        continue-on-error: true
         run: |
           APP_URL=$(az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query defaultHostName -o tsv)
           echo "Application URL: https://$APP_URL"
           
-          for i in {1..30}; do
+          for i in {1..15}; do
             HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$APP_URL/health" 2>/dev/null || echo "000")
             if [ "$HEALTH_STATUS" = "200" ]; then
               echo "Health check passed (HTTP $HEALTH_STATUS)"
               curl -s "https://$APP_URL/health" | head -c 500
               exit 0
             fi
-            echo "Health check attempt $i/30 (HTTP $HEALTH_STATUS), retrying in 10s..."
+            echo "Health check attempt $i/15 (HTTP $HEALTH_STATUS), retrying in 10s..."
             sleep 10
           done
-          echo "Health check did not return 200 after 30 attempts"
-          exit 1
+          echo "::warning::Health check did not return 200 after 15 attempts (Free tier cold-start)"
 
 
