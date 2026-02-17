@@ -84,11 +84,12 @@ jobs:
               --runtime "DOTNETCORE:10.0"
           fi
           
-          # Ensure runtime is .NET 10
+          # Ensure runtime is .NET 10 and startup command is set
           az webapp config set \
             --name ${{ env.APP_SERVICE_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --linux-fx-version "DOTNETCORE|10.0"
+            --linux-fx-version "DOTNETCORE|10.0" \
+            --startup-file "dotnet PoCoupleQuiz.Server.dll"
 
       - name: Configure App Settings from Key Vault
         run: |
