@@ -112,8 +112,8 @@ namespace PoCoupleQuiz.Tests
             // Act - Allow time for component to initialize
             await Task.Delay(100);
 
-            // Assert - Check for game setup heading
-            var heading = cut.Find("h6");
+            // Assert - Check for game setup heading (h1 with setup-title class)
+            var heading = cut.Find("h1.setup-title");
             Assert.Contains("Game Setup", heading.TextContent);
         }
 
