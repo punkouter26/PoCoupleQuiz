@@ -8,6 +8,10 @@ on:
     branches: [master]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   id-token: write
   contents: read
@@ -79,11 +83,33 @@ jobs:
             --plan $PLAN_ID \
             --runtime "DOTNETCORE:8.0"
 
-      - name: Deploy to App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.APP_SERVICE_NAME }}
-          package: ./publish
+      - name: Package deployment bundle
+        run: |
+          cd ./publish
+          zip -r ../publish-app.zip .
+
+      - name: Deploy to App Service (with retry)
+        run: |
+          for attempt in {1..5}; do
+            echo "Deploy attempt $attempt/5"
+
+            if az webapp deploy \
+              --name ${{ env.APP_SERVICE_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --src-path ./publish-app.zip \
+              --type zip; then
+              echo "✅ Deployment succeeded"
+              break
+            fi
+
+            if [ "$attempt" -eq 5 ]; then
+              echo "❌ Deployment failed after 5 attempts"
+              exit 1
+            fi
+
+            echo "⏳ Deployment failed, waiting 20s before retry..."
+            sleep 20
+          done
 
       - name: Get secrets from Key Vault
         id: keyvault
@@ -105,6 +131,7 @@ jobs:
             --settings \
               ASPNETCORE_ENVIRONMENT=Production \
               ApplicationInsights__ConnectionString="${{ steps.keyvault.outputs.appinsights-conn }}" \
+              PoCoupleQuiz__ApplicationInsights__ConnectionString="${{ steps.keyvault.outputs.appinsights-conn }}" \
               PoCoupleQuiz__AzureStorage__ConnectionString="${{ steps.keyvault.outputs.storage-conn }}" \
               USE_AZURE_STORAGE=true \
               SKIP_KEYVAULT=true
