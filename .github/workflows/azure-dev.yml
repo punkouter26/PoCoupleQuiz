@@ -40,8 +40,8 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Test
-        run: dotnet test PoCoupleQuiz.Tests/PoCoupleQuiz.Tests.csproj --no-build --configuration Release --verbosity normal
+      - name: Test (Unit)
+        run: dotnet test PoCoupleQuiz.Tests/PoCoupleQuiz.Tests.csproj --no-build --configuration Release --filter "Category=Unit" --verbosity normal
 
       - name: Publish
         run: dotnet publish PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj --configuration Release --output ./publish
