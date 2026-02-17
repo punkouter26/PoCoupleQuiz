@@ -2,11 +2,10 @@
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Blazor WASM](https://img.shields.io/badge/Blazor-WebAssembly-512BD4?logo=blazor)](https://blazor.net/)
-[![Aspire](https://img.shields.io/badge/Aspire-13.1.0-512BD4)](https://learn.microsoft.com/en-us/dotnet/aspire/)
-[![Azure](https://img.shields.io/badge/Azure-Container%20Apps-0078D4?logo=microsoftazure)](https://azure.microsoft.com/services/container-apps/)
+[![Azure](https://img.shields.io/badge/Azure-App%20Service-0078D4?logo=microsoftazure)](https://azure.microsoft.com/services/app-service/)
 [![License](https://img.shields.io/badge/License-Demo-gray)](LICENSE)
 
-An interactive web-based quiz application designed for couples and friends to test how well they know each other. Built with **.NET 10**, **Blazor WebAssembly**, and **Azure Container Apps**.
+An interactive web-based quiz application designed for couples and friends to test how well they know each other. Built with **.NET 10**, **Blazor WebAssembly**, and **Azure App Service**.
 
 ## What & Why
 
@@ -51,24 +50,57 @@ cd e2e-tests && npx playwright test
 
 #### Option 1: GitHub Actions CI/CD (Recommended)
 
-Push to `master` branch triggers automatic build and deployment to Azure Container Apps.
+Push to `master` branch automatically triggers build and deployment to **Azure App Service**.
+
+**Deployment Target**: `https://pocouplequiz-app.azurewebsites.net/`
 
 **Required GitHub Repository Variables** (Settings → Secrets and variables → Actions → Variables):
 | Variable | Value |
 |----------|-------|
-| `AZURE_CLIENT_ID` | `a94305eb-92da-498f-aeac-986441135a9a` |
-| `AZURE_TENANT_ID` | `1639b208-d5bf-4d71-9096-06163884a5e4` |
+| `AZURE_CLIENT_ID` | Service Principal Client ID |
+| `AZURE_TENANT_ID` | Your tenant ID |
 
-**Required GitHub Environment**: Create a `production` environment in Settings → Environments.
+**Deployment Process**:
+1. Build .NET application (Release configuration)
+2. Run unit tests
+3. Publish to Azure App Service
+4. Configure application settings from Key Vault
+5. Health check verification
 
-#### Option 2: Manual Deployment
+**Secrets Management**:  
+Keys are stored in `kv-poshared` Azure Key Vault and referenced during deployment:
+- `PoCoupleQuiz--ApplicationInsights--ConnectionString`
+- `PoCoupleQuiz--AzureStorage--ConnectionString`
+- `PoCoupleQuiz--AzureOpenAI--*` (if using AI features)
+
+#### Option 2: Local Deployment
+
+```powershell
+# Build and publish
+dotnet publish PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj -c Release -o ./publish
+
+# Deploy to app service
+az webapp deploy --resource-group PoCoupleQuiz --name pocouplequiz-app --src-path ./publish.zip --type zip
+```
+
+#### Option 3: Azure Developer CLI
 
 ```powershell
 azd auth login
 azd up
 ```
 
-This deploys to Azure Container Apps using the Aspire model.
+## Deployment Report
+
+📊 **[Full Deployment Report](.azure/deployment-report.md)**
+
+Key information:
+- **App Service URL**: https://pocouplequiz-app.azurewebsites.net/
+- **App Service Plan**: asp-poshared-linux (PoShared RG) - B1 tier Linux
+- **Runtime**: DOTNETCORE 8.0
+- **Status**: Deployed & Running
+- **Monitoring**: Application Insights connected
+- **Storage**: Azure Table Storage (stpocouplequizapp)
 
 ## How the Game Works
 
