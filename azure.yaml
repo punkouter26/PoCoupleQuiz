@@ -1,36 +1,36 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
 
-name: pocouplequiz
+name: poquiz
 metadata:
-    template: azd-init@1.18.2
+    template: basic@1.0
 
 # ============================================================================
-# AZURE DEPLOYMENT CONFIGURATION (.NET Aspire → Azure Container Apps)
+# AZURE DEPLOYMENT CONFIGURATION (.NET Blazor Web App → Azure App Service)
 # ============================================================================
-# This configuration deploys the .NET Aspire application to Azure Container Apps.
+# This configuration deploys the .NET Blazor Web App to Azure App Service.
 #
 # How it works:
-# - azd reads the Aspire AppHost project model
-# - Auto-provisions: Container Apps Environment, Container Registry, Log Analytics
-# - Builds container images and pushes to ACR
-# - Deploys containers to Azure Container Apps
+# - Builds the PoCoupleQuiz.Server project
+# - Publishes the release build
+# - Deploys to Azure App Service
+# - Uses Application Insights for monitoring
+# - Uses Azure Table Storage for game data (optional)
 #
 # Local Development:
-# - Run: dotnet run --project PoCoupleQuiz.AppHost
-# - Uses: Aspire Dashboard for orchestration
-# - Uses: Azurite for Azure Table Storage emulation
+# - Run: dotnet run --project PoCoupleQuiz.Server
+# - Uses: In-memory or Azurite for storage emulation
 #
 # Production Deployment:
-# - Run: azd up (provisions infrastructure AND deploys application)
-# - Deploys to: Azure Container Apps (ACA)
-# - Uses: Azure Table Storage, Azure OpenAI, Application Insights
+# - GitHub Actions: Automatically builds and deploys on push to master
+# - Deploys to: Azure App Service (B1 plan or higher)
+# - Uses: Application Insights, Azure Table Storage
 # ============================================================================
 
 services:
-    app:
+    server:
         language: dotnet
-        project: ./PoCoupleQuiz.AppHost/PoCoupleQuiz.AppHost.csproj
-        host: containerapp
+        project: ./PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj
+        host: appservice
 
 resourceGroup: PoCoupleQuiz
 

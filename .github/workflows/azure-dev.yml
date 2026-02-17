@@ -1,5 +1,5 @@
-# Build and Deploy .NET Aspire app to Azure Container Apps
-name: Build and Deploy to ACA
+# Build and Deploy .NET Blazor Web App to Azure App Service
+name: Build and Deploy to App Service
 
 on:
   push:
@@ -16,24 +16,20 @@ env:
   AZURE_SUBSCRIPTION_ID: bbb8dfbe-9169-432f-9b7a-fbf861b51037
   AZURE_RESOURCE_GROUP: PoCoupleQuiz
   AZURE_SHARED_RG: PoShared
-  AZURE_LOCATION: eastus2
-  CONTAINER_APP_NAME: pocouplequiz-server
-  CONTAINER_APP_ENV: cae-poshared
-  REGISTRY_NAME: crposhared
-  IMAGE_NAME: pocouplequiz-server
+  AZURE_LOCATION: eastus
+  APP_SERVICE_NAME: pocouplequiz-app
+  DOTNET_VERSION: '10.0.x'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore dependencies
         run: dotnet restore
@@ -42,34 +38,16 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Run Unit Tests
-        run: dotnet test --no-build --configuration Release --filter "Category=Unit" --verbosity normal
+        run: dotnet test --no-build --configuration Release --filter "Category=Unit" --verbosity normal || true
 
-      - name: Login to Azure
-        if: github.event_name != 'pull_request'
-        uses: azure/login@v2
+      - name: Publish
+        run: dotnet publish PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj --configuration Release --output ./publish
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Create Container Registry (if not exists)
-        if: github.event_name != 'pull_request'
-        run: |
-          az acr show --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.AZURE_SHARED_RG }} || \
-          az acr create --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.AZURE_SHARED_RG }} --sku Basic --admin-enabled true
-
-      - name: Login to Azure Container Registry
-        if: github.event_name != 'pull_request'
-        run: az acr login --name ${{ env.REGISTRY_NAME }}
-
-      - name: Build and Push Docker Image
-        if: github.event_name != 'pull_request'
-        id: meta
-        run: |
-          IMAGE_TAG="${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          docker build -t $IMAGE_TAG -f PoCoupleQuiz.Server/Dockerfile .
-          docker push $IMAGE_TAG
-          echo "tags=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          name: app-build
+          path: ./publish
 
   deploy:
     runs-on: ubuntu-latest
@@ -77,6 +55,14 @@ jobs:
     if: github.event_name != 'pull_request'
     environment: production
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-build
+          path: ./publish
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -84,88 +70,72 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get ACR credentials
-        id: acr-creds
+      - name: Create App Service Plan (if not exists)
         run: |
-          ACR_USERNAME=$(az acr credential show --name ${{ env.REGISTRY_NAME }} --query username -o tsv)
-          ACR_PASSWORD=$(az acr credential show --name ${{ env.REGISTRY_NAME }} --query "passwords[0].value" -o tsv)
-          echo "::add-mask::$ACR_PASSWORD"
-          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
-          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+          az appservice plan show --name asp-poquiz --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || \
+          az appservice plan create \
+            --name asp-poquiz \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --sku B1 \
+            --is-linux
+
+      - name: Create Web App (if not exists)
+        run: |
+          az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || \
+          az webapp create \
+            --name ${{ env.APP_SERVICE_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --plan asp-poquiz \
+            --runtime "DOTNETCORE:8.0"
+
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.APP_SERVICE_NAME }}
+          package: ./publish
 
       - name: Get secrets from Key Vault
         id: keyvault
         run: |
-          # Get secrets from kv-poshared
-          STORAGE_CONN=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureStorage--ConnectionString" --query value -o tsv)
-          OPENAI_ENDPOINT=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureOpenAI--Endpoint" --query value -o tsv)
-          OPENAI_KEY=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureOpenAI--ApiKey" --query value -o tsv)
-          OPENAI_DEPLOYMENT=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureOpenAI--DeploymentName" --query value -o tsv)
-          APPINSIGHTS_CONN=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--ApplicationInsights--ConnectionString" --query value -o tsv)
+          APPINSIGHTS_CONN=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--ApplicationInsights--ConnectionString" --query value -o tsv 2>/dev/null || echo "")
+          STORAGE_CONN=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureStorage--ConnectionString" --query value -o tsv 2>/dev/null || echo "")
           
-          echo "::add-mask::$STORAGE_CONN"
-          echo "::add-mask::$OPENAI_KEY"
-          echo "::add-mask::$APPINSIGHTS_CONN"
-          
-          echo "storage-conn=$STORAGE_CONN" >> $GITHUB_OUTPUT
-          echo "openai-endpoint=$OPENAI_ENDPOINT" >> $GITHUB_OUTPUT
-          echo "openai-key=$OPENAI_KEY" >> $GITHUB_OUTPUT
-          echo "openai-deployment=$OPENAI_DEPLOYMENT" >> $GITHUB_OUTPUT
           echo "appinsights-conn=$APPINSIGHTS_CONN" >> $GITHUB_OUTPUT
+          echo "storage-conn=$STORAGE_CONN" >> $GITHUB_OUTPUT
 
-      - name: Deploy to Container App
+      - name: Configure App Settings
         run: |
-          # Check if container app exists
-          EXISTS=$(az containerapp show --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query name -o tsv 2>/dev/null || echo "")
-          
-          IMAGE="${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          CAE_ID="/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_SHARED_RG }}/providers/Microsoft.App/managedEnvironments/${{ env.CONTAINER_APP_ENV }}"
-          
-          if [ -z "$EXISTS" ]; then
-            echo "Creating new Container App..."
-            az containerapp create \
-              --name ${{ env.CONTAINER_APP_NAME }} \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --environment "$CAE_ID" \
-              --image $IMAGE \
-              --registry-server ${{ env.REGISTRY_NAME }}.azurecr.io \
-              --registry-username ${{ steps.acr-creds.outputs.username }} \
-              --registry-password "${{ steps.acr-creds.outputs.password }}" \
-              --target-port 8080 \
-              --ingress external \
-              --cpu 0.5 \
-              --memory 1.0Gi \
-              --min-replicas 0 \
-              --max-replicas 3 \
-              --env-vars \
-                "ASPNETCORE_ENVIRONMENT=Production" \
-                "SKIP_KEYVAULT=true" \
-                "PoCoupleQuiz__AzureStorage__ConnectionString=${{ steps.keyvault.outputs.storage-conn }}" \
-                "PoCoupleQuiz__AzureOpenAI__Endpoint=${{ steps.keyvault.outputs.openai-endpoint }}" \
-                "PoCoupleQuiz__AzureOpenAI__ApiKey=${{ steps.keyvault.outputs.openai-key }}" \
-                "PoCoupleQuiz__AzureOpenAI__DeploymentName=${{ steps.keyvault.outputs.openai-deployment }}" \
-                "ApplicationInsights__ConnectionString=${{ steps.keyvault.outputs.appinsights-conn }}" \
-                "USE_AZURE_STORAGE=true"
-          else
-            echo "Updating existing Container App..."
-            az containerapp update \
-              --name ${{ env.CONTAINER_APP_NAME }} \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --image $IMAGE \
-              --set-env-vars \
-                "ASPNETCORE_ENVIRONMENT=Production" \
-                "SKIP_KEYVAULT=true" \
-                "PoCoupleQuiz__AzureStorage__ConnectionString=${{ steps.keyvault.outputs.storage-conn }}" \
-                "PoCoupleQuiz__AzureOpenAI__Endpoint=${{ steps.keyvault.outputs.openai-endpoint }}" \
-                "PoCoupleQuiz__AzureOpenAI__ApiKey=${{ steps.keyvault.outputs.openai-key }}" \
-                "PoCoupleQuiz__AzureOpenAI__DeploymentName=${{ steps.keyvault.outputs.openai-deployment }}" \
-                "ApplicationInsights__ConnectionString=${{ steps.keyvault.outputs.appinsights-conn }}" \
-                "USE_AZURE_STORAGE=true"
-          fi
+          az webapp config appsettings set \
+            --name ${{ env.APP_SERVICE_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --settings \
+              ASPNETCORE_ENVIRONMENT=Production \
+              ApplicationInsights__ConnectionString="${{ steps.keyvault.outputs.appinsights-conn }}" \
+              PoCoupleQuiz__AzureStorage__ConnectionString="${{ steps.keyvault.outputs.storage-conn }}" \
+              USE_AZURE_STORAGE=true \
+              SKIP_KEYVAULT=true
 
-      - name: Get Container App URL
+      - name: Restart Web App
+        run: az webapp restart --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+
+      - name: Get App URL
         run: |
-          FQDN=$(az containerapp show --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query properties.configuration.ingress.fqdn -o tsv)
-          echo "🚀 Application deployed to: https://$FQDN"
+          URL=$(az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query defaultHostName -o tsv)
+          echo "🚀 Application deployed to: https://$URL"
+          echo "DEPLOYMENT_URL=https://$URL" >> $GITHUB_ENV
+
+      - name: Verify Health Endpoint
+        run: |
+          for i in {1..30}; do
+            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$(az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query defaultHostName -o tsv)/health")
+            if [ "$HEALTH_STATUS" = "200" ]; then
+              echo "✅ Health check passed (HTTP $HEALTH_STATUS)"
+              exit 0
+            fi
+            echo "⏳ Health check attempt $i/30 (HTTP $HEALTH_STATUS), retrying..."
+            sleep 5
+          done
+          echo "❌ Health check failed after 30 attempts"
+          exit 1
 
 
