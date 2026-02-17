@@ -18,15 +18,14 @@ permissions:
 
 env:
   AZURE_SUBSCRIPTION_ID: bbb8dfbe-9169-432f-9b7a-fbf861b51037
-  AZURE_RESOURCE_GROUP: PoCoupleQuiz
-  AZURE_SHARED_RG: PoShared
-  APP_SERVICE_PLAN: asp-poshared-linux
+  AZURE_RESOURCE_GROUP: pocouplequiz
   APP_SERVICE_NAME: pocouplequiz-app
   DOTNET_VERSION: '10.0.x'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -35,14 +34,14 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore
 
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Run Unit Tests
-        run: dotnet test --no-build --configuration Release --filter "Category=Unit" --verbosity normal
+      - name: Test
+        run: dotnet test PoCoupleQuiz.Tests/PoCoupleQuiz.Tests.csproj --no-build --configuration Release --verbosity normal
 
       - name: Publish
         run: dotnet publish PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj --configuration Release --output ./publish
@@ -56,8 +55,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name != 'pull_request'
-    environment: production
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    timeout-minutes: 20
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -72,98 +71,35 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Ensure App Service exists with .NET 10
-        run: |
-          PLAN_ID="/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_SHARED_RG }}/providers/Microsoft.Web/serverfarms/${{ env.APP_SERVICE_PLAN }}"
-          
-          if ! az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} &>/dev/null; then
-            az webapp create \
-              --name ${{ env.APP_SERVICE_NAME }} \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --plan $PLAN_ID \
-              --runtime "DOTNETCORE:10.0"
-          fi
-          
-          # Ensure runtime is .NET 10 and startup command is set
-          az webapp config set \
-            --name ${{ env.APP_SERVICE_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --linux-fx-version "DOTNETCORE|10.0" \
-            --startup-file "dotnet PoCoupleQuiz.Server.dll"
-
-      - name: Configure App Settings from Key Vault
-        run: |
-          APPINSIGHTS_CONN=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--ApplicationInsights--ConnectionString" --query value -o tsv 2>/dev/null || echo "")
-          STORAGE_CONN=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureStorage--ConnectionString" --query value -o tsv 2>/dev/null || echo "")
-          OPENAI_ENDPOINT=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureOpenAI--Endpoint" --query value -o tsv 2>/dev/null || echo "")
-          OPENAI_KEY=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureOpenAI--ApiKey" --query value -o tsv 2>/dev/null || echo "")
-          OPENAI_DEPLOYMENT=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--AzureOpenAI--DeploymentName" --query value -o tsv 2>/dev/null || echo "")
-          
-          az webapp config appsettings set \
-            --name ${{ env.APP_SERVICE_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --settings \
-              ASPNETCORE_ENVIRONMENT=Production \
-              ApplicationInsights__ConnectionString="$APPINSIGHTS_CONN" \
-              AzureStorage__ConnectionString="$STORAGE_CONN" \
-              AzureOpenAI__Endpoint="$OPENAI_ENDPOINT" \
-              AzureOpenAI__Key="$OPENAI_KEY" \
-              AzureOpenAI__DeploymentName="$OPENAI_DEPLOYMENT" \
-              USE_AZURE_STORAGE=true \
-              SKIP_KEYVAULT=true \
-              SCM_DO_BUILD_DURING_DEPLOYMENT=false
-
       - name: Create deployment package
         run: |
           cd publish
           zip -r ../app-package.zip .
 
-      - name: Deploy to App Service (retry on conflict)
+      - name: Deploy to App Service
         run: |
-          MAX_ATTEMPTS=5
-          ATTEMPT=1
+          az webapp deployment source config-zip \
+            --name ${{ env.APP_SERVICE_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --src ./app-package.zip
 
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            echo "Deployment attempt $ATTEMPT/$MAX_ATTEMPTS"
-
-            if az webapp deployment source config-zip \
-              --name ${{ env.APP_SERVICE_NAME }} \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --src ./app-package.zip \
-              --timeout 600; then
-              echo "Deployment succeeded on attempt $ATTEMPT"
-              break
-            fi
-
-            if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-              echo "Deployment failed after $MAX_ATTEMPTS attempts"
-              exit 1
-            fi
-
-            echo "Deployment conflict/failure detected. Restarting app before retry..."
-            az webapp restart --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
-            SLEEP_SECONDS=$((ATTEMPT * 20))
-            echo "Waiting ${SLEEP_SECONDS}s before retry"
-            sleep $SLEEP_SECONDS
-            ATTEMPT=$((ATTEMPT + 1))
-          done
-
-      - name: Verify Health
-        continue-on-error: true
+      - name: Verify /health endpoint
         run: |
           APP_URL=$(az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query defaultHostName -o tsv)
-          echo "Application URL: https://$APP_URL"
-          
-          for i in {1..15}; do
-            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$APP_URL/health" 2>/dev/null || echo "000")
-            if [ "$HEALTH_STATUS" = "200" ]; then
-              echo "Health check passed (HTTP $HEALTH_STATUS)"
-              curl -s "https://$APP_URL/health" | head -c 500
+          echo "App URL: https://$APP_URL"
+
+          for attempt in {1..18}; do
+            STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "https://$APP_URL/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed: HTTP $STATUS"
               exit 0
             fi
-            echo "Health check attempt $i/15 (HTTP $HEALTH_STATUS), retrying in 10s..."
+
+            echo "Attempt $attempt/18: /health returned HTTP $STATUS. Retrying in 10s..."
             sleep 10
           done
-          echo "::warning::Health check did not return 200 after 15 attempts (Free tier cold-start)"
+
+          echo "Health check failed after retries"
+          exit 1
 
 
