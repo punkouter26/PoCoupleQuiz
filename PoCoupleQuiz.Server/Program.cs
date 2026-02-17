@@ -214,7 +214,7 @@ namespace PoCoupleQuiz.Server
 
                 // Map health check endpoints (custom detailed endpoint)
                 // Note: /health and /alive are mapped by MapDefaultEndpoints from ServiceDefaults
-                app.MapHealthChecks("/api/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+                var detailedHealthOptions = new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
                 {
                     ResponseWriter = async (context, report) =>
                     {
@@ -250,7 +250,10 @@ namespace PoCoupleQuiz.Server
                         });
                         await context.Response.WriteAsync(result);
                     }
-                });
+                };
+
+                app.MapHealthChecks("/api/health", detailedHealthOptions);
+                app.MapHealthChecks("/health", detailedHealthOptions);
                 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
                 {
                     Predicate = check => check.Tags.Contains("ready")
