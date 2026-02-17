@@ -90,12 +90,6 @@ jobs:
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --linux-fx-version "DOTNETCORE|10.0"
 
-      - name: Deploy to App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.APP_SERVICE_NAME }}
-          package: ./publish
-
       - name: Configure App Settings from Key Vault
         run: |
           APPINSIGHTS_CONN=$(az keyvault secret show --vault-name kv-poshared --name "PoCoupleQuiz--ApplicationInsights--ConnectionString" --query value -o tsv 2>/dev/null || echo "")
@@ -117,24 +111,28 @@ jobs:
               USE_AZURE_STORAGE=true \
               SKIP_KEYVAULT=true
 
-      - name: Restart and Verify Health
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.APP_SERVICE_NAME }}
+          package: ./publish
+
+      - name: Verify Health
         run: |
-          az webapp restart --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
-          
           APP_URL=$(az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query defaultHostName -o tsv)
           echo "Application URL: https://$APP_URL"
           
-          for i in {1..20}; do
+          for i in {1..30}; do
             HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$APP_URL/health" 2>/dev/null || echo "000")
             if [ "$HEALTH_STATUS" = "200" ]; then
               echo "Health check passed (HTTP $HEALTH_STATUS)"
               curl -s "https://$APP_URL/health" | head -c 500
               exit 0
             fi
-            echo "Health check attempt $i/20 (HTTP $HEALTH_STATUS), retrying in 5s..."
-            sleep 5
+            echo "Health check attempt $i/30 (HTTP $HEALTH_STATUS), retrying in 10s..."
+            sleep 10
           done
-          echo "Health check did not return 200 after 20 attempts"
+          echo "Health check did not return 200 after 30 attempts"
           exit 1
 
 
