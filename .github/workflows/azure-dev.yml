@@ -91,29 +91,10 @@ jobs:
             --linux-fx-version "DOTNETCORE|10.0"
 
       - name: Deploy to App Service
-        run: |
-          cd ./publish
-          zip -r ../publish-app.zip .
-          cd ..
-          
-          for attempt in {1..3}; do
-            echo "Deploy attempt $attempt/3"
-            if az webapp deploy \
-              --name ${{ env.APP_SERVICE_NAME }} \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --src-path ./publish-app.zip \
-              --type zip \
-              --clean true; then
-              echo "Deployment succeeded"
-              break
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "Deployment failed after 3 attempts"
-              exit 1
-            fi
-            echo "Retrying in 15s..."
-            sleep 15
-          done
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.APP_SERVICE_NAME }}
+          package: ./publish
 
       - name: Configure App Settings from Key Vault
         run: |
