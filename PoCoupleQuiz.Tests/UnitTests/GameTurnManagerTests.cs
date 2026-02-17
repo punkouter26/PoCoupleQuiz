@@ -3,17 +3,21 @@ using PoCoupleQuiz.Core.Services;
 using PoCoupleQuiz.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Logging;
+using Moq;
 
 namespace PoCoupleQuiz.Tests.UnitTests;
 
 [Trait("Category", "Unit")]
 public class GameTurnManagerTests
 {
-    private readonly GameTurnManager _turnManager;
+    private readonly Mock<ILogger<GameEngine>> _mockLogger;
+    private readonly GameEngine _turnManager;
 
     public GameTurnManagerTests()
     {
-        _turnManager = new GameTurnManager();
+        _mockLogger = new Mock<ILogger<GameEngine>>();
+        _turnManager = new GameEngine(_mockLogger.Object);
     }
 
     [Fact]

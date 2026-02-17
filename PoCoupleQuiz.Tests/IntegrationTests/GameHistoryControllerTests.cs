@@ -44,7 +44,6 @@ public class GameHistoryControllerTests : IAsyncLifetime
             TotalQuestions = 10,
             Team1Score = 7,
             Team2Score = 5,
-            GameMode = GameMode.KingPlayer,
             Date = DateTime.UtcNow
         };
 
@@ -123,8 +122,7 @@ public class GameHistoryControllerTests : IAsyncLifetime
             Team2Name = "OpponentTeam",
             TotalQuestions = 5,
             Team1Score = 3,
-            Team2Score = 2,
-            GameMode = GameMode.KingPlayer
+            Team2Score = 2
         };
         await _client.PostAsJsonAsync("/api/game-history", history);
 

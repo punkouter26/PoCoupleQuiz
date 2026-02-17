@@ -1,45 +1,53 @@
 {
   "projectName": "PoCoupleQuiz",
-  "lastUpdated": "2026-02-01T21:20:00Z",
+  "lastUpdated": "2026-02-16T18:45:00Z",
   "runtime": ".NET 10.0.2",
   "aspireVersion": "10.1.0",
   "health": {
     "buildStatus": "GREEN",
-    "unitTestsPassed": 73,
+    "unitTestsPassed": 60,
     "unitTestsFailed": 0,
-    "integrationTestsPassed": 91,
-    "integrationTestsFailed": 0,
+    "integrationTestsPassed": 84,
+    "integrationTestsFailed": 1,
     "skippedTests": 5,
     "compileErrors": 0,
     "compileWarnings": 0,
-    "formattingIssues": 0
+    "formattingIssues": 0,
+    "testPassRate": "96.0%"
   },
   "metrics": {
-    "totalSourceFiles": 85,
-    "csharpFiles": 69,
+    "totalSourceFiles": 79,
+    "csharpFiles": 63,
     "razorComponents": 16,
-    "linesOfCode": 7417,
-    "totalTests": 169,
+    "linesOfCode": 6847,
+    "totalTests": 150,
     "outdatedPackages": 0,
     "todoComments": 0,
-    "projectCount": 6
+    "projectCount": 6,
+    "maintenabilityIndex": 82,
+    "cyclomaticComplexity": "avg: 4.2, max: 8"
   },
   "technicalDebt": {
-    "score": 92,
+    "score": 94,
     "resolved": [
       "Updated 18 outdated NuGet packages",
       "Fixed 4 whitespace formatting violations",
       "Fixed 4 failing component tests",
       "Updated deprecated Testcontainers API",
       "Upgraded Radzen.Blazor 8.1.8 → 8.7.4",
-      "Upgraded bunit 2.0.22-preview → 2.5.3 stable"
+      "Upgraded bunit 2.0.22-preview → 2.5.3 stable",
+      "Consolidated GameTurnManager + GameScoringService → GameEngine",
+      "Removed GameMode enum (single-mode optimization)",
+      "Removed FluentUI framework (bundle bloat reduction)",
+      "Fixed all GameMode references in client/server (6 files)"
     ],
     "remaining": [
-      "5 skipped tests (require Azure OpenAI credentials or specific environment)"
+      "5 skipped tests (environment-specific: Azure OpenAI, Health Probe)",
+      "5 LOGICAL VULNERABILITIES identified in Po2 audit (see .potune-audit-po2logical.md)"
     ]
   },
   "modernization": {
-    "score": 95,
+    "score": 96,
     "strengths": [
       ".NET 10 LTS with latest Aspire 10.1.0",
       "Vertical Slice Architecture implemented",
@@ -47,15 +55,63 @@
       "Central Package Management enabled",
       "Azure Key Vault integration",
       "All packages at latest versions",
-      ".copilotignore configured for AI context optimization"
+      ".copilotignore configured for AI context optimization",
+      "GameEngine consolidation reduces coupling & duplication"
+    ],
+    "improvementAreas": [
+      "Add Circuit Breaker + Polly resilience for Azure OpenAI calls",
+      "Implement state machine for Game.razor (6 state vars)",
+      "Add player minimum guards in SetNextKingPlayer()",
+      "Question prefetch optimization (batching)",
+      "Structured logging with correlation IDs"
     ]
   },
   "tuningSequence": {
-    "completed": ["PoTuneClean1", "PoTuneMetric2"],
-    "next": "PoTuneBestPractice3",
-    "remaining": ["PoTuneUiUx4", "PoTuneDocs5"]
+    "completed": ["PoTuneClean1", "PoTuneMetric2", "PoCleanStrong3"],
+    "current": "PoTuneBestPractice3",
+    "auditPhase": "Po2LogicRefactor",
+    "findings": {
+      "refactoringOpportunities": 5,
+      "logicalVulnerabilities": 5,
+      "criticalIssues": 1,
+      "reportFile": ".potune-audit-po2logical.md"
+    },
+    "remaining": ["PoTuneLogicEdge4", "PoTuneResilient4b", "PoTuneStateClarity4c", "PoTuneDocs5"]
+  },
+  "productionReadiness": {
+    "status": "CONDITIONAL_PASS",
+    "blockers": [
+      "CRITICAL: Race condition in round advancement (Failure #4)",
+      "HIGH: No timeout resilience for Azure OpenAI answer evaluation (Refactor #1)"
+    ],
+    "recommendation": "Fix blockers before ACA deployment. Estimated effort: 2.5 hours (Tier 1 items)",
+    "estimatedDeploymentDate": "2026-02-17 (after Tier 1 fixes)"
+  },
+  "complexityMetrics": {
+    "pre": {
+      "totalSourceFiles": 85,
+      "csharpFiles": 69,
+      "razorComponents": 16,
+      "linesOfCode": 7417,
+      "projectCount": 6
+    },
+    "post": {
+      "totalSourceFiles": 79,
+      "csharpFiles": 63,
+      "razorComponents": 16,
+      "linesOfCode": 6847,
+      "projectCount": 6
+    },
+    "delta": {
+      "filesRemoved": 6,
+      "csharpFilesRemoved": 6,
+      "linesRemoved": 570,
+      "percentageReduction": 7.7,
+      "complexityReduction": "2.1%"
+    }
   },
   "artifacts": {
+    "auditReport": ".potune-audit-po2logical.md",
     "metricsFile": "Metrics.txt",
     "copilotIgnore": ".copilotignore",
     "adrs": [

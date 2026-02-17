@@ -71,7 +71,7 @@ public class AzureTableTeamService : ITeamService
             throw;
         }
     }
-    public async Task UpdateTeamStatsAsync(string teamName, GameMode gameMode, int score, int questionsAnswered = 0, int correctAnswers = 0)
+    public async Task UpdateTeamStatsAsync(string teamName, int score, int questionsAnswered = 0, int correctAnswers = 0)
     {
         var team = await GetTeamAsync(teamName);
 
@@ -89,12 +89,9 @@ public class AzureTableTeamService : ITeamService
         }
 
         // Update high score if applicable
-        if (gameMode == GameMode.KingPlayer)
+        if (score > team.HighScore)
         {
-            if (score > team.HighScore)
-            {
-                team.HighScore = score;
-            }
+            team.HighScore = score;
         }
 
         // Update statistics

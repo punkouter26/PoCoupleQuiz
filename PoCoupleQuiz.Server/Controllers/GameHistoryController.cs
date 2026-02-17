@@ -73,17 +73,15 @@ public class GameHistoryController : ControllerBase
                 ["Team2Name"] = history.Team2Name,
                 ["TotalQuestions"] = history.TotalQuestions,
                 ["Team1Score"] = history.Team1Score,
-                ["Team2Score"] = history.Team2Score,
-                ["GameMode"] = history.GameMode.ToString()
+                ["Team2Score"] = history.Team2Score
             }))
             {
                 _logger.LogInformation(
-                    "Saving game history: {Team1} ({Team1Score}) vs {Team2} ({Team2Score}), Mode: {GameMode}, Questions: {TotalQuestions}",
+                    "Saving game history: {Team1} ({Team1Score}) vs {Team2} ({Team2Score}), Questions: {TotalQuestions}",
                     history.Team1Name,
                     history.Team1Score,
                     history.Team2Name,
                     history.Team2Score,
-                    history.GameMode,
                     history.TotalQuestions);
             }
 

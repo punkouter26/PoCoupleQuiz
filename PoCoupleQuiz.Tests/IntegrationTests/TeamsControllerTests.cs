@@ -46,8 +46,7 @@ public class TeamsControllerTests : IAsyncLifetime
 
         var updateRequest = new
         {
-            Score = 10,
-            GameMode = GameMode.KingPlayer
+            Score = 10
         };
 
         // Act
@@ -64,8 +63,7 @@ public class TeamsControllerTests : IAsyncLifetime
         // Arrange
         var updateRequest = new
         {
-            Score = 10,
-            GameMode = GameMode.KingPlayer
+            Score = 10
         };
 
         // Act
@@ -83,8 +81,7 @@ public class TeamsControllerTests : IAsyncLifetime
         var longName = new string('A', 101);
         var updateRequest = new
         {
-            Score = 10,
-            GameMode = GameMode.KingPlayer
+            Score = 10
         };
 
         // Act
@@ -102,27 +99,7 @@ public class TeamsControllerTests : IAsyncLifetime
         var teamName = "NegativeScoreTeam";
         var updateRequest = new
         {
-            Score = -5,
-            GameMode = GameMode.KingPlayer
-        };
-
-        // Act
-        var response = await _client.PutAsJsonAsync($"/api/teams/{teamName}/stats", updateRequest);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Trait("Category", "Integration")]
-    [Fact]
-    public async Task UpdateTeamStats_InvalidGameMode_ReturnsBadRequest()
-    {
-        // Arrange
-        var teamName = "InvalidModeTeam";
-        var updateRequest = new
-        {
-            Score = 10,
-            GameMode = 999 // Invalid enum value
+            Score = -5
         };
 
         // Act

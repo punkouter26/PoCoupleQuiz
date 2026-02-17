@@ -24,6 +24,10 @@ project.lock.json
 *.userosscache
 *.sln.docstates
 
+# Log files
+logs/
+*.log
+
 ## Build results
 [Dd]ebug/
 [Dd]ebugPublic/

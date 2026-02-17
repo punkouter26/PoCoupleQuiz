@@ -12,28 +12,28 @@ namespace PoCoupleQuiz.Tests.UnitTests;
 public class GameBusinessLogicTests
 {
     [Fact]
-    public void GameScoringService_CalculateRoundScore_MatchingAnswer_Returns10Points()
+    public void GameEngine_CalculateRoundScore_MatchingAnswer_Returns10Points()
     {
-        // Arrange - Using the GameScoringService instead of the removed Game.CalculateScore
-        var mockLogger = new Mock<ILogger<GameScoringService>>();
-        var scoringService = new GameScoringService(mockLogger.Object);
+        // Arrange - Using the GameEngine instead of the removed Game.CalculateScore
+        var mockLogger = new Mock<ILogger<GameEngine>>();
+        var gameEngine = new GameEngine(mockLogger.Object);
         
         // Act
-        var score = scoringService.CalculateRoundScore(isMatch: true);
+        var score = gameEngine.CalculateRoundScore(isMatch: true);
 
         // Assert
         Assert.Equal(10, score);
     }
 
     [Fact]
-    public void GameScoringService_CalculateRoundScore_NonMatchingAnswer_Returns0Points()
+    public void GameEngine_CalculateRoundScore_NonMatchingAnswer_Returns0Points()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<GameScoringService>>();
-        var scoringService = new GameScoringService(mockLogger.Object);
+        var mockLogger = new Mock<ILogger<GameEngine>>();
+        var gameEngine = new GameEngine(mockLogger.Object);
 
         // Act
-        var score = scoringService.CalculateRoundScore(isMatch: false);
+        var score = gameEngine.CalculateRoundScore(isMatch: false);
 
         // Assert
         Assert.Equal(0, score);
@@ -122,9 +122,9 @@ public class GameBusinessLogicTests
     }
 
     [Fact]
-    public void GetScoreboard_ExcludesKingPlayer_OnlyShowsGuessingPlayers()
+    public void GetScoreboard_IncludesAllPlayers_IncludingKingPlayer()
     {
-        // Arrange - King Player should not appear on scoreboard
+        // Arrange - King Player should now appear on scoreboard with visual indicator
         var game = new Game
         {
             Players = new List<Player>
@@ -138,11 +138,13 @@ public class GameBusinessLogicTests
         // Act
         var scoreboard = game.GetScoreboard();
 
-        // Assert - Only guessing players should be on the scoreboard
-        Assert.Equal(2, scoreboard.Count);
-        Assert.False(scoreboard.ContainsKey("King Player"));
+        // Assert - All players should be on the scoreboard, including the king
+        Assert.Equal(3, scoreboard.Count);
+        Assert.True(scoreboard.ContainsKey("King Player"));
         Assert.True(scoreboard.ContainsKey("Player 2"));
         Assert.True(scoreboard.ContainsKey("Player 3"));
+        // Verify scores are correct
+        Assert.Equal(0, scoreboard["King Player"]);
         Assert.Equal(30, scoreboard["Player 2"]);
         Assert.Equal(20, scoreboard["Player 3"]);
     }

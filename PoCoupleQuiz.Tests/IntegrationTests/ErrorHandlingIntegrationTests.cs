@@ -108,7 +108,7 @@ namespace PoCoupleQuiz.Tests
         public async Task TeamsController_UpdateStats_NegativeScore_ReturnsBadRequest()
         {
             // Arrange
-            var request = new { gameMode = GameMode.KingPlayer, score = -5 };
+            var request = new { score = -5 };
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -149,20 +149,5 @@ namespace PoCoupleQuiz.Tests
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
-        [Trait("Category", "Integration")]
-        [Fact]
-        public async Task TeamsController_UpdateStats_InvalidGameMode_ReturnsBadRequest()
-        {
-            // Arrange
-            var request = new { gameMode = 999, score = 5 }; // Invalid enum value
-            var json = JsonSerializer.Serialize(request);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            // Act
-            var response = await _httpClient.PutAsync("/api/teams/TestTeam/stats", content);
-
-            // Assert
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        }
     }
 }

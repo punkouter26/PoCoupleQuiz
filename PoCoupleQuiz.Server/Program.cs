@@ -64,9 +64,10 @@ namespace PoCoupleQuiz.Server
                 }
 
                 // Add Aspire ServiceDefaults for observability, resilience, and service discovery
-                builder.AddServiceDefaults();
+                // Commented out: ServiceDefaults project not present
+                // builder.AddServiceDefaults();
 
-                // Add Azure Tables client
+                // Add Azure Tables client only if Azure Storage is configured
                 // When using Azure Storage from Key Vault (USE_AZURE_STORAGE=true), the connection string
                 // comes from Key Vault secret: PoCoupleQuiz--AzureStorage--ConnectionString
                 // Otherwise, Aspire provides the connection from AppHost (Azurite or provisioned storage)
@@ -78,10 +79,14 @@ namespace PoCoupleQuiz.Server
                     Log.Information("Using Azure Storage connection from Key Vault");
                     builder.Services.AddSingleton(new Azure.Data.Tables.TableServiceClient(storageConnectionString));
                 }
-                else
+                else if (!string.IsNullOrEmpty(storageConnectionString))
                 {
                     // Use Aspire-managed Azure Tables client (from AppHost/Azurite)
                     builder.AddAzureTableServiceClient("tables");
+                }
+                else
+                {
+                    Log.Information("Azure Storage not configured - using in-memory services");
                 }
 
                 // Use Serilog configuration extension
@@ -110,6 +115,16 @@ namespace PoCoupleQuiz.Server
 
                 // Add SignalR for real-time features
                 builder.Services.AddSignalR();
+
+                // Add session services for user tracking in logs
+                builder.Services.AddDistributedMemoryCache();
+                builder.Services.AddSession(options =>
+                {
+                    options.IdleTimeout = TimeSpan.FromHours(2);
+                    options.Cookie.HttpOnly = true;
+                    options.Cookie.IsEssential = true;
+                    options.Cookie.Name = ".PoCoupleQuiz.Session";
+                });
 
                 // Add health checks using extension method
                 builder.Services.AddHealthCheckConfiguration(builder.Configuration);
@@ -160,6 +175,12 @@ namespace PoCoupleQuiz.Server
 
                 // Add global exception handling middleware
                 app.UseMiddleware<GlobalExceptionMiddleware>();
+
+                // Add session support for user tracking
+                app.UseSession();
+
+                // Enrich logs with user and session context
+                app.UseLogContextEnrichment();
 
                 // Configure Serilog request logging
                 app.UseSerilogRequestLogging(options =>
@@ -242,7 +263,8 @@ namespace PoCoupleQuiz.Server
                 app.MapHub<Hubs.GameHub>("/hubs/game");
                 
                 // Map Aspire default endpoints (health, alive)
-                app.MapDefaultEndpoints();
+                // Commented out: ServiceDefaults project not present
+                // app.MapDefaultEndpoints();
                 
                 app.MapFallbackToFile("index.html");
 

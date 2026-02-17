@@ -11,13 +11,13 @@ namespace PoCoupleQuiz.Tests.UnitTests;
 [Trait("Category", "Unit")]
 public class GameScoringServiceTests
 {
-    private readonly Mock<ILogger<GameScoringService>> _mockLogger;
-    private readonly GameScoringService _scoringService;
+    private readonly Mock<ILogger<GameEngine>> _mockLogger;
+    private readonly GameEngine _scoringService;
 
     public GameScoringServiceTests()
     {
-        _mockLogger = new Mock<ILogger<GameScoringService>>();
-        _scoringService = new GameScoringService(_mockLogger.Object);
+        _mockLogger = new Mock<ILogger<GameEngine>>();
+        _scoringService = new GameEngine(_mockLogger.Object);
     }
 
     [Theory]

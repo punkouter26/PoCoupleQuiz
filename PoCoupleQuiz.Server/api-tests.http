@@ -1,0 +1,219 @@
+### PoCoupleQuiz API Tests
+### Use with VS Code REST Client extension or Visual Studio 2022+ built-in HTTP editor
+### Base URL for local development
+
+@baseUrl = http://localhost:5000
+@baseUrlHttps = https://localhost:5001
+
+### ===========================================
+### Health & Diagnostics Endpoints
+### ===========================================
+
+### Health Check - Detailed
+GET {{baseUrl}}/api/health
+Accept: application/json
+
+### Health Check - Simple
+GET {{baseUrl}}/health
+
+### Health Check - Readiness
+GET {{baseUrl}}/health/ready
+
+### Health Check - Key Vault Only
+GET {{baseUrl}}/api/health?tags=keyvault
+Accept: application/json
+
+### Health Check - Liveness (Aspire default)
+GET {{baseUrl}}/alive
+
+### ===========================================
+### Diagnostics (Development Only)
+### ===========================================
+
+### Get All Diagnostics (Configuration, Environment, System Info)
+GET {{baseUrl}}/api/diagnostics
+Accept: application/json
+
+### Test Network Connectivity to Azure Services
+GET {{baseUrl}}/api/diagnostics/network
+Accept: application/json
+
+### ===========================================
+### Questions API
+### ===========================================
+
+### Generate Question - Default Difficulty
+POST {{baseUrl}}/api/questions/generate
+Content-Type: application/json
+
+{
+  "difficulty": null
+}
+
+### Generate Question - Easy
+POST {{baseUrl}}/api/questions/generate
+Content-Type: application/json
+
+{
+  "difficulty": "Easy"
+}
+
+### Generate Question - Medium
+POST {{baseUrl}}/api/questions/generate
+Content-Type: application/json
+
+{
+  "difficulty": "Medium"
+}
+
+### Generate Question - Hard
+POST {{baseUrl}}/api/questions/generate
+Content-Type: application/json
+
+{
+  "difficulty": "Hard"
+}
+
+### Check Answer Similarity - Similar Answers
+POST {{baseUrl}}/api/questions/check-similarity
+Content-Type: application/json
+
+{
+  "answer1": "I love traveling to new places",
+  "answer2": "I enjoy exploring different countries"
+}
+
+### Check Answer Similarity - Dissimilar Answers
+POST {{baseUrl}}/api/questions/check-similarity
+Content-Type: application/json
+
+{
+  "answer1": "Pizza",
+  "answer2": "Basketball"
+}
+
+### ===========================================
+### Teams API
+### ===========================================
+
+### Get All Teams
+GET {{baseUrl}}/api/teams
+Accept: application/json
+
+### Get Specific Team
+GET {{baseUrl}}/api/teams/TeamAwesome
+Accept: application/json
+
+### Save New Team
+POST {{baseUrl}}/api/teams
+Content-Type: application/json
+
+{
+  "name": "TeamAwesome",
+  "totalQuestionsAnswered": 10,
+  "correctAnswers": 8,
+  "lastPlayed": "2026-02-16T12:00:00Z"
+}
+
+### Update Team
+POST {{baseUrl}}/api/teams
+Content-Type: application/json
+
+{
+  "name": "TeamAwesome",
+  "totalQuestionsAnswered": 20,
+  "correctAnswers": 16,
+  "lastPlayed": "2026-02-16T14:30:00Z"
+}
+
+### Update Team Stats
+PUT {{baseUrl}}/api/teams/TeamAwesome/stats
+Content-Type: application/json
+
+{
+  "score": 150,
+  "questionsAnswered": 15,
+  "correctAnswers": 12
+}
+
+### Delete Team
+DELETE {{baseUrl}}/api/teams/TeamAwesome
+
+### ===========================================
+### Game History API
+### ===========================================
+
+### Save Game History - Single Player
+POST {{baseUrl}}/api/game-history
+Content-Type: application/json
+
+{
+  "team1Name": "Player1",
+  "team2Name": "",
+  "team1Score": 100,
+  "team2Score": 0,
+  "totalQuestions": 5,
+  "gameMode": 0,
+  "playedAt": "2026-02-16T15:00:00Z"
+}
+
+### Save Game History - Multiplayer
+POST {{baseUrl}}/api/game-history
+Content-Type: application/json
+
+{
+  "team1Name": "TeamAlpha",
+  "team2Name": "TeamBeta",
+  "team1Score": 120,
+  "team2Score": 100,
+  "totalQuestions": 7,
+  "gameMode": 1,
+  "playedAt": "2026-02-16T16:00:00Z"
+}
+
+### Get Game History by Team
+GET {{baseUrl}}/api/game-history/TeamAwesome
+Accept: application/json
+
+### Get All Game History
+GET {{baseUrl}}/api/game-history
+Accept: application/json
+
+### ===========================================
+### OpenAPI / Swagger
+### ===========================================
+
+### Get OpenAPI JSON
+GET {{baseUrl}}/swagger/v1/swagger.json
+Accept: application/json
+
+### Get Swagger UI (open in browser)
+# GET {{baseUrl}}/swagger
+
+### ===========================================
+### Test Error Handling
+### ===========================================
+
+### Invalid Team Name (too short)
+POST {{baseUrl}}/api/teams
+Content-Type: application/json
+
+{
+  "name": "A",
+  "totalQuestionsAnswered": 0,
+  "correctAnswers": 0
+}
+
+### Invalid Team Stats (negative values)
+POST {{baseUrl}}/api/teams
+Content-Type: application/json
+
+{
+  "name": "InvalidTeam",
+  "totalQuestionsAnswered": -5,
+  "correctAnswers": -2
+}
+
+### Non-existent Team
+GET {{baseUrl}}/api/teams/NonExistentTeam123
+Accept: application/json

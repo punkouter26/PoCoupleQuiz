@@ -7,13 +7,9 @@ public enum DifficultyLevel
     Hard
 }
 
-public enum GameMode
-{
-    KingPlayer
-}
-
 public class Game
 {
+    public string GameSessionId { get; set; } = Guid.NewGuid().ToString();
     public List<Player> Players { get; set; } = new();
     public int CurrentKingPlayerIndex { get; set; } = 0;
     public Player? KingPlayer => Players.Any() ? Players[CurrentKingPlayerIndex] : null;
@@ -35,10 +31,9 @@ public class Game
 
     public Dictionary<string, int> GetScoreboard()
     {
-        // Only show guessing players' scores (not the king player)
-        // The king doesn't earn points - only the guessers do
+        // Show all players: guessing players earn points; king player shown for context with "(King - Not Currently Scoring)" note
         var scores = new Dictionary<string, int>();
-        foreach (var player in Players.Where(p => !p.IsKingPlayer))
+        foreach (var player in Players)
         {
             scores[player.Name] = player.Score;
         }
@@ -58,6 +53,13 @@ public class Game
 
     public void SetNextKingPlayer()
     {
+        // Validate minimum players for safe rotation
+        if (Players.Count < MinimumPlayers)
+        {
+            throw new InvalidOperationException(
+                $"Cannot rotate king player: Only {Players.Count} players remaining. Minimum required: {MinimumPlayers}");
+        }
+
         // Move to the next player in the list to be the king
         CurrentKingPlayerIndex = (CurrentKingPlayerIndex + 1) % Players.Count;
         // Ensure the new king player is marked as such, and others are not

@@ -1,73 +1,45 @@
-# PoCoupleQuiz - AI Coding Agent Instructions
+General Engineering Principles + .NET API
+Unified Identity: Use Po{SolutionName} as the master prefix for all namespaces, Azure Resource Groups, and Aspire resources (e.g., PoTask1.API, rg-PoTask1-prod).
+Global Cleanup: Maintain a "zero-waste" codebase by deleting unused files, dead code, and obsolete assets.
+Safety Standards: Use Directory.Build.props at the root to enforce <TreatWarningsAsErrors>true</TreatWarningsAsErrors> and <Nullable>enable</Nullable>.
+Health Checks: Implement a /health endpoint to verify connections to all APIs and databases.
+Context Management: Use .copilotignore to exclude bin/, obj/, and node_modules/ from AI focus.
+Telemetry: Enable OpenTelemetry globally; aggregate to Application Insights in PoShared.
+Tooling & Packages: Use Context7 MCP for latest SDKs and Central Package Management (CPM) via Directory.Packages.props with transitive pinning.
+API UI: Use OpenApi 
+Secrets & Config:
+Local: Use dotnet user-secrets; backup in PoShared Key Vault.
+Cloud: Use Azure Key Vault via Managed Identity within subscription Punkouter26 (Bbb8dfbe-9169-432f-9b7a-fbf861b51037).
+Shared Resources: Locate common services and secrets in the PoShared resource group.
+Development:
+Create .http files for API debugging.
+Implement robust server/browser logging for function calls.
+Apply GoF/SOLID patterns + explanatory comments when possible
+Ports: Use 5000 (HTTP) and 5001 (HTTPS).
+For any major feature created , create corresponding UNIT/INTEGRATION/E2E tests
+All apps should have /diag page that exposes all connection string, keys, values, secrets in json format / hide middle of values for security
+In Plan Mode, if there is any ambiguity or need for further input, you must use the #tool:vscode/askQuestions tool to stop and consult me before proceeding with implementation.
+Testing Strategy
+Unit (C#): Pure logic and domain rules.
+Integration (C#): API/DB testing using Testcontainers (SQL/Redis).
+E2E (Playwright/TS): Headless Chromium/Mobile for critical paths. Run headed in dev. Auth Bypass: Use a test-only login endpoint or custom AuthenticationHandler.
+If app uses Google or Microsoft login: add AddTestAuth() in Dev to allow faking OAuth via /dev-login / Use dev login for e2e testing and testing manually running locally
+Create http endpoints for all main functions so it can easily be tested  via curl or http endpoints 
 
-## Architecture Overview
-This is a **.NET 10 Aspire** application with Blazor WebAssembly frontend and ASP.NET Core API backend. The solution uses **Vertical Slice Architecture** where features are organized by business capability, not technical layer.
 
-### Project Structure
-- **PoCoupleQuiz.AppHost** - Aspire orchestration (defines service dependencies, runs Azurite locally)
-- **PoCoupleQuiz.Server** - API controllers + hosts Blazor WASM client
-- **PoCoupleQuiz.Client** - Blazor WebAssembly UI (communicates via HTTP to Server)
-- **PoCoupleQuiz.Core** - Shared models, services, validators (no UI/HTTP dependencies)
-- **PoCoupleQuiz.ServiceDefaults** - Shared Aspire configuration (OpenTelemetry, health checks, resilience)
 
-### Data Flow
-Client (Blazor WASM) → Server (ASP.NET API) → Azure Table Storage (or Azurite locally)
 
-## Key Patterns
 
-### Service Registration
-All services are registered in `PoCoupleQuiz.Core/Extensions/ServiceCollectionExtensions.cs`. Follow this pattern:
-```csharp
-services.AddSingleton<ITeamService, AzureTableTeamService>();
-services.AddScoped<IGameStateService, GameStateService>();
-```
 
-### Client-Server Communication
-Client services in `PoCoupleQuiz.Client/Services/` wrap HTTP calls to server APIs. Example: `HttpQuestionService` calls `/api/questions/*` endpoints.
 
-### Azure OpenAI Integration
-`IQuestionService` has two implementations:
-- `AzureOpenAIQuestionService` - Production (requires Key Vault secrets)
-- `MockQuestionService` - Local development fallback (used when `AzureOpenAI:ApiKey` is empty)
 
-### Logging
-Use **Serilog** with structured logging. Include context with properties:
-```csharp
-_logger.LogInformation("Game initialized - Players: {PlayerCount}", game.Players.Count);
-```
 
-## Development Commands
 
-```powershell
-# Start locally (launches Azurite container + all services via Aspire)
-dotnet run --project PoCoupleQuiz.AppHost
 
-# Run tests
-dotnet test PoCoupleQuiz.Tests
 
-# Run E2E tests (requires app running)
-cd e2e-tests && npx playwright test
 
-# Deploy to Azure Container Apps
-azd auth login && azd up
-```
 
-## Testing Conventions
-- **Unit tests**: `PoCoupleQuiz.Tests/UnitTests/` - Use `[Trait("Category", "Unit")]`
-- **Integration tests**: `PoCoupleQuiz.Tests/IntegrationTests/` - Use `[Trait("Category", "Integration")]`
-- **E2E tests**: `e2e-tests/` - Playwright tests in TypeScript
-- Use **Moq** for mocking, **xUnit** for assertions
-
-## Package Management
-Uses **Central Package Management** via `Directory.Packages.props`. Add new packages there, not in individual `.csproj` files.
-
-## Key Files to Reference
-- [docs/adr/](docs/adr/) - Architecture Decision Records explain the "why" behind choices
-- [PoCoupleQuiz.Core/Models/Game.cs](PoCoupleQuiz.Core/Models/Game.cs) - Core game domain model
-- [PoCoupleQuiz.Core/Services/](PoCoupleQuiz.Core/Services/) - Business logic implementations
-- [infra/main.bicep](infra/main.bicep) - Azure infrastructure definitions
-
-## Game Domain Concepts
-- **King Player**: One player answers questions about themselves; others guess
-- **Difficulty**: Easy (3 rounds), Medium (5 rounds), Hard (7 rounds)
-- **Scoring**: Only guessing players earn points for correct matches
+App Stacks
+Blazor Web App (Azure App Service)
+Framework: .NET 10 Unified (SSR + WASM).
+Architecture: Vertical Slice (VSA)—group DTOs, logic, and endpoints by feature.

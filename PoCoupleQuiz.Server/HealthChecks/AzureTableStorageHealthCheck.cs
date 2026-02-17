@@ -13,9 +13,9 @@ namespace PoCoupleQuiz.Server.HealthChecks;
 /// </summary>
 public class AzureTableStorageHealthCheck : IHealthCheck
 {
-    private readonly TableServiceClient _tableServiceClient;
+    private readonly TableServiceClient? _tableServiceClient;
 
-    public AzureTableStorageHealthCheck(TableServiceClient tableServiceClient)
+    public AzureTableStorageHealthCheck(TableServiceClient? tableServiceClient = null)
     {
         _tableServiceClient = tableServiceClient;
     }
@@ -24,6 +24,12 @@ public class AzureTableStorageHealthCheck : IHealthCheck
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
+        // If no TableServiceClient is registered, we're using in-memory storage
+        if (_tableServiceClient == null)
+        {
+            return HealthCheckResult.Healthy("Using in-memory storage (Azure Table Storage not configured)");
+        }
+
         try
         {
             // List tables to verify connectivity using data-plane operations only

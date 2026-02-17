@@ -6,6 +6,8 @@ using System.Net;
 using PoCoupleQuiz.Core.Models;
 using Polly;
 using Polly.Retry;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 using Microsoft.Extensions.Logging;
 using System.ClientModel;
 
@@ -64,14 +66,21 @@ public class AzureOpenAIQuestionService : IQuestionService
 
         _client = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
 
-        // Configure Polly resilience pipeline for retry with exponential backoff
+        // Configure comprehensive Polly resilience pipeline:
+        // 1. Timeout: Fail fast if Azure AI takes >30 seconds
+        // 2. Retry: Exponential backoff for transient failures (429, 500, 503)
+        // 3. Circuit Breaker: Prevent cascading failures by opening after 5 consecutive failures
         _resiliencePipeline = new ResiliencePipelineBuilder()
+            .AddTimeout(TimeSpan.FromSeconds(30))
             .AddRetry(new RetryStrategyOptions
             {
-                ShouldHandle = new PredicateBuilder().Handle<RequestFailedException>(ex =>
-                    ex.Status == (int)HttpStatusCode.TooManyRequests ||
-                    ex.Status == (int)HttpStatusCode.InternalServerError ||
-                    ex.Status == (int)HttpStatusCode.ServiceUnavailable),
+                ShouldHandle = new PredicateBuilder()
+                    .Handle<RequestFailedException>(ex =>
+                        ex.Status == (int)HttpStatusCode.TooManyRequests ||        // 429 - Rate limited
+                        ex.Status == (int)HttpStatusCode.InternalServerError ||     // 500 - Server error
+                        ex.Status == (int)HttpStatusCode.ServiceUnavailable ||      // 503 - Service down
+                        ex.Status == (int)HttpStatusCode.BadGateway)                // 502 - Bad gateway
+                    .Handle<OperationCanceledException>(),                            // Timeout
                 Delay = TimeSpan.FromSeconds(1),
                 MaxRetryAttempts = 3,
                 BackoffType = DelayBackoffType.Exponential,
@@ -79,10 +88,20 @@ public class AzureOpenAIQuestionService : IQuestionService
                 OnRetry = args =>
                 {
                     _logger.LogWarning(args.Outcome.Exception,
-                        "Azure AI Foundry: Retrying due to {ExceptionType}. Attempt: {AttemptNumber}",
+                        "Azure AI Foundry: Retrying due to {ExceptionType}. Attempt {AttemptNumber} of 3",
                         args.Outcome.Exception?.GetType().Name, args.AttemptNumber);
                     return default;
                 }
+            })
+            .AddCircuitBreaker(new CircuitBreakerStrategyOptions
+            {
+                ShouldHandle = new PredicateBuilder()
+                    .Handle<RequestFailedException>()
+                    .Handle<OperationCanceledException>(),
+                FailureRatio = 0.5,
+                MinimumThroughput = 5,
+                SamplingDuration = TimeSpan.FromSeconds(30),
+                BreakDuration = TimeSpan.FromSeconds(15)
             })
             .Build();
 

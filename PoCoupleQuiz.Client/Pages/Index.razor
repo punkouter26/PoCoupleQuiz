@@ -6,134 +6,285 @@
 @inject IJSRuntime JSRuntime
 
 <style>
-    .title-container {
-        background: linear-gradient(135deg, var(--primary-light, #42a5f5), var(--primary, #1976d2));
-        padding: 0.75rem;
-        border-radius: 10px;
-        margin-bottom: 0.75rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    .setup-wrapper {
+        min-height: calc(100vh - 70px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-4);
+        background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-accent-50) 100%);
+    }
+
+    .setup-card {
+        background: var(--surface);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-xl);
+        padding: var(--space-8);
+        max-width: 500px;
+        width: 100%;
+        animation: slideInUp var(--transition-slow) ease-out;
+    }
+
+    .setup-header {
         text-align: center;
+        margin-bottom: var(--space-8);
     }
 
-    .setup-container {
-        background-color: var(--surface, #ffffff);
-        border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        padding: 0.75rem;
+    .setup-title {
+        font-size: var(--font-size-3xl);
+        font-weight: var(--font-weight-bold);
+        color: var(--color-neutral-900);
+        margin-bottom: var(--space-2);
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
 
-    .form-control {
+    .setup-subtitle {
+        font-size: var(--font-size-base);
+        color: var(--color-neutral-500);
+        margin: 0;
+    }
+
+    .form-group {
+        margin-bottom: var(--space-6);
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-neutral-900);
+        margin-bottom: var(--space-2);
+        font-size: var(--font-size-sm);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-control,
+    .form-select,
+    select {
         width: 100%;
-        padding: 0.4rem;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        margin-bottom: 0.35rem;
-        font-size: 0.9rem;
+        padding: var(--space-3) var(--space-4);
+        font-family: inherit;
+        font-size: var(--font-size-base);
+        border: 2px solid var(--color-neutral-200);
+        border-radius: var(--radius-md);
+        background-color: #ffffff;
+        color: var(--color-neutral-900);
+        transition: all var(--transition-base);
+        box-sizing: border-box;
     }
 
-    .btn-primary {
-        background-color: var(--primary, #1976d2);
-        border-color: var(--primary, #1976d2);
-        color: white;
-        padding: 0.6rem 1rem;
-        border-radius: 5px;
+    .form-control:hover,
+    .form-select:hover,
+    select:hover {
+        border-color: var(--color-primary-300);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.05);
+    }
+
+    .form-control:focus,
+    .form-select:focus,
+    select:focus {
+        outline: none;
+        border-color: var(--color-primary-600);
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+    }
+
+    .form-help {
+        font-size: var(--font-size-xs);
+        color: var(--color-neutral-500);
+        margin-top: var(--space-2);
+        font-style: italic;
+    }
+
+    .player-inputs {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+    }
+
+    .player-input-wrapper {
+        position: relative;
+    }
+
+    .player-input-wrapper input {
+        width: 100%;
+    }
+
+    .btn-start-game {
+        width: 100%;
+        padding: var(--space-4) var(--space-6);
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-bold);
         border: none;
-        font-size: 1rem;
+        border-radius: var(--radius-lg);
+        background: var(--gradient-primary);
+        color: white;
         cursor: pointer;
-        transition: background-color 0.3s;
-        width: 100%;
+        transition: all var(--transition-base);
+        box-shadow: var(--shadow-primary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+        margin-top: var(--space-6);
     }
 
-    .btn-primary:hover {
-        background-color: var(--primary-dark, #1565c0);
-        border-color: var(--primary-dark, #1565c0);
+    .btn-start-game:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 40px -5px rgba(139, 92, 246, 0.4);
     }
 
-    .card {
-        background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        padding: 0.75rem;
-        margin-bottom: 0.5rem;
+    .btn-start-game:active {
+        transform: translateY(-1px);
     }
 
-    /* Mobile-first responsive layout */
+    .btn-start-game:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .difficulty-selector {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--space-3);
+        margin-top: var(--space-3);
+    }
+
+    .difficulty-option {
+        padding: var(--space-3);
+        border: 2px solid var(--color-neutral-200);
+        border-radius: var(--radius-md);
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--transition-base);
+        background: white;
+    }
+
+    .difficulty-option:hover {
+        border-color: var(--color-primary-400);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    }
+
+    .difficulty-option.selected {
+        background: var(--gradient-primary);
+        color: white;
+        border-color: var(--color-primary-600);
+        box-shadow: var(--shadow-primary);
+    }
+
+    .difficulty-option .difficulty-name {
+        font-weight: var(--font-weight-semibold);
+        display: block;
+        margin-bottom: var(--space-1);
+    }
+
+    .difficulty-option .difficulty-rounds {
+        font-size: var(--font-size-xs);
+        opacity: 0.7;
+    }
+
+    @@keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     @@media (max-width: 768px) {
-        .title-container {
-            padding: 0.6rem;
-            margin-bottom: 0.5rem;
+        .setup-wrapper {
+            padding: var(--space-3);
         }
-        
-        .game-title {
-            font-size: 1.1rem;
+
+        .setup-card {
+            padding: var(--space-6);
         }
-        
-        .subtitle {
-            font-size: 0.75rem;
+
+        .setup-title {
+            font-size: var(--font-size-2xl);
         }
-        
-        .setup-container {
-            padding: 0.6rem;
+
+        .difficulty-selector {
+            grid-template-columns: 1fr;
         }
     }
 </style>
 
-<div style="max-width: 800px; margin: 0 auto; padding: 0.5rem;">
-    <div class="setup-container" style="padding: 0.75rem; margin: 0.5rem;">
-        
-        <div class="card">
-            <h6 style="margin-bottom: 0.75rem;">Game Setup 🎲</h6>
+<div class="setup-wrapper">
+    <div class="setup-card">
+        <div class="setup-header">
+            <h1 class="setup-title">Game Setup</h1>
+            <p class="setup-subtitle">Challenge your partner!</p>
+        </div>
 
-            <!-- Number of Players -->
-            <div style="margin-bottom: 0.75rem;">
-                <label style="display: block; margin-bottom: 0.35rem; font-weight: bold;">Players:</label>
-                <select @onchange="OnPlayerCountChanged" class="form-control" value="@numberOfPlayers">
-                    <option value="2">2 Players (Couple Mode)</option>
-                    <option value="3">3 Players</option>
-                    <option value="4">4 Players</option>
-                    <option value="5">5 Players</option>
-                    <option value="6">6 Players</option>
-                </select>
-            </div>
+        <!-- Number of Players -->
+        <div class="form-group">
+            <label for="players">Players</label>
+            <select @onchange="OnPlayerCountChanged" id="players" class="form-select" value="@numberOfPlayers">
+                <option value="2">2 Players (Couple Mode)</option>
+                <option value="3">3 Players</option>
+                <option value="4">4 Players</option>
+                <option value="5">5 Players</option>
+                <option value="6">6 Players</option>
+            </select>
+        </div>
 
-            <!-- Player Names -->
-            <div style="margin-bottom: 0.75rem;">
-                <label style="display: block; margin-bottom: 0.35rem; font-weight: bold;">
-                    Names:
-                </label>
+        <!-- Player Names -->
+        <div class="form-group">
+            <label>Player Names</label>
+            <div class="player-inputs">
                 @for (int i = 0; i < numberOfPlayers; i++)
                 {
                     int index = i;
-                    <div style="margin-bottom: 0.35rem;">
+                    <div class="player-input-wrapper">
                         <input @bind="playerNames[index]" 
                                placeholder="@(index == 0 ? "King" : $"Player {index + 1}")" 
                                class="form-control" />
                         @if (index == 0)
                         {
-                            <small style="color: #666; font-style: italic; font-size: 0.75rem;">Starts as King (role rotates)</small>
+                            <small class="form-help">Starts as King (role rotates)</small>
                         }
                     </div>
                 }
             </div>
-            
-            <!-- Difficulty -->
-            <div style="margin-bottom: 0.75rem;">
-                <label style="display: block; margin-bottom: 0.35rem; font-weight: bold;">
-                    Difficulty:
-                </label>
-                <select @bind="selectedDifficulty" class="form-control">
-                    <option value="@DifficultyLevel.Easy">Easy (3 rounds)</option>
-                    <option value="@DifficultyLevel.Medium">Medium (5 rounds)</option>
-                    <option value="@DifficultyLevel.Hard">Hard (7 rounds)</option>
-                </select>
+        </div>
+
+        <!-- Difficulty -->
+        <div class="form-group">
+            <label>Difficulty</label>
+            <div class="difficulty-selector">
+                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Easy ? "selected" : "")" 
+                     @onclick="() => OnDifficultyChanged(DifficultyLevel.Easy)">
+                    <span class="difficulty-name">Easy</span>
+                    <span class="difficulty-rounds">3 rounds</span>
+                </div>
+                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Medium ? "selected" : "")" 
+                     @onclick="() => OnDifficultyChanged(DifficultyLevel.Medium)">
+                    <span class="difficulty-name">Medium</span>
+                    <span class="difficulty-rounds">5 rounds</span>
+                </div>
+                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Hard ? "selected" : "")" 
+                     @onclick="() => OnDifficultyChanged(DifficultyLevel.Hard)">
+                    <span class="difficulty-name">Hard</span>
+                    <span class="difficulty-rounds">7 rounds</span>
+                </div>
             </div>
         </div>
 
-        <div style="text-align: center;">
-            <button type="button" class="btn-primary" @onclick="StartGame">
-                START GAME
-            </button>
-        </div>
+        <button type="button" class="btn-start-game" @onclick="StartGame">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+            Start Game
+        </button>
     </div>
 </div>
 
@@ -224,14 +375,12 @@
             StateHasChanged();
         }
     }
-        
-    private string GetDifficultyDescription(DifficultyLevel difficulty) => difficulty switch
+    
+    private void OnDifficultyChanged(DifficultyLevel difficulty)
     {
-        DifficultyLevel.Easy => "Easier questions and fewer rounds for a quick game.",
-        DifficultyLevel.Medium => "Standard questions with a balanced game length.",
-        DifficultyLevel.Hard => "Challenging questions and more rounds for an in-depth game.",
-        _ => string.Empty
-    };
+        selectedDifficulty = difficulty;
+        StateHasChanged();
+    }
 
     private async Task StartGame()
     {

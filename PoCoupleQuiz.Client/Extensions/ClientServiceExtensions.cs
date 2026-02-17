@@ -12,8 +12,11 @@ public static class ClientServiceExtensions
         services.AddScoped<IGameStateService, GameStateService>();
         services.AddScoped<ITeamService, HttpTeamService>();
         services.AddScoped<IGameHistoryService, HttpGameHistoryService>();
-        services.AddScoped<IGameScoringService, GameScoringService>();
-        services.AddScoped<IGameTurnManager, GameTurnManager>();
+
+        // Unified game engine for turn management and score calculation
+        services.AddScoped<IGameEngine, PoCoupleQuiz.Core.Services.GameEngine>();
+        services.AddScoped<IGameTurnManager>(sp => (IGameTurnManager)sp.GetRequiredService<IGameEngine>());
+        services.AddScoped<IGameScoringService>(sp => (IGameScoringService)sp.GetRequiredService<IGameEngine>());
 
         // Question service needs to be available on client for game logic
         // Note: This will make HTTP calls to the server's API

@@ -158,7 +158,6 @@ namespace PoCoupleQuiz.Tests.IntegrationTests
                 Date = System.DateTime.UtcNow,
                 Team1Name = teamName,
                 Team2Name = "Opponent",
-                GameMode = GameMode.KingPlayer,
                 Team1Score = 3,
                 Team2Score = 2,
                 TotalQuestions = 5,
@@ -203,7 +202,6 @@ namespace PoCoupleQuiz.Tests.IntegrationTests
             // Act - Update stats
             var updateRequest = new
             {
-                GameMode = GameMode.KingPlayer,
                 Score = 10,
                 QuestionsAnswered = 5,
                 CorrectAnswers = 3
@@ -284,7 +282,6 @@ namespace PoCoupleQuiz.Tests.IntegrationTests
                 Date = System.DateTime.UtcNow,
                 Team1Name = teamName,
                 Team2Name = "Opponent",
-                GameMode = GameMode.KingPlayer,
                 Team1Score = 3,
                 Team2Score = 2,
                 TotalQuestions = 5,

@@ -27,16 +27,15 @@ public static class ConfigurationExtensions
         IConfiguration configuration)
     {
         services.AddHealthChecks()
-            // Startup check with warmup - waits for storage to be ready
-            .AddCheck<StartupHealthCheck>(
-                "startup",
-                tags: new[] { "ready", "startup" })
             .AddCheck<AzureTableStorageHealthCheck>(
                 "azure_table_storage",
                 tags: new[] { "ready", "storage" })
             .AddCheck<AzureOpenAIHealthCheck>(
                 "azure_openai",
-                tags: new[] { "ready", "ai" });
+                tags: new[] { "ready", "ai" })
+            .AddCheck<KeyVaultHealthCheck>(
+                "azure_keyvault",
+                tags: new[] { "ready", "keyvault" });
 
         return services;
     }

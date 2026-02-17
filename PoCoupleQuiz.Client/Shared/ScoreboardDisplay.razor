@@ -19,7 +19,13 @@
                     @GetRankEmoji(item.Rank)
                 </div>
                 <div class="player-info">
-                    <span class="player-name">@item.Entry.Key</span>
+                    <span class="player-name">
+                        @item.Entry.Key
+                        @if (item.Entry.Key == KingPlayerName)
+                        {
+                            <span class="king-badge">👑 King</span>
+                        }
+                    </span>
                     <div class="progress-bar-container">
                         <div class="progress-bar-fill" style="width: @progressPercent%"></div>
                     </div>
@@ -109,8 +115,20 @@ else
     .player-name {
         font-weight: 600;
         color: #1e1b4b;
-        display: block;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
         margin-bottom: 0.25rem;
+    }
+    
+    .king-badge {
+        font-size: 0.875rem;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        color: #92400e;
+        padding: 0.125rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 500;
+        white-space: nowrap;
     }
     
     .progress-bar-container {
@@ -161,6 +179,9 @@ else
     
     [Parameter]
     public Dictionary<string, int> PreviousScoreboard { get; set; } = new Dictionary<string, int>();
+    
+    [Parameter]
+    public string KingPlayerName { get; set; } = string.Empty;
     
     private bool IsScoreUpdated(string playerName)
     {

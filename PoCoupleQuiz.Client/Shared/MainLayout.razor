@@ -7,15 +7,18 @@
 
 <PageTitle>PoCoupleQuiz</PageTitle>
 
+<link rel="stylesheet" href="css/design-system.css" />
+
 <style>
     .modern-header {
         background: var(--gradient-primary);
         color: white;
-        padding: 0.75rem 1.5rem;
-        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        padding: var(--space-4) var(--space-6);
+        box-shadow: var(--shadow-primary);
         position: sticky;
         top: 0;
-        z-index: 100;
+        z-index: var(--z-sticky);
+        backdrop-filter: blur(10px);
     }
 
     .header-content {
@@ -24,53 +27,75 @@
         justify-content: space-between;
         max-width: 1200px;
         margin: 0 auto;
+        width: 100%;
     }
 
     .brand {
-        font-size: 1.4rem;
-        font-weight: 700;
-        letter-spacing: -0.5px;
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: -0.01em;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: var(--space-3);
+        color: white;
+        text-decoration: none;
+        transition: all var(--transition-base);
+    }
+
+    .brand:hover {
+        transform: scale(1.05);
     }
 
     .brand-icon {
-        font-size: 1.5rem;
+        font-size: var(--font-size-2xl);
+        width: var(--space-6);
+        height: var(--space-6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .nav-links {
         display: flex;
-        gap: 1rem;
+        gap: var(--space-2);
+        align-items: center;
     }
 
     .nav-link {
         color: rgba(255, 255, 255, 0.9);
         text-decoration: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-        font-weight: 500;
+        padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius-md);
+        transition: all var(--transition-base);
+        font-weight: var(--font-weight-medium);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--font-size-base);
     }
 
     .nav-link:hover {
         background: rgba(255, 255, 255, 0.15);
         color: white;
+        transform: translateY(-2px);
     }
 
     .nav-link.active {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.25);
+        font-weight: var(--font-weight-semibold);
     }
 
     .modern-main {
-        padding: 1.5rem;
+        padding: var(--space-6);
         max-width: 1200px;
         margin: 0 auto;
-        min-height: calc(100vh - 60px);
+        min-height: calc(100vh - 70px);
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .page-container {
-        animation: pageSlideIn 0.4s ease-out forwards;
+        animation: pageSlideIn var(--transition-slow) ease-out forwards;
     }
 
     @@keyframes pageSlideIn {
@@ -86,20 +111,25 @@
 
     @@media (max-width: 768px) {
         .modern-header {
-            padding: 0.5rem 1rem;
+            padding: var(--space-3) var(--space-4);
         }
         
         .brand {
-            font-size: 1.1rem;
+            font-size: var(--font-size-xl);
+        }
+        
+        .brand-icon {
+            width: var(--space-5);
+            height: var(--space-5);
         }
         
         .nav-link {
-            padding: 0.4rem 0.75rem;
-            font-size: 0.9rem;
+            padding: var(--space-2) var(--space-3);
+            font-size: var(--font-size-sm);
         }
         
         .modern-main {
-            padding: 1rem;
+            padding: var(--space-4);
         }
     }
 </style>
@@ -108,15 +138,29 @@
     <header class="modern-header">
         <div class="header-content">
             <a href="/" class="brand" style="color: white; text-decoration: none;">
-                <span class="brand-icon">💕</span>
+                <span class="brand-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                </span>
                 <span>PoCoupleQuiz</span>
             </a>
             <nav class="nav-links">
                 <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                    🏠 Home
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                    <span>Home</span>
                 </NavLink>
                 <NavLink class="nav-link" href="leaderboard">
-                    🏆 Leaderboard
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3" />
+                        <polyline points="12 12 20 7.5" />
+                        <polyline points="12 12 12 21" />
+                        <polyline points="12 12 4 7.5" />
+                    </svg>
+                    <span>Leaderboard</span>
                 </NavLink>
             </nav>
         </div>

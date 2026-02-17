@@ -33,7 +33,6 @@
   <ItemGroup>
     <ProjectReference Include="..\PoCoupleQuiz.Client\PoCoupleQuiz.Client.csproj" />
     <ProjectReference Include="..\PoCoupleQuiz.Core\PoCoupleQuiz.Core.csproj" />
-    <ProjectReference Include="..\PoCoupleQuiz.ServiceDefaults\PoCoupleQuiz.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

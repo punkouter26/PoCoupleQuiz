@@ -101,22 +101,13 @@ public class TeamsController : ControllerBase
             return BadRequest("Score cannot be negative.");
         }
 
-        // Validate enum value
-        if (!Enum.IsDefined(typeof(GameMode), request.GameMode))
-        {
-            return BadRequest("Invalid game mode.");
-        }
-
-        await _teamService.UpdateTeamStatsAsync(teamName, request.GameMode, request.Score, request.QuestionsAnswered, request.CorrectAnswers);
+        await _teamService.UpdateTeamStatsAsync(teamName, request.Score, request.QuestionsAnswered, request.CorrectAnswers);
         return Ok();
     }
 }
 
 public class UpdateStatsRequest
 {
-    [Required]
-    public GameMode GameMode { get; set; }
-
     [Range(0, int.MaxValue, ErrorMessage = "Score must be non-negative")]
     public int Score { get; set; }
 

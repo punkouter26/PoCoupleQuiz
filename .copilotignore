@@ -1,6 +1,10 @@
 # PoCoupleQuiz - Copilot Ignore Configuration
 # Exclude build outputs and dependencies from AI context
 
+# Logs
+logs/
+*.log
+
 # Build outputs
 bin/
 obj/

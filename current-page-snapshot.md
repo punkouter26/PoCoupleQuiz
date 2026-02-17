@@ -1,0 +1,38 @@
+- generic [ref=e2]:
+  - banner [ref=e7]:
+    - generic [ref=e8]:
+      - link "💕 PoCoupleQuiz" [ref=e9] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e10]: 💕
+        - generic [ref=e11]: PoCoupleQuiz
+      - navigation [ref=e12]:
+        - link "🏠 Home" [ref=e13] [cursor=pointer]:
+          - /url: ""
+        - link "🏆 Leaderboard" [ref=e14] [cursor=pointer]:
+          - /url: leaderboard
+  - main [ref=e15]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - heading "Game Setup 🎲" [level=6] [ref=e20]
+        - generic [ref=e21]:
+          - generic [ref=e22]: "Players:"
+          - combobox [ref=e23]:
+            - option "2 Players (Couple Mode)"
+            - option "3 Players" [selected]
+            - option "4 Players"
+            - option "5 Players"
+            - option "6 Players"
+        - generic [ref=e24]:
+          - generic [ref=e25]: "Names:"
+          - generic [ref=e26]:
+            - textbox "King" [ref=e27]: King Player
+            - text: Starts as King (role rotates)
+          - textbox "Player 2" [ref=e29]
+          - textbox "Player 3" [ref=e31]
+        - generic [ref=e32]:
+          - generic [ref=e33]: "Difficulty:"
+          - combobox [ref=e34]:
+            - option "Easy (3 rounds)"
+            - option "Medium (5 rounds)" [selected]
+            - option "Hard (7 rounds)"
+      - button "START GAME" [ref=e36] [cursor=pointer]

@@ -111,7 +111,7 @@ This deploys to Azure Container Apps using the Aspire model.
 
 When running locally, OpenAPI documentation is available at:
 ```
-https://localhost:7001/openapi/v1.json
+https://localhost:5001/openapi/v1.json
 ```
 
 For quick API testing, use the [REST Client](docs/api/api-endpoints.http) with VS Code.
@@ -152,8 +152,8 @@ For quick API testing, use the [REST Client](docs/api/api-endpoints.http) with V
 # Open https://localhost:17011 after starting AppHost
 
 # Check health endpoints
-curl https://localhost:7001/health/ready
-curl https://localhost:7001/api/health
+curl https://localhost:5001/health/ready
+curl https://localhost:5001/api/health
 
 # View Application Insights (production)
 # Use KQL queries in docs/kql/

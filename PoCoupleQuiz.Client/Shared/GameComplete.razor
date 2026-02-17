@@ -1,21 +1,157 @@
 @using PoCoupleQuiz.Core.Models
 
-<div class="game-over-container">
-    <h2>🎉 Game Over! 🎉</h2>
-    <ScoreboardDisplay Scoreboard="@Scoreboard" />
-    
-    <div class="mt-4">
-        <RadzenButton Click="@OnNewGame" Text="New Game" ButtonStyle="ButtonStyle.Primary" class="me-2" />
-        <RadzenButton Click="@OnViewLeaderboard" Text="Leaderboard" ButtonStyle="ButtonStyle.Secondary" />
-    </div>
-</div>
-
 <style>
     .game-over-container {
         text-align: center;
-        padding: 2rem;
+        padding: var(--space-8);
+        max-width: 600px;
+        margin: 0 auto;
+        animation: slideInUp var(--transition-slow) ease-out;
+    }
+
+    .game-over-header {
+        margin-bottom: var(--space-8);
+    }
+
+    .game-over-title {
+        font-size: var(--font-size-4xl);
+        font-weight: var(--font-weight-bold);
+        margin-bottom: var(--space-2);
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-3);
+    }
+
+    .game-over-confetti {
+        font-size: 2.5rem;
+        display: inline-block;
+        animation: bounce 0.6s ease infinite;
+    }
+
+    .scoreboard-wrapper {
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        padding: var(--space-6);
+        margin-bottom: var(--space-6);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: var(--space-3);
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btn-game-action {
+        padding: var(--space-3) var(--space-5);
+        border: none;
+        border-radius: var(--radius-md);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        transition: all var(--transition-base);
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--font-size-base);
+    }
+
+    .btn-game-action.primary {
+        background: var(--gradient-primary);
+        color: white;
+        box-shadow: var(--shadow-primary);
+    }
+
+    .btn-game-action.primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px -6px rgba(139, 92, 246, 0.4);
+    }
+
+    .btn-game-action.secondary {
+        background: var(--color-neutral-200);
+        color: var(--color-neutral-900);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .btn-game-action.secondary:hover {
+        background: var(--color-neutral-300);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    @@keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    @@media (max-width: 768px) {
+        .game-over-container {
+            padding: var(--space-6) var(--space-3);
+        }
+
+        .game-over-title {
+            font-size: var(--font-size-2xl);
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .btn-game-action {
+            width: 100%;
+            justify-content: center;
+        }
     }
 </style>
+
+<div class="game-over-container">
+    <div class="game-over-header">
+        <h2 class="game-over-title">
+            <span class="game-over-confetti">🎉</span>
+            Game Over!
+            <span class="game-over-confetti">🎉</span>
+        </h2>
+    </div>
+
+    <div class="scoreboard-wrapper">
+        <ScoreboardDisplay Scoreboard="@Scoreboard" />
+    </div>
+    
+    <div class="action-buttons">
+        <button class="btn-game-action primary" @onclick="OnNewGame">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2-8.83" />
+            </svg>
+            New Game
+        </button>
+        <button class="btn-game-action secondary" @onclick="OnViewLeaderboard">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3" />
+                <polyline points="12 12 20 7.5" />
+                <polyline points="12 12 12 21" />
+                <polyline points="12 12 4 7.5" />
+            </svg>
+            Leaderboard
+        </button>
+    </div>
+</div>
 
 @code {
     [Parameter] public Dictionary<string, int> Scoreboard { get; set; } = new();

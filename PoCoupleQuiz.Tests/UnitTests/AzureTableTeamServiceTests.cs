@@ -105,15 +105,14 @@ public class AzureTableTeamServiceTests
         // Arrange
         _mockTeamService.Setup(s => s.UpdateTeamStatsAsync(
                 "TestTeam",
-                GameMode.KingPlayer,
                 100,
                 10,
                 8))
             .Returns(Task.CompletedTask);
 
         // Act & Assert - Should not throw
-        await _mockTeamService.Object.UpdateTeamStatsAsync("TestTeam", GameMode.KingPlayer, 100, 10, 8);
-        _mockTeamService.Verify(s => s.UpdateTeamStatsAsync("TestTeam", GameMode.KingPlayer, 100, 10, 8), Times.Once);
+        await _mockTeamService.Object.UpdateTeamStatsAsync("TestTeam", 100, 10, 8);
+        _mockTeamService.Verify(s => s.UpdateTeamStatsAsync("TestTeam", 100, 10, 8), Times.Once);
     }
 
     [Fact]
@@ -122,7 +121,6 @@ public class AzureTableTeamServiceTests
         // Arrange
         _mockTeamService.Setup(s => s.UpdateTeamStatsAsync(
                 "TestTeam",
-                GameMode.KingPlayer,
                 150,
                 20,
                 15))
@@ -130,7 +128,7 @@ public class AzureTableTeamServiceTests
             .Verifiable();
 
         // Act
-        await _mockTeamService.Object.UpdateTeamStatsAsync("TestTeam", GameMode.KingPlayer, 150, 20, 15);
+        await _mockTeamService.Object.UpdateTeamStatsAsync("TestTeam", 150, 20, 15);
 
         // Assert
         _mockTeamService.Verify();
