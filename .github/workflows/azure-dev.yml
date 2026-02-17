@@ -113,41 +113,41 @@ jobs:
               SKIP_KEYVAULT=true \
               SCM_DO_BUILD_DURING_DEPLOYMENT=false
 
-        - name: Create deployment package
-          run: |
-            cd publish
-            zip -r ../app-package.zip .
+      - name: Create deployment package
+        run: |
+          cd publish
+          zip -r ../app-package.zip .
 
-        - name: Deploy to App Service (retry on conflict)
-          run: |
-            MAX_ATTEMPTS=5
-            ATTEMPT=1
+      - name: Deploy to App Service (retry on conflict)
+        run: |
+          MAX_ATTEMPTS=5
+          ATTEMPT=1
 
-            while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-              echo "Deployment attempt $ATTEMPT/$MAX_ATTEMPTS"
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Deployment attempt $ATTEMPT/$MAX_ATTEMPTS"
 
-              if az webapp deploy \
-                --name ${{ env.APP_SERVICE_NAME }} \
-                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-                --src-path ./app-package.zip \
-                --type zip \
-                --track-status true; then
-                echo "Deployment succeeded on attempt $ATTEMPT"
-                break
-              fi
+            if az webapp deploy \
+              --name ${{ env.APP_SERVICE_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --src-path ./app-package.zip \
+              --type zip \
+              --track-status true; then
+              echo "Deployment succeeded on attempt $ATTEMPT"
+              break
+            fi
 
-              if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-                echo "Deployment failed after $MAX_ATTEMPTS attempts"
-                exit 1
-              fi
+            if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+              echo "Deployment failed after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
 
-              echo "Deployment conflict/failure detected. Restarting app before retry..."
-              az webapp restart --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
-              SLEEP_SECONDS=$((ATTEMPT * 20))
-              echo "Waiting ${SLEEP_SECONDS}s before retry"
-              sleep $SLEEP_SECONDS
-              ATTEMPT=$((ATTEMPT + 1))
-            done
+            echo "Deployment conflict/failure detected. Restarting app before retry..."
+            az webapp restart --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+            SLEEP_SECONDS=$((ATTEMPT * 20))
+            echo "Waiting ${SLEEP_SECONDS}s before retry"
+            sleep $SLEEP_SECONDS
+            ATTEMPT=$((ATTEMPT + 1))
+          done
 
       - name: Verify Health
         continue-on-error: true
