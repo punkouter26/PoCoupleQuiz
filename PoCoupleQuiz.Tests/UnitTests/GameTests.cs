@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
 using PoCoupleQuiz.Client.Pages;
+using PoCoupleQuiz.Client.Services;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Components;
@@ -22,6 +23,7 @@ namespace PoCoupleQuiz.Tests
         private readonly Mock<IGameStateService> _mockGameStateService;
         private readonly Mock<NavigationManager> _mockNavigationManager;
         private readonly Mock<NotificationService> _mockNotificationService;
+        private readonly Mock<IGameHubService> _mockGameHubService;
         private IServiceProvider _serviceProvider;
 
         public GameTests()
@@ -33,6 +35,15 @@ namespace PoCoupleQuiz.Tests
             _mockGameStateService = new Mock<IGameStateService>();
             _mockNavigationManager = new Mock<NavigationManager>();
             _mockNotificationService = new Mock<NotificationService>();
+            _mockGameHubService = new Mock<IGameHubService>();
+            _mockGameHubService.Setup(h => h.ConnectAsync()).Returns(Task.CompletedTask);
+            _mockGameHubService.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
+            _mockGameHubService.SetupAdd(h => h.OnLobbyCreated += It.IsAny<Action<LobbyInfo>>());
+            _mockGameHubService.SetupAdd(h => h.OnLobbyJoined += It.IsAny<Action<LobbyInfo>>());
+            _mockGameHubService.SetupAdd(h => h.OnLobbyError += It.IsAny<Action<string>>());
+            _mockGameHubService.SetupRemove(h => h.OnLobbyCreated -= It.IsAny<Action<LobbyInfo>>());
+            _mockGameHubService.SetupRemove(h => h.OnLobbyJoined -= It.IsAny<Action<LobbyInfo>>());
+            _mockGameHubService.SetupRemove(h => h.OnLobbyError -= It.IsAny<Action<string>>()); 
 
             // Setup mock question
             _mockQuestionService.Setup(x => x.GenerateQuestionAsync(It.IsAny<string>()))
@@ -60,6 +71,7 @@ namespace PoCoupleQuiz.Tests
             Services.AddSingleton<IGameStateService>(_mockGameStateService.Object);
             Services.AddSingleton<NavigationManager>(_mockNavigationManager.Object);
             Services.AddSingleton<NotificationService>(_mockNotificationService.Object);
+            Services.AddSingleton<IGameHubService>(_mockGameHubService.Object);
             // Add Radzen services
             Services.AddScoped<DialogService>();
             Services.AddScoped<TooltipService>();
@@ -112,9 +124,11 @@ namespace PoCoupleQuiz.Tests
             // Act - Allow time for component to initialize
             await Task.Delay(100);
 
-            // Assert - Check for game setup heading (h1 with setup-title class)
-            var heading = cut.Find("h1.setup-title");
-            Assert.Contains("Game Setup", heading.TextContent);
+            // Assert - Check for home wrapper (new design with lobby-flow)
+            var wrapper = cut.Find(".home-wrapper");
+            Assert.NotNull(wrapper);
+            var title = cut.Find("h1.home-title");
+            Assert.Contains("PoCoupleQuiz", title.TextContent);
         }
 
         [Trait("Category", "Unit")]

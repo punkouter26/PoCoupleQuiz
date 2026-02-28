@@ -1,23 +1,21 @@
 using Bunit;
 using Xunit;
-using PoCoupleQuiz.Core.Services;
-using Microsoft.JSInterop;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Microsoft.AspNetCore.Components;
 using PoCoupleQuiz.Core.Models;
+using PoCoupleQuiz.Client.Services;
 using IndexPage = PoCoupleQuiz.Client.Pages.Index;
 
 namespace PoCoupleQuiz.Tests.ComponentTests;
 
 /// <summary>
-/// bUnit tests for Index (Home) page component
+/// bUnit tests for Index (Home) page component.
+/// Updated to match the redesigned Index.razor that uses SignalR hub for lobby creation.
 /// </summary>
 public class IndexTests : BunitContext
 {
-    private Mock<ITeamService> _mockTeamService = null!;
-    private Mock<IGameStateService> _mockGameState = null!;
-    private Mock<IJSRuntime> _mockJSRuntime = null!;
+    private Mock<IGameHubService> _mockHubService = null!;
 
     public IndexTests()
     {
@@ -26,23 +24,25 @@ public class IndexTests : BunitContext
 
     private void SetupMocks()
     {
-        _mockTeamService = new Mock<ITeamService>();
-        _mockGameState = new Mock<IGameStateService>();
-        _mockJSRuntime = new Mock<IJSRuntime>();
+        _mockHubService = new Mock<IGameHubService>();
 
-        // Setup JSRuntime to return null for localStorage calls (no saved preferences)
-        _mockJSRuntime.Setup(js => js.InvokeAsync<string?>(
-            "localStorage.getItem",
-            It.IsAny<object[]>()))
-            .ReturnsAsync((string?)null);
+        // Setup hub to not throw on ConnectAsync (fire-and-forget in OnInitializedAsync)
+        _mockHubService.Setup(h => h.ConnectAsync()).Returns(Task.CompletedTask);
+        _mockHubService.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
 
-        // Create a concrete NavigationManager mock
+        // Wire up event stubs so += / -= don't throw
+        _mockHubService.SetupAdd(h => h.OnLobbyCreated += It.IsAny<Action<LobbyInfo>>());
+        _mockHubService.SetupAdd(h => h.OnLobbyJoined += It.IsAny<Action<LobbyInfo>>());
+        _mockHubService.SetupAdd(h => h.OnLobbyError += It.IsAny<Action<string>>());
+        _mockHubService.SetupRemove(h => h.OnLobbyCreated -= It.IsAny<Action<LobbyInfo>>());
+        _mockHubService.SetupRemove(h => h.OnLobbyJoined -= It.IsAny<Action<LobbyInfo>>());
+        _mockHubService.SetupRemove(h => h.OnLobbyError -= It.IsAny<Action<string>>());
+
         var navManager = new TestNavigationManager();
 
-        Services.AddSingleton(_mockTeamService.Object);
-        Services.AddSingleton(_mockGameState.Object);
-        Services.AddSingleton<IJSRuntime>(_mockJSRuntime.Object);
+        Services.AddSingleton(_mockHubService.Object);
         Services.AddSingleton<NavigationManager>(navManager);
+        Services.AddLogging();
     }
 
     [Fact]
@@ -51,80 +51,54 @@ public class IndexTests : BunitContext
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert
-        var heading = cut.Find("h6");
-        Assert.Contains("Game Setup", heading.TextContent);
+        // Assert - the new design renders a home-wrapper and home-card
+        var wrapper = cut.Find(".home-wrapper");
+        Assert.NotNull(wrapper);
     }
 
     [Fact]
-    public void Index_DefaultPlayerCount_IsThree()
+    public void Index_RendersAppTitle()
+    {
+        // Act
+        var cut = Render<IndexPage>();
+
+        // Assert - h1 with app title
+        var title = cut.Find("h1.home-title");
+        Assert.Contains("PoCoupleQuiz", title.TextContent);
+    }
+
+    [Fact]
+    public void Index_RendersSubtitle()
     {
         // Act
         var cut = Render<IndexPage>();
 
         // Assert
-        var select = cut.Find("select");
-        Assert.Equal("3", select.GetAttribute("value"));
+        var subtitle = cut.Find("p.home-subtitle");
+        Assert.Contains("Play together", subtitle.TextContent);
     }
 
     [Fact]
-    public void Index_RendersThreePlayerNameInputs_ByDefault()
+    public void Index_RendersNameInput()
     {
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert - 3 player inputs only (no team name input)
+        // Assert - single name input
         var inputs = cut.FindAll("input.form-control");
-        Assert.Equal(3, inputs.Count);
+        Assert.Single(inputs);
+        Assert.Equal("Enter your name", inputs[0].GetAttribute("placeholder"));
     }
 
     [Fact]
-    public void Index_FirstPlayerInput_HasKingPlaceholder()
+    public void Index_RendersDifficultyOptions()
     {
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert - First input (index 0) is the King player input
-        var playerInputs = cut.FindAll("input.form-control");
-        Assert.Equal("King", playerInputs[0].GetAttribute("placeholder"));
-    }
-
-    [Fact]
-    public void Index_KingPlayerInput_HasHelpText()
-    {
-        // Act
-        var cut = Render<IndexPage>();
-
-        // Assert
-        var helpText = cut.Find("small");
-        Assert.Contains("Starts as King", helpText.TextContent);
-    }
-
-    [Fact]
-    public void Index_StartGameButton_Exists()
-    {
-        // Act
-        var cut = Render<IndexPage>();
-
-        // Assert
-        var button = cut.Find("button.btn-primary");
-        Assert.Equal("START GAME", button.TextContent.Trim());
-    }
-
-    [Fact]
-    public void Index_DifficultySelector_ExistsWithOptions()
-    {
-        // Act
-        var cut = Render<IndexPage>();
-
-        // Assert
-        var difficultySelect = cut.FindAll("select")[1]; // Second select is difficulty
-        var options = difficultySelect.QuerySelectorAll("option");
-
-        Assert.Equal(3, options.Length);
-        Assert.Contains(options, o => o.TextContent.Contains("Easy (3 rounds)"));
-        Assert.Contains(options, o => o.TextContent.Contains("Medium (5 rounds)"));
-        Assert.Contains(options, o => o.TextContent.Contains("Hard (7 rounds)"));
+        // Assert - three difficulty option cards
+        var options = cut.FindAll(".difficulty-option");
+        Assert.Equal(3, options.Count);
     }
 
     [Fact]
@@ -133,74 +107,57 @@ public class IndexTests : BunitContext
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert
-        var difficultySelect = cut.FindAll("select")[1];
-        Assert.Equal("Medium", difficultySelect.GetAttribute("value"));
+        // Assert - Medium option is selected by default
+        var selectedOptions = cut.FindAll(".difficulty-option.selected");
+        Assert.Single(selectedOptions);
+        Assert.Contains("Medium", selectedOptions[0].TextContent);
     }
 
     [Fact]
-    public void Index_RendersPlayerCountOptions()
+    public void Index_DifficultyOptions_HaveCorrectLabels()
     {
         // Act
         var cut = Render<IndexPage>();
 
         // Assert
-        var playerCountSelect = cut.FindAll("select")[0];
-        var options = playerCountSelect.QuerySelectorAll("option");
-
-        Assert.Equal(5, options.Length); // 2, 3, 4, 5, 6 players
-        Assert.Contains(options, o => o.TextContent.Contains("2 Players"));
-        Assert.Contains(options, o => o.TextContent.Contains("3 Players"));
-        Assert.Contains(options, o => o.TextContent.Contains("4 Players"));
-        Assert.Contains(options, o => o.TextContent.Contains("5 Players"));
-        Assert.Contains(options, o => o.TextContent.Contains("6 Players"));
+        var options = cut.FindAll(".difficulty-option");
+        Assert.Contains(options, o => o.TextContent.Contains("Easy"));
+        Assert.Contains(options, o => o.TextContent.Contains("Medium"));
+        Assert.Contains(options, o => o.TextContent.Contains("Hard"));
     }
 
     [Fact]
-    public void Index_HasGameSetupTitle()
+    public void Index_PlayButton_Exists()
     {
         // Act
         var cut = Render<IndexPage>();
 
         // Assert
-        var title = cut.Find("h6");
-        Assert.Contains("Game Setup", title.TextContent);
-        Assert.Contains("🎲", title.TextContent);
+        var button = cut.Find("button.btn-primary");
+        Assert.Contains("Play", button.TextContent);
     }
 
     [Fact]
-    public void Index_RendersCard()
+    public void Index_PlayButton_IsNotDisabledByDefault()
     {
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert
-        var card = cut.Find(".card");
-        Assert.NotNull(card);
+        // Assert - button is not disabled when not loading
+        var button = cut.Find("button.btn-primary");
+        Assert.False(button.HasAttribute("disabled") && button.GetAttribute("disabled") != "false",
+            "Play button should not be disabled initially");
     }
 
     [Fact]
-    public void Index_RendersSetupContainer()
+    public void Index_NoErrorMessage_ByDefault()
     {
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert
-        var container = cut.Find(".setup-container");
-        Assert.NotNull(container);
-    }
-
-    [Fact]
-    public void Index_PlayerNameInputs_HaveCorrectPlaceholders()
-    {
-        // Act
-        var cut = Render<IndexPage>();
-
-        // Assert - Only player inputs exist (King, Player 2, Player 3)
-        var inputs = cut.FindAll("input.form-control");
-        Assert.Equal("King", inputs[0].GetAttribute("placeholder"));
-        Assert.Equal("Player 2", inputs[1].GetAttribute("placeholder"));
-        Assert.Equal("Player 3", inputs[2].GetAttribute("placeholder"));
+        // Assert - no error alert shown initially
+        var errors = cut.FindAll(".alert-error");
+        Assert.Empty(errors);
     }
 
     // Helper class for NavigationManager mock
