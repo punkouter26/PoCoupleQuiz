@@ -10,11 +10,13 @@ public class LogContextEnrichmentMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<LogContextEnrichmentMiddleware> _logger;
+    private readonly IWebHostEnvironment _env;
 
-    public LogContextEnrichmentMiddleware(RequestDelegate next, ILogger<LogContextEnrichmentMiddleware> logger)
+    public LogContextEnrichmentMiddleware(RequestDelegate next, ILogger<LogContextEnrichmentMiddleware> logger, IWebHostEnvironment env)
     {
         _next = next;
         _logger = logger;
+        _env = env;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -37,6 +39,7 @@ public class LogContextEnrichmentMiddleware
         // Enrich all logs in this request with user and session context
         using (LogContext.PushProperty("UserId", userId))
         using (LogContext.PushProperty("SessionId", sessionId))
+        using (LogContext.PushProperty("Environment", _env.EnvironmentName))
         using (LogContext.PushProperty("IpAddress", ipAddress))
         {
             _logger.LogDebug("Request started with UserId={UserId}, SessionId={SessionId}", userId, sessionId);

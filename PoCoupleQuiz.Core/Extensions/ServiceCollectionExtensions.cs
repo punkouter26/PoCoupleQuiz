@@ -45,6 +45,9 @@ public static class ServiceCollectionExtensions
         }
         services.AddScoped<IGameStateService, GameStateService>();
 
+        // Remote multiplayer: singleton session manager (owns all lobbies and active games server-side)
+        services.AddSingleton<IGameSessionManager, GameSessionManager>();
+
         // Register Phase 2 refactored unified game engine (consolidates turn management and scoring)
         services.AddScoped<IGameEngine, GameEngine>();
         

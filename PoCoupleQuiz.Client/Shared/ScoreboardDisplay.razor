@@ -4,7 +4,10 @@
 @if (Scoreboard != null && Scoreboard.Any())
 {
     var maxScore = Scoreboard.Values.Max();
-    var rankedScores = Scoreboard.OrderByDescending(s => s.Value).Select((s, idx) => new { Entry = s, Rank = idx + 1 }).ToList();
+    var rankedScores = Scoreboard
+        .Where(s => s.Key != KingPlayerName)
+        .OrderByDescending(s => s.Value)
+        .Select((s, idx) => new { Entry = s, Rank = idx + 1 }).ToList();
     
     <div class="scoreboard-display state-transition">
         <h4 class="scoreboard-header">🏆 Scoreboard</h4>
@@ -19,13 +22,7 @@
                     @GetRankEmoji(item.Rank)
                 </div>
                 <div class="player-info">
-                    <span class="player-name">
-                        @item.Entry.Key
-                        @if (item.Entry.Key == KingPlayerName)
-                        {
-                            <span class="king-badge">👑 King</span>
-                        }
-                    </span>
+                    <span class="player-name">@item.Entry.Key</span>
                     <div class="progress-bar-container">
                         <div class="progress-bar-fill" style="width: @progressPercent%"></div>
                     </div>

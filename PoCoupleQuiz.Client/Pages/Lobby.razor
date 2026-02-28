@@ -1,0 +1,405 @@
+@page "/lobby/{GameCode}"
+@using PoCoupleQuiz.Client.Services
+@implements IDisposable
+@inject NavigationManager NavigationManager
+@inject IGameHubService Hub
+@inject ILogger<Pages.Lobby> Logger
+
+<PageTitle>PoCoupleQuiz — Lobby @GameCode</PageTitle>
+
+<style>
+    .lobby-wrapper {
+        min-height: calc(100vh - 70px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-4);
+        background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-accent-50) 100%);
+    }
+
+    .lobby-card {
+        background: var(--surface);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-xl);
+        padding: var(--space-8);
+        max-width: 480px;
+        width: 100%;
+        animation: slideInUp var(--transition-slow) ease-out;
+    }
+
+    .code-display {
+        text-align: center;
+        background: var(--color-primary-50);
+        border: 2px dashed var(--color-primary-300);
+        border-radius: var(--radius-lg);
+        padding: var(--space-5);
+        margin-bottom: var(--space-6);
+    }
+
+    .code-label {
+        font-size: var(--font-size-xs);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--color-neutral-500);
+        margin-bottom: var(--space-2);
+    }
+
+    .code-value {
+        font-size: 2.5rem;
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 8px;
+        color: var(--color-primary-700);
+        font-family: monospace;
+    }
+
+    .copy-btn {
+        margin-top: var(--space-3);
+        padding: var(--space-2) var(--space-4);
+        background: var(--color-primary-100);
+        color: var(--color-primary-700);
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        transition: all var(--transition-base);
+    }
+
+    .copy-btn:hover { background: var(--color-primary-200); }
+
+    .section-title {
+        font-size: var(--font-size-sm);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--color-neutral-500);
+        margin-bottom: var(--space-3);
+        font-weight: var(--font-weight-semibold);
+    }
+
+    .player-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 var(--space-6);
+    }
+
+    .player-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        background: var(--color-neutral-50);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--space-2);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-neutral-800);
+        animation: fadeIn .3s ease-out;
+    }
+
+    .player-avatar {
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        background: var(--gradient-primary);
+        display: flex; align-items: center; justify-content: center;
+        color: white;
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-sm);
+        flex-shrink: 0;
+    }
+
+    .badge-host {
+        margin-left: auto;
+        background: var(--color-primary-100);
+        color: var(--color-primary-700);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        padding: 2px 8px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+    }
+
+    .waiting-hint {
+        color: var(--color-neutral-500);
+        font-size: var(--font-size-sm);
+        text-align: center;
+        margin-bottom: var(--space-4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+    }
+
+    .btn-start {
+        width: 100%;
+        padding: var(--space-4) var(--space-6);
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-bold);
+        border: none;
+        border-radius: var(--radius-lg);
+        background: var(--gradient-primary);
+        color: white;
+        cursor: pointer;
+        transition: all var(--transition-base);
+        box-shadow: var(--shadow-primary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+    }
+
+    .btn-start:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 15px 40px -5px rgba(139, 92, 246, .4); }
+    .btn-start:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .difficulty-pill {
+        display: inline-block;
+        background: var(--color-accent-100);
+        color: var(--color-accent-700);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        padding: 2px 10px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: var(--space-4);
+    }
+
+    .spinner {
+        width: 20px; height: 20px;
+        border: 3px solid rgba(255,255,255,.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
+    }
+
+    .alert-error {
+        background: #fef2f2; border: 1px solid #fecaca;
+        color: #991b1b; border-radius: var(--radius-md);
+        padding: var(--space-3) var(--space-4);
+        margin-bottom: var(--space-4); font-size: var(--font-size-sm);
+    }
+
+    .disconnected-banner {
+        background: #fffbeb; border: 1px solid #fcd34d;
+        color: #92400e; border-radius: var(--radius-md);
+        padding: var(--space-3) var(--space-4);
+        margin-bottom: var(--space-4); font-size: var(--font-size-sm);
+    }
+
+    @@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @@keyframes slideInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<div class="lobby-wrapper">
+    <div class="lobby-card">
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert-error">@errorMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(disconnectedMessage))
+        {
+            <div class="disconnected-banner">@disconnectedMessage</div>
+        }
+
+        <!-- Difficulty -->
+        @if (!string.IsNullOrEmpty(difficulty))
+        {
+            <div style="text-align:center;margin-bottom:var(--space-4)">
+                <span class="difficulty-pill">@difficulty</span>
+            </div>
+        }
+
+        <!-- Player list -->
+        <div class="section-title">Players (@players.Count)</div>
+        <ul class="player-list">
+            @foreach (var name in players)
+            {
+                <li class="player-item">
+                    <div class="player-avatar">@name[0].ToString().ToUpperInvariant()</div>
+                    <span>@name</span>
+                    @if (name == hostName)
+                    {
+                        <span class="badge-host">Host</span>
+                    }
+                </li>
+            }
+        </ul>
+
+        <!-- Waiting hint -->
+        @if (!isHost || players.Count < 2)
+        {
+            <div class="waiting-hint">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                </svg>
+                @if (players.Count < 2)
+                {
+                    <span>Waiting for at least 1 more player to join…</span>
+                }
+                else if (!isHost)
+                {
+                    <span>Waiting for the host to start the game…</span>
+                }
+            </div>
+        }
+
+        <!-- Start button (host only) -->
+        @if (isHost)
+        {
+            <button class="btn-start"
+                    @onclick="StartGame"
+                    disabled="@(players.Count < 2 || isStarting)">
+                @if (isStarting)
+                {
+                    <div class="spinner"></div>
+                }
+                else
+                {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    <span>Start Game (@players.Count players)</span>
+                }
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string GameCode { get; set; } = "";
+
+    private List<string> players = new();
+    private string hostName = "";
+    private string difficulty = "";
+    private bool isHost = false;
+    private bool isStarting = false;
+    private string errorMessage = "";
+    private string disconnectedMessage = "";
+    private bool _navigating = false;
+
+    // Named delegate fields so Dispose() can properly unsubscribe
+    private Action<LobbyInfo>? _onLobbyCreated;
+    private Action<LobbyInfo>? _onLobbyJoined;
+    private Action<LobbyUpdateInfo>? _onLobbyUpdated;
+    private Action<string>? _onLobbyError;
+    private Action<GameStartedInfo>? _onGameStarted;
+    private Action<LobbyUpdateInfo>? _onPlayerDisconnected;
+    private Action<string, string>? _onHostChanged;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The hub was already connected and we got here because Index navigated us.
+        // If the page refreshes, we need to reconnect but we have no stored player name.
+        if (!Hub.IsConnected)
+        {
+            NavigationManager.NavigateTo("/");
+            return;
+        }
+
+        // Seed state immediately from the cached lobby (LobbyCreated/LobbyJoined already fired
+        // on Index.razor before this page was constructed, so we'd miss it without the cache).
+        if (Hub.CurrentLobby is { } cached &&
+            cached.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase))
+        {
+            players  = cached.Players;
+            hostName = cached.HostName;
+            difficulty = cached.Difficulty;
+            isHost   = cached.IsHost;
+        }
+
+        // Build named delegates and subscribe
+        _onLobbyCreated = OnLobbyInfo;
+        _onLobbyJoined = OnLobbyInfo;
+
+        _onLobbyUpdated = update =>
+        {
+            if (!update.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+            players = update.Players;
+            hostName = update.HostName;
+            InvokeAsync(StateHasChanged);
+        };
+
+        _onLobbyError = msg =>
+        {
+            isStarting = false;
+            errorMessage = msg;
+            InvokeAsync(StateHasChanged);
+        };
+
+        _onGameStarted = info =>
+        {
+            if (!info.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+            if (_navigating) return;
+            _navigating = true;
+            InvokeAsync(() => NavigationManager.NavigateTo($"/game/{info.GameCode}"));
+        };
+
+        _onPlayerDisconnected = update =>
+        {
+            if (!update.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+            players = update.Players;
+            hostName = update.HostName;
+            disconnectedMessage = "A player disconnected.";
+            InvokeAsync(StateHasChanged);
+        };
+
+        _onHostChanged = (code, newHost) =>
+        {
+            if (!code.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+            hostName = newHost;
+            isHost = Hub.IsHost; // update in case we were promoted
+            InvokeAsync(StateHasChanged);
+        };
+
+        Hub.OnLobbyCreated += _onLobbyCreated;
+        Hub.OnLobbyJoined += _onLobbyJoined;
+        Hub.OnLobbyUpdated += _onLobbyUpdated;
+        Hub.OnLobbyError += _onLobbyError;
+        Hub.OnGameStarted += _onGameStarted;
+        Hub.OnPlayerDisconnected += _onPlayerDisconnected;
+        Hub.OnHostChanged += _onHostChanged;
+    }
+
+    private void OnLobbyInfo(LobbyInfo info)
+    {
+        if (!info.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+        players = info.Players;
+        hostName = info.HostName;
+        difficulty = info.Difficulty;
+        isHost = info.IsHost;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StartGame()
+    {
+        errorMessage = "";
+        isStarting = true;
+        StateHasChanged();
+        try
+        {
+            await Hub.StartGameAsync(GameCode);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "StartGame failed");
+            errorMessage = "Failed to start game. Please try again.";
+            isStarting = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_onLobbyCreated  is not null) Hub.OnLobbyCreated  -= _onLobbyCreated;
+        if (_onLobbyJoined   is not null) Hub.OnLobbyJoined   -= _onLobbyJoined;
+        if (_onLobbyUpdated  is not null) Hub.OnLobbyUpdated  -= _onLobbyUpdated;
+        if (_onLobbyError    is not null) Hub.OnLobbyError    -= _onLobbyError;
+        if (_onGameStarted   is not null) Hub.OnGameStarted   -= _onGameStarted;
+        if (_onPlayerDisconnected is not null) Hub.OnPlayerDisconnected -= _onPlayerDisconnected;
+        if (_onHostChanged   is not null) Hub.OnHostChanged   -= _onHostChanged;
+    }
+}

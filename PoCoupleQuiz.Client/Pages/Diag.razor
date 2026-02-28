@@ -1,0 +1,58 @@
+@page "/diag"
+@inject HttpClient Http
+
+<PageTitle>PoCoupleQuiz - Diagnostics</PageTitle>
+
+<div class="container mt-4">
+    <h3>🔧 Diagnostics</h3>
+    <p class="text-muted">Runtime configuration and environment info (Development only).</p>
+
+    @if (_loading)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else if (_error is not null)
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+    else
+    {
+        <pre class="bg-dark text-light p-3 rounded" style="overflow:auto; max-height:80vh; font-size:0.8rem;">@_json</pre>
+    }
+</div>
+
+@code {
+    private string? _json;
+    private string? _error;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            using var response = await Http.GetAsync("/api/diagnostics");
+            if (response.IsSuccessStatusCode)
+            {
+                var raw = await response.Content.ReadAsStringAsync();
+                // Pretty-print
+                var doc = System.Text.Json.JsonDocument.Parse(raw);
+                _json = System.Text.Json.JsonSerializer.Serialize(
+                    doc.RootElement,
+                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            }
+            else
+            {
+                _error = $"Server returned {(int)response.StatusCode} {response.ReasonPhrase}. " +
+                         "Diagnostics endpoint is only available in Development.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

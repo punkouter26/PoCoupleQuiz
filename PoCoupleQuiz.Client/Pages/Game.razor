@@ -1,664 +1,627 @@
-@page "/game"
-@page "/game/{playerType}"
+@page "/game/{GameCode}"
+@using PoCoupleQuiz.Client.Services
 @using PoCoupleQuiz.Core.Models
 @using PoCoupleQuiz.Core.Services
-@using System.Text.Json
-@inject IGameStateService GameState
-@inject IQuestionService QuestionService
+@implements IDisposable
+@inject IGameHubService Hub
 @inject ITeamService TeamService
 @inject IGameHistoryService GameHistoryService
-@inject IGameTurnManager TurnManager
-@inject IGameScoringService ScoringService
 @inject NavigationManager NavigationManager
-@inject NotificationService NotificationService
-@inject HttpClient HttpClient
 @inject ILogger<Pages.Game> Logger
 
-<PageTitle>PoCoupleQuiz - Game</PageTitle>
-
-<div class="container mt-4">
-    @if (currentGame == null)
-    {
-        <div class="alert alert-warning">
-            <h4>No Game Found</h4>
-            <p>Please start a new game from the home page.</p>
-            <RadzenButton Click="@(() => NavigationManager.NavigateTo("/"))" Text="Go Home" ButtonStyle="ButtonStyle.Primary" />
-        </div>
-    }
-    else if (currentGame.IsGameOver)
-    {
-        <GameComplete Scoreboard="@currentGame.GetScoreboard()"
-                     OnNewGame="@(() => NavigationManager.NavigateTo("/"))"
-                     OnViewLeaderboard="@(() => NavigationManager.NavigateTo("/leaderboard"))" />
-    }
-    else
-    {
-        <div class="game-container">
-            <div class="row">
-                <div class="col-md-8">
-                    <RadzenCard class="game-card">
-                        <h3>Round @(currentGame.CurrentRound + 1) of @currentGame.MaxRounds</h3>
-                          @if (currentQuestion != null)
-                        {
-                            @if (!showResults)
-                            {
-                                <QuestionDisplay QuestionText="@currentQuestion.Question"
-                                               CurrentPlayerName="@currentPlayerName"
-                                               KingPlayerName="@(currentGame.KingPlayer?.Name ?? "")"
-                                               IsKingPlayer="@isKingPlayerTurn"
-                                               ShowResults="@showResults"
-                                               CurrentGuessingPlayerIndex="@currentGuessingPlayerIndex"
-                                               TotalGuessingPlayers="@guessingPlayers.Count"
-                                               Answer="@currentAnswer"
-                                               OnAnswerInput="@OnAnswerInput"
-                                               OnSubmit="@SubmitAnswer" />
-                            }
-                            else
-                            {
-                                <RoundResults KingAnswer="@currentQuestion.KingPlayerAnswer"
-                                            PlayerAnswers="@currentQuestion.PlayerAnswers"
-                                            MatchedPlayers="@GetMatchedPlayers()"
-                                            OnNextRound="@NextRound" />
-                            }
-                        }
-                        else
-                        {
-                            <SkeletonLoader Type="question" />
-                        }
-                    </RadzenCard>
-                </div>
-                
-                <div class="col-md-4">
-                    <RadzenCard class="scoreboard-card">
-                        <ScoreboardDisplay Scoreboard="@currentGame.GetScoreboard()" 
-                                         PreviousScoreboard="@previousScoreboard"
-                                         KingPlayerName="@GetKingPlayerName()" />
-                    </RadzenCard>
-                    
-                    <RadzenCard class="progress-card mt-3">
-                        <GameProgressTracker CurrentRound="@(currentGame.CurrentRound + 1)" 
-                                           TotalRounds="@currentGame.MaxRounds" />
-                    </RadzenCard>
-                </div>
-            </div>
-        </div>
-    }
-</div>
-
-@* Next Round Button *@
-@if (currentGame != null && showResults && !currentGame.IsGameOver)
-{
-    <button class="next-round-fab" @onclick="NextRound" title="Next Round">
-        <span>→</span>
-    </button>
-}
+<PageTitle>PoCoupleQuiz — Round @(roundIndex + 1)</PageTitle>
 
 <style>
-    .game-container {
-        max-width: 1200px;
-        margin: 0 auto;
+    .game-wrapper {
+        min-height: calc(100vh - 70px);
         padding: var(--space-4);
+        background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-accent-50) 100%);
+    }
+
+    .game-layout {
+        max-width: 900px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 280px;
+        gap: var(--space-5);
+        align-items: start;
         animation: slideInUp var(--transition-slow) ease-out;
     }
 
-    .row {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: var(--space-6);
-        align-items: flex-start;
-    }
-    
-    .game-card {
+    .card {
         background: var(--surface);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg);
         padding: var(--space-6);
-        box-shadow: var(--shadow-lg);
-        border-radius: var(--radius-lg);
         border: 1px solid var(--color-neutral-200);
-        transition: all var(--transition-base);
     }
 
-    .game-card:hover {
-        box-shadow: var(--shadow-xl);
-        border-color: var(--color-primary-200);
-    }
-    
-    .game-card h3 {
+    .round-badge {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 1px;
         color: var(--color-primary-600);
+        background: var(--color-primary-50);
+        border-radius: 999px;
+        padding: 3px 12px;
+        display: inline-block;
+        margin-bottom: var(--space-4);
+    }
+
+    .question-text {
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-neutral-900);
+        line-height: 1.5;
+        margin-bottom: var(--space-6);
+    }
+
+    .role-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-4);
+        border-radius: 999px;
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        margin-bottom: var(--space-4);
+    }
+
+    .role-king { background: #fef9c3; color: #713f12; }
+    .role-guesser { background: #ede9fe; color: #5b21b6; }
+
+    .answer-area { margin-top: var(--space-2); }
+
+    .answer-input {
+        width: 100%;
+        padding: var(--space-3) var(--space-4);
+        font-size: var(--font-size-base);
+        border: 2px solid var(--color-neutral-200);
+        border-radius: var(--radius-md);
+        background: #fff;
+        color: var(--color-neutral-900);
+        transition: all var(--transition-base);
+        box-sizing: border-box;
+        font-family: inherit;
+    }
+
+    .answer-input:focus {
+        outline: none;
+        border-color: var(--color-primary-600);
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, .1);
+    }
+
+    .btn-submit {
+        width: 100%;
+        margin-top: var(--space-4);
+        padding: var(--space-4);
+        font-size: var(--font-size-lg);
         font-weight: var(--font-weight-bold);
-        margin-bottom: var(--space-5);
-        padding-bottom: var(--space-3);
-        border-bottom: 3px solid var(--color-primary-200);
-        font-size: var(--font-size-2xl);
-    }
-    
-    .scoreboard-card {
-        background: var(--surface);
-        box-shadow: var(--shadow-md);
+        border: none;
         border-radius: var(--radius-lg);
-        border: 1px solid var(--color-neutral-200);
-        padding: var(--space-5);
+        background: var(--gradient-primary);
+        color: white;
+        cursor: pointer;
         transition: all var(--transition-base);
+        box-shadow: var(--shadow-primary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
 
-    .scoreboard-card:hover {
-        box-shadow: var(--shadow-lg);
-    }
-    
-    .progress-card {
-        background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-accent-50) 100%);
-        box-shadow: var(--shadow-md);
+    .btn-submit:hover:not(:disabled) { transform: translateY(-2px); }
+    .btn-submit:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .waiting-box {
+        background: var(--color-primary-50);
+        border: 2px dashed var(--color-primary-200);
         border-radius: var(--radius-lg);
         padding: var(--space-5);
-        border: 2px solid var(--color-primary-200);
-        transition: all var(--transition-base);
+        text-align: center;
+        color: var(--color-primary-700);
+        margin-top: var(--space-4);
     }
 
-    .progress-card:hover {
-        box-shadow: var(--shadow-lg);
-        border-color: var(--color-primary-400);
+    .waiting-box h4 { margin-bottom: var(--space-3); font-size: var(--font-size-base); }
+
+    .waiting-players {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        justify-content: center;
+        margin-top: var(--space-3);
     }
-    
-    .next-round-fab {
+
+    .wp-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+    }
+
+    .wp-done { background: #d1fae5; color: #065f46; }
+    .wp-pending { background: #f3f4f6; color: #6b7280; }
+
+    .btn-next {
         position: fixed;
         bottom: var(--space-6);
         right: var(--space-6);
-        width: var(--space-12);
-        height: var(--space-12);
-        border-radius: 50%;
+        padding: var(--space-3) var(--space-6);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-bold);
+        border: none;
+        border-radius: 999px;
         background: var(--gradient-primary);
         color: white;
-        border: none;
-        font-size: var(--font-size-2xl);
         cursor: pointer;
         box-shadow: var(--shadow-primary);
         transition: all var(--transition-base);
         display: flex;
         align-items: center;
+        gap: var(--space-2);
+        z-index: 50;
+    }
+
+    .btn-next:hover { transform: scale(1.05); }
+    .btn-next:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .spinner {
+        width: 18px; height: 18px;
+        border: 2px solid rgba(255,255,255,.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
+        display: inline-block;
+    }
+
+    .alert-error {
+        background: #fef2f2; border: 1px solid #fecaca;
+        color: #991b1b; border-radius: var(--radius-md);
+        padding: var(--space-3) var(--space-4);
+        margin-bottom: var(--space-4); font-size: var(--font-size-sm);
+    }
+
+    .disconnected-banner {
+        background: #fffbeb; border: 1px solid #fcd34d;
+        color: #92400e; border-radius: var(--radius-md);
+        padding: var(--space-2) var(--space-4);
+        margin-bottom: var(--space-3); font-size: var(--font-size-sm);
+        text-align: center;
+    }
+
+    .scoreboard-title {
+        font-size: var(--font-size-sm);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--color-neutral-500);
+        font-weight: var(--font-weight-semibold);
+        margin-bottom: var(--space-3);
+    }
+
+    .score-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--space-2);
+        background: var(--color-neutral-50);
+    }
+
+    .score-name { font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm); }
+    .score-pts { font-weight: var(--font-weight-bold); color: var(--color-primary-600); }
+    .score-king-badge { font-size: 10px; margin-left: 4px; }
+
+    .loading-center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         justify-content: center;
-        z-index: var(--z-fixed);
+        min-height: 40vh;
+        gap: var(--space-4);
+        color: var(--color-neutral-500);
     }
 
-    .next-round-fab:hover {
-        transform: scale(1.1);
-        box-shadow: 0 15px 40px -5px rgba(139, 92, 246, 0.4);
+    .big-spinner {
+        width: 48px; height: 48px;
+        border: 4px solid var(--color-primary-100);
+        border-top-color: var(--color-primary-600);
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
     }
 
-    .next-round-fab:active {
-        transform: scale(0.95);
-    }
+    @@keyframes spin { to { transform: rotate(360deg); } }
+    @@keyframes slideInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 
-    @@keyframes slideInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    @@media (max-width: 768px) {
-        .row {
-            grid-template-columns: 1fr;
-            gap: var(--space-4);
-        }
-
-        .game-card {
-            padding: var(--space-4);
-        }
-
-        .game-card h3 {
-            font-size: var(--font-size-xl);
-        }
-
-        .scoreboard-card {
-            padding: var(--space-4);
-        }
-
-        .progress-card {
-            padding: var(--space-4);
-        }
-
-        .next-round-fab {
-            bottom: var(--space-4);
-            right: var(--space-4);
-            width: var(--space-10);
-            height: var(--space-10);
-        }
+    @@media (max-width: 700px) {
+        .game-layout { grid-template-columns: 1fr; }
     }
 </style>
 
+<div class="game-wrapper">
+
+@if (phase == Phase.Loading)
+{
+    <div class="loading-center">
+        <div class="big-spinner"></div>
+        <p>Loading game…</p>
+    </div>
+}
+else if (phase == Phase.GameOver)
+{
+    <GameComplete Scoreboard="@finalScores"
+                  KingPlayerName="@kingPlayerName"
+                  OnNewGame="@(() => NavigationManager.NavigateTo("/"))"
+                  OnViewLeaderboard="@(() => NavigationManager.NavigateTo("/leaderboard"))" />
+}
+else
+{
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert-error" style="max-width:900px;margin:0 auto var(--space-3)">@errorMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(disconnectedMessage))
+    {
+        <div class="disconnected-banner" style="max-width:900px;margin:0 auto var(--space-3)">@disconnectedMessage</div>
+    }
+
+    <div class="game-layout">
+        <!-- Main game card -->
+        <div class="card">
+            <span class="round-badge">Round @(roundIndex + 1) of @maxRounds</span>
+
+            @if (phase == Phase.Results)
+            {
+                <RoundResults KingAnswer="@kingAnswer"
+                              PlayerAnswers="@playerAnswers"
+                              MatchedPlayers="@matchedPlayers"
+                              OnNextRound="@NextRound" />
+            }
+            else
+            {
+                <!-- Role pill -->
+                <div class="role-pill @(amKing ? "role-king" : "role-guesser")">
+                    @if (amKing)
+                    {
+                        <span>👑 You are the King — give your honest answers!</span>
+                    }
+                    else
+                    {
+                        <span>🎯 Guesser — try to match what @kingPlayerName answers</span>
+                    }
+                </div>
+
+                <div class="question-text">@questionText</div>
+
+                <!-- Answer area -->
+                @if (!hasSubmitted)
+                {
+                    <div class="answer-area">
+                        <textarea class="answer-input"
+                                  rows="3"
+                                  placeholder="@(amKing ? "Type your answer — guessers will try to match it…" : "What do you think the King answered?")"
+                                  @bind="myAnswer"
+                                  @bind:event="oninput"
+                                  @onkeydown="HandleKeyDown"
+                                  disabled="@isSubmitting"></textarea>
+                        <button class="btn-submit"
+                                @onclick="SubmitAnswer"
+                                disabled="@(string.IsNullOrWhiteSpace(myAnswer) || isSubmitting)">
+                            @if (isSubmitting) { <div class="spinner"></div> }
+                            else { <span>Submit Answer</span> }
+                        </button>
+                    </div>
+                }
+
+                <!-- Waiting overlay (shown after submit) -->
+                @if (hasSubmitted)
+                {
+                    <div class="waiting-box">
+                        <h4>✓ Answer submitted!</h4>
+                        <p style="font-size: var(--font-size-sm); margin-bottom: 0">
+                            Waiting for @(allPlayers.Count - answeredPlayers.Count) more player(s)…
+                        </p>
+                        <div class="waiting-players">
+                            @foreach (var p in allPlayers)
+                            {
+                                var done = answeredPlayers.Contains(p) || p == myName;
+                                <span class="wp-chip @(done ? "wp-done" : "wp-pending")">
+                                    @if (done) { <span>✓</span> } else { <span>⋯</span> }
+                                    @p
+                                </span>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Sidebar: live scoreboard -->
+        <div>
+            <div class="card">
+                <div class="scoreboard-title">Scores</div>
+                @foreach (var (name, score) in scores.Where(x => x.Key != kingPlayerName).OrderByDescending(x => x.Value))
+                {
+                    <div class="score-row">
+                        <span class="score-name">@name</span>
+                        <span class="score-pts">@score</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Next Round FAB (host only, shown after results) -->
+@if (phase == Phase.Results && Hub.IsHost)
+{
+    <button class="btn-next" @onclick="NextRound" disabled="@isAdvancing">
+        @if (isAdvancing) { <div class="spinner"></div> }
+        else { <span>Next Round →</span> }
+    </button>
+}
+
+</div>
+
 @code {
-    [Parameter] public string? PlayerType { get; set; }
-    
-    private PoCoupleQuiz.Core.Models.Game? currentGame;
-    private GameQuestion? currentQuestion;
-    private string currentAnswer = "";
-    private bool showResults = false;
-    private Dictionary<string, int> previousScoreboard = new Dictionary<string, int>();
-    
-    // Turn management
-    private string currentPlayerName = "";
-    private bool isKingPlayerTurn = true;
-    private int currentGuessingPlayerIndex = 0;
-    private List<string> guessingPlayers = new List<string>();
+    [Parameter] public string GameCode { get; set; } = "";
+
+    private enum Phase { Loading, Answering, WaitingForOthers, Results, GameOver }
+
+    private Phase phase = Phase.Loading;
+    private string myName = "";
+    private bool amKing = false;
+    private string kingPlayerName = "";
+    private string questionText = "";
+    private int roundIndex = 0;
+    private int maxRounds = 5;
+    private List<string> allPlayers = new();
+    private Dictionary<string, int> scores = new();
+    private HashSet<string> answeredPlayers = new();
+    private bool hasSubmitted = false;
+    private string myAnswer = "";
+    private bool isSubmitting = false;
+    private bool isAdvancing = false;
+    private string errorMessage = "";
+    private string disconnectedMessage = "";
+
+    // Results data
+    private string kingAnswer = "";
+    private Dictionary<string, string> playerAnswers = new();
+    private List<string> matchedPlayers = new();
+    private Dictionary<string, int> finalScores = new();
+
+    // Named delegate fields for lambdas so Dispose() can unsubscribe them
+    private Action<LobbyUpdateInfo>? _onPlayerDisconnected;
+    private Action<string, string>? _onHostChanged;
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            currentGame = GameState.CurrentGame;
-            
-            if (currentGame == null)
-            {
-                Logger.LogWarning("No current game found, redirecting to home");
-                return;
-            }
-            
-            // Initialize the guessing players list
-            guessingPlayers = currentGame.Players.Where(p => !p.IsKingPlayer).Select(p => p.Name).ToList();
-            
-            // Start with the king player based on the game's current king player
-            currentPlayerName = currentGame.KingPlayer?.Name ?? "";
-            isKingPlayerTurn = true; // Always start a new round with the king player's turn
-            
-            await LoadCurrentQuestion();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error initializing game page");
-            NotificationService.Notify(new NotificationMessage 
-            { 
-                Severity = NotificationSeverity.Error, 
-                Summary = "Error", 
-                Detail = "Failed to load game. Please try again." 
-            });
-        }
-    }    private async Task LoadCurrentQuestion()
-    {
-        try
-        {
-            if (currentGame == null) return;
-            
-            // If we don't have a question for current round, generate one
-            if (currentGame.CurrentRound >= currentGame.Questions.Count)
-            {
-                var question = await QuestionService.GenerateQuestionAsync(currentGame.Difficulty.ToString());
-                var gameQuestion = new GameQuestion
-                {
-                    Question = question.Text,
-                    Category = question.Category
-                };
-                currentGame.Questions.Add(gameQuestion);
-            }
-            
-            currentQuestion = currentGame.Questions[currentGame.CurrentRound];
-            
-            // Reset turn state for this round based on question state (stateless TurnManager)
-            isKingPlayerTurn = TurnManager.IsKingPlayerTurn(currentQuestion);
-            currentGuessingPlayerIndex = 0;
-            
-            if (isKingPlayerTurn)
-            {
-                currentPlayerName = currentGame.KingPlayer?.Name ?? "";
-            }
-            else
-            {
-                // King has already answered, check which guessing players still need to answer
-                var unansweredPlayers = guessingPlayers.Where(p => !currentQuestion.HasPlayerAnswered(p)).ToList();
-                if (unansweredPlayers.Any())
-                {
-                    currentPlayerName = unansweredPlayers.First();
-                    currentGuessingPlayerIndex = guessingPlayers.IndexOf(currentPlayerName);
-                }
-            }
-            
-            // Check if we should show results
-            showResults = !string.IsNullOrEmpty(currentQuestion.KingPlayerAnswer) && 
-                         GameState.AllGuessingPlayersAnswered(currentGame.CurrentRound);
-                         
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error loading current question");
-            NotificationService.Notify(new NotificationMessage 
-            { 
-                Severity = NotificationSeverity.Error, 
-                Summary = "Error", 
-                Detail = "Failed to load question. Please try again." 
-            });
-        }
-    }private async Task SubmitAnswer()
-    {
-        try
-        {
-            if (currentQuestion == null || string.IsNullOrWhiteSpace(currentAnswer) || currentGame == null) return;
+        myName = Hub.MyPlayerName;
 
-            // Validate minimum answer length (3 characters to prevent exploits)
-            var trimmedAnswer = currentAnswer.Trim();
-            if (trimmedAnswer.Length < 3)
-            {
-                NotificationService.Notify(new NotificationMessage 
-                { 
-                    Severity = NotificationSeverity.Warning, 
-                    Summary = "Answer Too Short", 
-                    Detail = "Please provide at least 3 characters in your answer." 
-                });
-                return;
-            }
-
-            if (isKingPlayerTurn)
-            {
-                // King player submitting their answer
-                currentQuestion.KingPlayerAnswer = trimmedAnswer;
-                Logger.LogInformation("King player {KingName} submitted answer for round {Round}", currentPlayerName, currentGame.CurrentRound + 1);
-                
-                // Move to first guessing player
-                if (guessingPlayers.Any())
-                {
-                    currentGuessingPlayerIndex = 0;
-                    currentPlayerName = guessingPlayers[currentGuessingPlayerIndex];
-                    isKingPlayerTurn = false;
-                }
-            }
-            else
-            {
-                // Guessing player submitting their answer
-                currentQuestion.RecordPlayerAnswer(currentPlayerName, trimmedAnswer);
-                Logger.LogInformation("Player {PlayerName} submitted answer for round {Round}", currentPlayerName, currentGame.CurrentRound + 1);
-                
-                // Use TurnManager to check if there are more players who haven't answered
-                bool hasMorePlayers = TurnManager.HasMoreGuessingPlayers(currentGame, currentQuestion);
-                if (hasMorePlayers)
-                {
-                    // Next guessing player
-                    currentGuessingPlayerIndex = TurnManager.GetCurrentGuessingPlayerIndex(currentGame, currentQuestion);
-                    currentPlayerName = TurnManager.GetCurrentPlayerName(currentGame, currentQuestion);
-                }
-                else
-                {
-                    // All players have answered, use ScoringService to evaluate
-                    await EvaluateAnswers();
-                    showResults = true;
-                }
-            }
-            
-            // Clear the answer for the next player
-            currentAnswer = "";
-            StateHasChanged();
-        }
-        catch (Exception ex)
+        if (string.IsNullOrEmpty(myName) || !Hub.IsConnected)
         {
-            Logger.LogError(ex, "Error submitting answer");
-            NotificationService.Notify(new NotificationMessage 
-            { 
-                Severity = NotificationSeverity.Error, 
-                Summary = "Error", 
-                Detail = "Failed to submit answer. Please try again." 
-            });
+            // Page was refreshed — no SignalR session, redirect home
+            NavigationManager.NavigateTo("/");
+            return;
         }
-    }    private async Task NextRound()
-    {
-        try
+
+        // Subscribe to hub events
+        _onPlayerDisconnected = update =>
         {
-            if (currentGame == null) return;
-
-            // State before round advancement (for optimistic locking)
-            var previousRound = currentGame.CurrentRound;
-            var previousGameState = new 
-            {
-                currentGame.CurrentRound,
-                currentGame.Players,
-                currentGame.IsGameOver
-            };
-
-            // Optimistically update UI
-            currentGame.CurrentRound++;
-            
-            if (currentGame.IsGameOver)
-            {
-                await SaveGameHistory();
-                await UpdatePlayerStats();
-                StateHasChanged();
-                return;
-            }
-
-            // Server-side validation: Call /api/game/advance-round to validate and get server confirmation
-            // This prevents race conditions where two clients might advance simultaneously
-            try
-            {
-                var request = new
-                {
-                    CurrentRound = previousRound,
-                    Game = currentGame
-                };
-
-                var response = await HttpClient.PostAsJsonAsync("/api/game/advance-round", request);
-                
-                if (response.IsSuccessStatusCode)
-                {
-                    var jsonContent = await response.Content.ReadAsStringAsync();
-                    using var jsonDoc = System.Text.Json.JsonDocument.Parse(jsonContent);
-                    var resultElement = jsonDoc.RootElement;
-                    
-                    var newRound = resultElement.GetProperty("newRound").GetInt32();
-                    var newKingPlayerName = resultElement.GetProperty("newKingPlayerName").GetString() ?? string.Empty;
-                    var isGameOver = resultElement.GetProperty("isGameOver").GetBoolean();
-                    
-                    // Server confirmed the round advancement
-                    Logger.LogInformation("Server confirmed round advancement to round {Round} with king {King}", newRound, newKingPlayerName);
-                    
-                    // Update from server response
-                    currentGame.CurrentRound = newRound;
-                    // Note: IsGameOver is computed from CurrentRound >= MaxRounds, no need to set it
-                    
-                    // Perform client-side updates based on server confirmation
-                    try
-                    {
-                        // King player might have already been rotated by server, but we do it again to stay in sync
-                        currentGame.SetNextKingPlayer();
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        Logger.LogError(ex, "Failed to rotate king player after server confirmation");
-                        // This shouldn't happen if server validation passed, but handle it gracefully
-                        NotificationService.Notify(new NotificationMessage 
-                        { 
-                            Severity = NotificationSeverity.Error, 
-                            Summary = "Game Error", 
-                            Detail = "King rotation failed. Returning to home." 
-                        });
-                        await Task.Delay(2000);
-                        NavigationManager.NavigateTo("/");
-                        return;
-                    }
-                }
-                else
-                {
-                    // Server rejected the round advancement - revert optimistic update
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    Logger.LogWarning("Server rejected round advancement: {Error}", errorContent);
-                    
-                    // Revert optimistic update
-                    currentGame.CurrentRound = previousRound;
-                    
-                    NotificationService.Notify(new NotificationMessage 
-                    { 
-                        Severity = NotificationSeverity.Error, 
-                        Summary = "Cannot Advance Round", 
-                        Detail = "The server validation failed. This might be due to network issues or game state mismatch. Please try again." 
-                    });
-                    StateHasChanged();
-                    return;
-                }
-            }
-            catch (HttpRequestException ex)
-            {
-                Logger.LogError(ex, "Network error during round advancement");
-                
-                // Revert optimistic update on network failure
-                currentGame.CurrentRound = previousRound;
-                
-                NotificationService.Notify(new NotificationMessage 
-                { 
-                    Severity = NotificationSeverity.Error, 
-                    Summary = "Network Error", 
-                    Detail = "Failed to connect to server. Please check your connection and try again." 
-                });
-                StateHasChanged();
-                return;
-            }
-            
-            // Update the guessing players list (excluding the new King)
-            guessingPlayers = currentGame.Players.Where(p => !p.IsKingPlayer).Select(p => p.Name).ToList();
-            
-            // Reset for next round
-            currentAnswer = "";
-            showResults = false;
-            isKingPlayerTurn = true; // Always start a new round with the king player's turn
-            currentGuessingPlayerIndex = 0;
-            currentPlayerName = currentGame.KingPlayer?.Name ?? ""; // New King player
-
-            await LoadCurrentQuestion();
-            StateHasChanged();
-        }
-        catch (Exception ex)
+            if (!update.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+            disconnectedMessage = $"A player disconnected. {allPlayers.Count - update.Players.Count} player(s) left.";
+            allPlayers = update.Players;
+            InvokeAsync(StateHasChanged);
+        };
+        _onHostChanged = (code, newHost) =>
         {
-            Logger.LogError(ex, "Error proceeding to next round");
-            NotificationService.Notify(new NotificationMessage 
-            { 
-                Severity = NotificationSeverity.Error, 
-                Summary = "Error", 
-                Detail = "Failed to proceed to next round. Please try again." 
-            });
+            if (!code.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+            InvokeAsync(StateHasChanged); // Hub.IsHost was already updated in service
+        };
+
+        Hub.OnGameStarted += HandleGameStarted;
+        Hub.OnRoundStarted += HandleRoundStarted;
+        Hub.OnAnswerRecorded += HandleAnswerRecorded;
+        Hub.OnRoundResult += HandleRoundResult;
+        Hub.OnGameOver += HandleGameOver;
+        Hub.OnGameError += HandleGameError;
+        Hub.OnPlayerDisconnected += _onPlayerDisconnected;
+        Hub.OnHostChanged += _onHostChanged;
+
+        // GameStarted may have fired while Lobby.razor was navigating to this page.
+        // Seed state from the cache so we don't hang on the loading screen.
+        if (Hub.CurrentGame is { } cached &&
+            cached.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase))
+        {
+            HandleGameStarted(cached);
         }
     }
 
-    private async Task SaveGameHistory()
+    // ── Hub event handlers ──────────────────────────────────────────────────
+
+    private void HandleGameStarted(GameStartedInfo info)
+    {
+        if (!info.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+        ApplyRoundState(
+            info.RoundIndex, info.MaxRounds,
+            info.KingPlayerName,
+            info.Players.Select(p => p.Name).ToList(),
+            info.Players.ToDictionary(p => p.Name, p => p.Score),
+            info.QuestionText);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleRoundStarted(RoundStartedInfo info)
+    {
+        if (!info.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+        ApplyRoundState(
+            info.RoundIndex, info.MaxRounds,
+            info.KingPlayerName,
+            info.Players.Select(p => p.Name).ToList(),
+            info.Players.ToDictionary(p => p.Name, p => p.Score),
+            info.QuestionText);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleAnswerRecorded(string playerName, int ri)
+    {
+        if (ri != roundIndex) return;
+        answeredPlayers.Add(playerName);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleRoundResult(RoundResultInfo info)
+    {
+        if (!info.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+
+        kingAnswer = info.KingAnswer;
+        matchedPlayers = info.MatchedPlayers;
+        scores = info.Scores;
+
+        // Build PlayerAnswers dict from server players+answers (server doesn't expose raw answers by design,
+        // but we can build a display-only one from matched/unmatched info)
+        playerAnswers = new Dictionary<string, string>();
+        foreach (var p in info.Players.Where(p => !p.IsKingPlayer))
+        {
+            // We don't have individual answers server→client (privacy); show only matched flag
+            playerAnswers[p.Name] = "";  // RoundResults component will use MatchedPlayers to show icons
+        }
+
+        phase = Phase.Results;
+        isAdvancing = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleGameOver(GameOverInfo info)
+    {
+        if (!info.GameCode.Equals(GameCode, StringComparison.OrdinalIgnoreCase)) return;
+        finalScores = info.FinalScores;
+        phase = Phase.GameOver;
+        // Host saves game history
+        if (Hub.IsHost)
+            InvokeAsync(() => SaveGameHistoryAsync(info));
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleGameError(string msg)
+    {
+        isSubmitting = false;
+        isAdvancing = false;
+        errorMessage = msg;
+        InvokeAsync(StateHasChanged);
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    private void ApplyRoundState(int ri, int mr, string king, List<string> players,
+                                  Dictionary<string, int> sc, string question)
+    {
+        roundIndex = ri;
+        maxRounds = mr;
+        kingPlayerName = king;
+        allPlayers = players;
+        scores = sc;
+        questionText = question;
+        amKing = myName.Equals(king, StringComparison.OrdinalIgnoreCase);
+        answeredPlayers.Clear();
+        hasSubmitted = false;
+        myAnswer = "";
+        isSubmitting = false;
+        phase = Phase.Answering;
+        errorMessage = "";
+        disconnectedMessage = "";
+    }
+
+    private async Task SubmitAnswer()
+    {
+        if (string.IsNullOrWhiteSpace(myAnswer)) return;
+        isSubmitting = true;
+        errorMessage = "";
+        StateHasChanged();
+        try
+        {
+            await Hub.SubmitAnswerAsync(GameCode, myAnswer.Trim(), roundIndex);
+            hasSubmitted = true;
+            answeredPlayers.Add(myName); // count ourselves immediately
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "SubmitAnswer failed");
+            errorMessage = "Failed to submit answer. Please try again.";
+        }
+        isSubmitting = false;
+        StateHasChanged();
+    }
+
+    private async Task NextRound()
+    {
+        if (!Hub.IsHost) return;
+        isAdvancing = true;
+        errorMessage = "";
+        StateHasChanged();
+        try { await Hub.RequestNextRoundAsync(GameCode); }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "RequestNextRound failed");
+            errorMessage = "Failed to advance round. Please try again.";
+            isAdvancing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey && !string.IsNullOrWhiteSpace(myAnswer))
+            await SubmitAnswer();
+    }
+
+    private async Task SaveGameHistoryAsync(GameOverInfo info)
     {
         try
         {
-            if (currentGame == null) return;
-            
-            // Calculate actual category stats and matched answers
-            var categoryStats = new Dictionary<QuestionCategory, int>();
-            var matchedAnswers = new List<string>();
-            
-            foreach (var question in currentGame.Questions)
-            {
-                // Count questions by category
-                if (!categoryStats.ContainsKey(question.Category))
-                    categoryStats[question.Category] = 0;
-                categoryStats[question.Category]++;
-                
-                // Collect matched answers
-                foreach (var playerAnswer in question.PlayerAnswers)
-                {
-                    if (question.HasPlayerMatched(playerAnswer.Key))
-                    {
-                        matchedAnswers.Add(playerAnswer.Value);
-                    }
-                }
-            }
-
-            // Calculate total team score (sum of all guessing players)
-            var totalTeamScore = currentGame.Players.Where(p => !p.IsKingPlayer).Sum(p => p.Score);
-            
-            // Create a game identifier from player names
-            var playerNamesStr = string.Join(", ", currentGame.Players.Select(p => p.Name));
-            
+            var playerNamesStr = string.Join(", ", info.Players.Select(p => p.Name));
+            var totalScore = info.FinalScores.Values.Sum();
             var history = new GameHistory
             {
-                GameSessionId = currentGame.GameSessionId,
+                GameSessionId = GameCode,
                 Date = DateTime.UtcNow,
-                Team1Name = playerNamesStr,  // Use player names as identifier
-                Team2Name = "",  // Not used in KingPlayer mode
-                Team1Score = totalTeamScore,
+                Team1Name = playerNamesStr,
+                Team2Name = "",
+                Team1Score = totalScore,
                 Team2Score = 0,
-                TotalQuestions = currentGame.Questions.Count,
-                AverageResponseTime = 30.0,
-                CategoryStats = System.Text.Json.JsonSerializer.Serialize(categoryStats),
-                MatchedAnswers = System.Text.Json.JsonSerializer.Serialize(matchedAnswers)
+                TotalQuestions = maxRounds,
+                AverageResponseTime = 30.0
             };
-            
             await GameHistoryService.SaveGameHistoryAsync(history);
-            Logger.LogInformation("Saved game history for players: {Players}", playerNamesStr);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error saving game history");
-        }
-    }
 
-    private async Task UpdatePlayerStats()
-    {
-        try
-        {
-            if (currentGame == null) return;
-            
-            // Only update stats for guessing players, not the King Player
-            // The King Player provides answers but doesn't participate in guessing
-            foreach (var player in currentGame.Players.Where(p => !p.IsKingPlayer))
+            // Update per-player leaderboard stats
+            foreach (var p in info.Players)
             {
-                // Calculate questions answered and correct answers for this player
-                // Each correct answer awards PointsPerCorrectAnswer points, so divide score to get count
-                int questionsAnswered = currentGame.MaxRounds;
-                int correctAnswers = player.Score / GameEngine.PointsPerCorrectAnswer;
-                
-                await TeamService.UpdateTeamStatsAsync(
-                    player.Name, 
-                    player.Score, 
-                    questionsAnswered, 
-                    correctAnswers);
+                int pts = info.FinalScores.TryGetValue(p.Name, out var s) ? s : 0;
+                int correct = pts / GameEngine.PointsPerCorrectAnswer;
+                await TeamService.UpdateTeamStatsAsync(p.Name, pts, maxRounds, correct);
             }
-            
-            Logger.LogInformation("Updated player statistics");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error updating player stats");
+            Logger.LogWarning(ex, "Non-critical: failed to save game history");
         }
     }
 
-    private void OnAnswerInput(ChangeEventArgs e)
+    public void Dispose()
     {
-        currentAnswer = e.Value?.ToString() ?? "";
-        StateHasChanged(); // Force UI update to enable/disable button immediately
-    }
-
-    private List<string> GetMatchedPlayers()
-    {
-        if (currentQuestion == null) return new List<string>();
-        
-        return currentQuestion.PlayerAnswers.Keys
-            .Where(player => currentQuestion.HasPlayerMatched(player))
-            .ToList();
-    }
-
-    private string GetKingPlayerName()
-    {
-        return currentGame?.KingPlayer?.Name ?? string.Empty;
-    }
-
-    private async Task EvaluateAnswers()
-    {
-        try
-        {
-            if (currentQuestion == null || currentGame == null) return;
-            
-            // Store previous scores for animation comparison
-            previousScoreboard = new Dictionary<string, int>(currentGame.GetScoreboard());
-            
-            // Use GameScoringService to evaluate all answers at once
-            await ScoringService.EvaluateAnswersAsync(currentGame, currentQuestion, QuestionService);
-            
-            Logger.LogInformation("Evaluated answers for round {Round}", currentGame.CurrentRound + 1);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error evaluating answers");
-        }
+        Hub.OnGameStarted -= HandleGameStarted;
+        Hub.OnRoundStarted -= HandleRoundStarted;
+        Hub.OnAnswerRecorded -= HandleAnswerRecorded;
+        Hub.OnRoundResult -= HandleRoundResult;
+        Hub.OnGameOver -= HandleGameOver;
+        Hub.OnGameError -= HandleGameError;
+        if (_onPlayerDisconnected is not null) Hub.OnPlayerDisconnected -= _onPlayerDisconnected;
+        if (_onHostChanged       is not null) Hub.OnHostChanged       -= _onHostChanged;
     }
 }

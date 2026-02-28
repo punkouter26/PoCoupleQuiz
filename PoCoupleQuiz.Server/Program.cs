@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+using Scalar.AspNetCore;
 using Azure.Identity;
 using Serilog;
 using Serilog.Events;
@@ -100,18 +101,6 @@ namespace PoCoupleQuiz.Server
                 builder.Services.AddControllersWithViews();
                 builder.Services.AddRazorPages();
                 builder.Services.AddOpenApi();
-                
-                // Add Swagger/OpenAPI with UI
-                builder.Services.AddEndpointsApiExplorer();
-                builder.Services.AddSwaggerGen(options =>
-                {
-                    options.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
-                    {
-                        Title = "PoCoupleQuiz API",
-                        Version = "v1",
-                        Description = "Interactive quiz game API for couples and friends"
-                    });
-                });
 
                 // Add SignalR for real-time features
                 builder.Services.AddSignalR();
@@ -155,14 +144,9 @@ namespace PoCoupleQuiz.Server
                     Log.Information("Development environment detected, enabling WebAssembly debugging and OpenAPI");
                     app.UseWebAssemblyDebugging();
                     app.MapOpenApi();
-                    
-                    // Enable Swagger UI in development
-                    app.UseSwagger();
-                    app.UseSwaggerUI(options =>
+                    app.MapScalarApiReference(options =>
                     {
-                        options.SwaggerEndpoint("/swagger/v1/swagger.json", "PoCoupleQuiz API v1");
-                        options.RoutePrefix = "swagger";
-                        options.DocumentTitle = "PoCoupleQuiz API Explorer";
+                        options.WithTitle("PoCoupleQuiz API");
                     });
                 }
                 else

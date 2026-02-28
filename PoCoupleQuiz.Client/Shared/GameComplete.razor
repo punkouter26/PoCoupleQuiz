@@ -130,7 +130,7 @@
     </div>
 
     <div class="scoreboard-wrapper">
-        <ScoreboardDisplay Scoreboard="@Scoreboard" />
+        <ScoreboardDisplay Scoreboard="@Scoreboard" KingPlayerName="@KingPlayerName" />
     </div>
     
     <div class="action-buttons">
@@ -155,6 +155,7 @@
 
 @code {
     [Parameter] public Dictionary<string, int> Scoreboard { get; set; } = new();
+    [Parameter] public string KingPlayerName { get; set; } = "";
     [Parameter] public EventCallback OnNewGame { get; set; }
     [Parameter] public EventCallback OnViewLeaderboard { get; set; }
 }

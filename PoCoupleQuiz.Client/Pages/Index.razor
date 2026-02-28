@@ -1,12 +1,15 @@
 @page "/"
 @using PoCoupleQuiz.Core.Models
-@using PoCoupleQuiz.Core.Services
+@using PoCoupleQuiz.Client.Services
+@implements IDisposable
 @inject NavigationManager NavigationManager
-@inject IGameStateService GameState
-@inject IJSRuntime JSRuntime
+@inject IGameHubService Hub
+@inject ILogger<Pages.Index> Logger
+
+<PageTitle>PoCoupleQuiz</PageTitle>
 
 <style>
-    .setup-wrapper {
+    .home-wrapper {
         min-height: calc(100vh - 70px);
         display: flex;
         align-items: center;
@@ -15,40 +18,66 @@
         background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-accent-50) 100%);
     }
 
-    .setup-card {
+    .home-card {
         background: var(--surface);
         border-radius: var(--radius-xl);
         box-shadow: var(--shadow-xl);
         padding: var(--space-8);
-        max-width: 500px;
+        max-width: 520px;
         width: 100%;
         animation: slideInUp var(--transition-slow) ease-out;
     }
 
-    .setup-header {
+    .home-header {
         text-align: center;
         margin-bottom: var(--space-8);
     }
 
-    .setup-title {
+    .home-title {
         font-size: var(--font-size-3xl);
         font-weight: var(--font-weight-bold);
-        color: var(--color-neutral-900);
-        margin-bottom: var(--space-2);
         background: var(--gradient-primary);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+        margin-bottom: var(--space-2);
     }
 
-    .setup-subtitle {
+    .home-subtitle {
         font-size: var(--font-size-base);
         color: var(--color-neutral-500);
-        margin: 0;
+    }
+
+    .tab-bar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-2);
+        margin-bottom: var(--space-6);
+        background: var(--color-neutral-100);
+        border-radius: var(--radius-lg);
+        padding: var(--space-1);
+    }
+
+    .tab-btn {
+        padding: var(--space-3) var(--space-4);
+        border: none;
+        border-radius: var(--radius-md);
+        font-weight: var(--font-weight-semibold);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+        transition: all var(--transition-base);
+        background: transparent;
+        color: var(--color-neutral-500);
+    }
+
+    .tab-btn.active {
+        background: var(--surface);
+        color: var(--color-primary-600);
+        box-shadow: var(--shadow-sm);
     }
 
     .form-group {
-        margin-bottom: var(--space-6);
+        margin-bottom: var(--space-5);
     }
 
     .form-group label {
@@ -61,58 +90,67 @@
         letter-spacing: 0.5px;
     }
 
-    .form-control,
-    .form-select,
-    select {
+    .form-control {
         width: 100%;
         padding: var(--space-3) var(--space-4);
         font-family: inherit;
         font-size: var(--font-size-base);
         border: 2px solid var(--color-neutral-200);
         border-radius: var(--radius-md);
-        background-color: #ffffff;
+        background-color: #fff;
         color: var(--color-neutral-900);
         transition: all var(--transition-base);
         box-sizing: border-box;
     }
 
-    .form-control:hover,
-    .form-select:hover,
-    select:hover {
-        border-color: var(--color-primary-300);
-        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.05);
-    }
-
-    .form-control:focus,
-    .form-select:focus,
-    select:focus {
+    .form-control:focus {
         outline: none;
         border-color: var(--color-primary-600);
         box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
     }
 
-    .form-help {
-        font-size: var(--font-size-xs);
-        color: var(--color-neutral-500);
-        margin-top: var(--space-2);
-        font-style: italic;
+    .form-control.code-input {
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-bold);
+        text-align: center;
     }
 
-    .player-inputs {
-        display: flex;
-        flex-direction: column;
+    .difficulty-selector {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: var(--space-3);
+        margin-top: var(--space-2);
     }
 
-    .player-input-wrapper {
-        position: relative;
+    .difficulty-option {
+        padding: var(--space-3);
+        border: 2px solid var(--color-neutral-200);
+        border-radius: var(--radius-md);
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--transition-base);
+        background: white;
     }
 
-    .player-input-wrapper input {
-        width: 100%;
+    .difficulty-option:hover { border-color: var(--color-primary-400); }
+    .difficulty-option.selected {
+        background: var(--gradient-primary);
+        color: white;
+        border-color: var(--color-primary-600);
+        box-shadow: var(--shadow-primary);
     }
 
-    .btn-start-game {
+    .difficulty-option .difficulty-name {
+        font-weight: var(--font-weight-semibold);
+        display: block;
+        margin-bottom: var(--space-1);
+    }
+
+    .difficulty-option .difficulty-rounds { font-size: var(--font-size-xs); opacity: .7; }
+
+    .btn-primary {
         width: 100%;
         padding: var(--space-4) var(--space-6);
         font-size: var(--font-size-lg);
@@ -133,299 +171,151 @@
         margin-top: var(--space-6);
     }
 
-    .btn-start-game:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 15px 40px -5px rgba(139, 92, 246, 0.4);
-    }
+    .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 15px 40px -5px rgba(139, 92, 246, .4); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 
-    .btn-start-game:active {
-        transform: translateY(-1px);
-    }
-
-    .btn-start-game:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-    }
-
-    .difficulty-selector {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: var(--space-3);
-        margin-top: var(--space-3);
-    }
-
-    .difficulty-option {
-        padding: var(--space-3);
-        border: 2px solid var(--color-neutral-200);
+    .alert-error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
         border-radius: var(--radius-md);
-        text-align: center;
-        cursor: pointer;
-        transition: all var(--transition-base);
-        background: white;
+        padding: var(--space-3) var(--space-4);
+        margin-bottom: var(--space-4);
+        font-size: var(--font-size-sm);
     }
 
-    .difficulty-option:hover {
-        border-color: var(--color-primary-400);
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    .spinner {
+        width: 20px; height: 20px;
+        border: 3px solid rgba(255,255,255,.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
     }
 
-    .difficulty-option.selected {
-        background: var(--gradient-primary);
-        color: white;
-        border-color: var(--color-primary-600);
-        box-shadow: var(--shadow-primary);
-    }
-
-    .difficulty-option .difficulty-name {
-        font-weight: var(--font-weight-semibold);
-        display: block;
-        margin-bottom: var(--space-1);
-    }
-
-    .difficulty-option .difficulty-rounds {
-        font-size: var(--font-size-xs);
-        opacity: 0.7;
-    }
-
+    @@keyframes spin { to { transform: rotate(360deg); } }
     @@keyframes slideInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
-    @@media (max-width: 768px) {
-        .setup-wrapper {
-            padding: var(--space-3);
-        }
-
-        .setup-card {
-            padding: var(--space-6);
-        }
-
-        .setup-title {
-            font-size: var(--font-size-2xl);
-        }
-
-        .difficulty-selector {
-            grid-template-columns: 1fr;
-        }
+    @@media (max-width: 480px) {
+        .home-card { padding: var(--space-6); }
+        .difficulty-selector { grid-template-columns: 1fr; }
     }
 </style>
 
-<div class="setup-wrapper">
-    <div class="setup-card">
-        <div class="setup-header">
-            <h1 class="setup-title">Game Setup</h1>
-            <p class="setup-subtitle">Challenge your partner!</p>
+<div class="home-wrapper">
+    <div class="home-card">
+        <div class="home-header">
+            <h1 class="home-title">PoCoupleQuiz</h1>
+            <p class="home-subtitle">Play together — from anywhere</p>
         </div>
 
-        <!-- Number of Players -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert-error">@errorMessage</div>
+        }
+
         <div class="form-group">
-            <label for="players">Players</label>
-            <select @onchange="OnPlayerCountChanged" id="players" class="form-select" value="@numberOfPlayers">
-                <option value="2">2 Players (Couple Mode)</option>
-                <option value="3">3 Players</option>
-                <option value="4">4 Players</option>
-                <option value="5">5 Players</option>
-                <option value="6">6 Players</option>
-            </select>
+            <label>Your Name</label>
+            <input @bind="yourName" @bind:event="oninput" class="form-control" placeholder="Enter your name" maxlength="30" />
         </div>
 
-        <!-- Player Names -->
-        <div class="form-group">
-            <label>Player Names</label>
-            <div class="player-inputs">
-                @for (int i = 0; i < numberOfPlayers; i++)
-                {
-                    int index = i;
-                    <div class="player-input-wrapper">
-                        <input @bind="playerNames[index]" 
-                               placeholder="@(index == 0 ? "King" : $"Player {index + 1}")" 
-                               class="form-control" />
-                        @if (index == 0)
-                        {
-                            <small class="form-help">Starts as King (role rotates)</small>
-                        }
-                    </div>
-                }
-            </div>
-        </div>
-
-        <!-- Difficulty -->
         <div class="form-group">
             <label>Difficulty</label>
             <div class="difficulty-selector">
-                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Easy ? "selected" : "")" 
-                     @onclick="() => OnDifficultyChanged(DifficultyLevel.Easy)">
+                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Easy ? "selected" : "")"
+                     @onclick="() => selectedDifficulty = DifficultyLevel.Easy">
                     <span class="difficulty-name">Easy</span>
                     <span class="difficulty-rounds">3 rounds</span>
                 </div>
-                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Medium ? "selected" : "")" 
-                     @onclick="() => OnDifficultyChanged(DifficultyLevel.Medium)">
+                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Medium ? "selected" : "")"
+                     @onclick="() => selectedDifficulty = DifficultyLevel.Medium">
                     <span class="difficulty-name">Medium</span>
                     <span class="difficulty-rounds">5 rounds</span>
                 </div>
-                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Hard ? "selected" : "")" 
-                     @onclick="() => OnDifficultyChanged(DifficultyLevel.Hard)">
+                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Hard ? "selected" : "")"
+                     @onclick="() => selectedDifficulty = DifficultyLevel.Hard">
                     <span class="difficulty-name">Hard</span>
                     <span class="difficulty-rounds">7 rounds</span>
                 </div>
             </div>
         </div>
 
-        <button type="button" class="btn-start-game" @onclick="StartGame">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-            Start Game
+        <button class="btn-primary" @onclick="Play" disabled="@isLoading">
+            @if (isLoading) { <div class="spinner"></div> }
+            else { <span>Play</span> }
         </button>
     </div>
 </div>
 
 @code {
+    private string yourName = "";
     private DifficultyLevel selectedDifficulty = DifficultyLevel.Medium;
-    private int numberOfPlayers = 3;
-    private string[] playerNames = new string[10]; // Support up to 10 players
+    private bool isLoading = false;
+    private string errorMessage = "";
+
+    private Action<LobbyInfo>? _onLobbyCreated;
+    private Action<LobbyInfo>? _onLobbyJoined;
+    private Action<string>? _onLobbyError;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadSavedPreferences();
-        UpdatePlayerNamesArray();
-    }
-    
-    private async Task LoadSavedPreferences()
-    {
-        try
+        _onLobbyCreated = info =>
         {
-            // Load player names
-            var savedNames = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "playerNames");
-            if (!string.IsNullOrEmpty(savedNames))
-            {
-                var names = System.Text.Json.JsonSerializer.Deserialize<string[]>(savedNames);
-                if (names != null && names.Length > 0)
-                {
-                    // Copy saved names to playerNames array
-                    for (int i = 0; i < Math.Min(names.Length, playerNames.Length); i++)
-                    {
-                        if (!string.IsNullOrWhiteSpace(names[i]))
-                        {
-                            playerNames[i] = names[i];
-                        }
-                    }
-                }
-            }
-            
-            // Load player count
-            var savedPlayerCount = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "playerCount");
-            if (int.TryParse(savedPlayerCount, out int count) && count >= 2 && count <= 10)
-            {
-                numberOfPlayers = count;
-            }
-            
-            // Load difficulty
-            var savedDifficulty = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "difficulty");
-            if (!string.IsNullOrEmpty(savedDifficulty) && Enum.TryParse<DifficultyLevel>(savedDifficulty, out var diff))
-            {
-                selectedDifficulty = diff;
-            }
-        }
-        catch (Exception)
+            isLoading = false;
+            InvokeAsync(() => NavigationManager.NavigateTo($"/lobby/{info.GameCode}"));
+        };
+
+        _onLobbyJoined = info =>
         {
-            // Silently fail - use defaults
-        }
-    }
-    
-    private async Task SavePreferences()
-    {
-        try
+            isLoading = false;
+            InvokeAsync(() => NavigationManager.NavigateTo($"/lobby/{info.GameCode}"));
+        };
+
+        _onLobbyError = msg =>
         {
-            var namesToSave = playerNames.Take(numberOfPlayers).ToArray();
-            var json = System.Text.Json.JsonSerializer.Serialize(namesToSave);
-            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "playerNames", json);
-            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "playerCount", numberOfPlayers.ToString());
-            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "difficulty", selectedDifficulty.ToString());
-        }
-        catch (Exception)
+            isLoading = false;
+            errorMessage = msg;
+            InvokeAsync(StateHasChanged);
+        };
+
+        Hub.OnLobbyCreated += _onLobbyCreated;
+        Hub.OnLobbyJoined += _onLobbyJoined;
+        Hub.OnLobbyError += _onLobbyError;
+
+        try { await Hub.ConnectAsync(); }
+        catch (Exception ex)
         {
-            // Silently fail - not critical
+            Logger.LogWarning(ex, "Could not pre-connect hub on index");
         }
     }
 
-    private void UpdatePlayerNamesArray()
+    private async Task Play()
     {
-        for (int i = 0; i < numberOfPlayers; i++)
+        errorMessage = "";
+        if (string.IsNullOrWhiteSpace(yourName))
         {
-            if (string.IsNullOrEmpty(playerNames[i]))
-            {
-                playerNames[i] = i == 0 ? "King Player" : $"Player {i + 1}";
-            }
+            errorMessage = "Please enter your name.";
+            return;
         }
-    }    private void OnPlayerCountChanged(ChangeEventArgs e)
-    {
-        if (int.TryParse(e.Value?.ToString(), out int newCount))
+        isLoading = true;
+        StateHasChanged();
+        try { await Hub.JoinOrCreateAsync(yourName.Trim(), selectedDifficulty.ToString()); }
+        catch (Exception ex)
         {
-            numberOfPlayers = newCount;
-            UpdatePlayerNamesArray();
+            Logger.LogError(ex, "Play failed");
+            errorMessage = "Could not connect. Please try again.";
+            isLoading = false;
             StateHasChanged();
         }
     }
-    
-    private void OnDifficultyChanged(DifficultyLevel difficulty)
+
+    public void Dispose()
     {
-        selectedDifficulty = difficulty;
-        StateHasChanged();
-    }
-
-    private async Task StartGame()
-    {
-        // Validate that all player names are filled
-        for (int i = 0; i < numberOfPlayers; i++)
-        {
-            if (string.IsNullOrWhiteSpace(playerNames[i]))
-            {
-                await JSRuntime.InvokeVoidAsync("alert", $"Please enter a name for {(i == 0 ? "the first player" : $"Player {i + 1}")}");
-                return;
-            }
-        }
-
-        // Check for duplicate names
-        var duplicateNames = playerNames.Take(numberOfPlayers)
-            .GroupBy(name => name.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key);
-
-        if (duplicateNames.Any())
-        {
-            await JSRuntime.InvokeVoidAsync("alert", "Player names must be unique. Please choose different names.");
-            return;
-        }
-
-        // Save preferences for next time
-        await SavePreferences();
-
-        var game = new PoCoupleQuiz.Core.Models.Game
-        {
-            Difficulty = selectedDifficulty
-        };
-        
-        // Add first player as king
-        game.AddPlayer(new Player { Name = playerNames[0].Trim(), IsKingPlayer = true });
-        
-        // Add other players
-        for (int i = 1; i < numberOfPlayers; i++)
-        {
-            game.AddPlayer(new Player { Name = playerNames[i].Trim(), IsKingPlayer = false });
-        }
-
-        // Initialize game state
-        GameState.InitializeGame(game, playerNames[0].Trim());
-
-        NavigationManager.NavigateTo("/game");
+        Hub.OnLobbyCreated -= _onLobbyCreated;
+        Hub.OnLobbyJoined -= _onLobbyJoined;
+        Hub.OnLobbyError -= _onLobbyError;
     }
 }
+

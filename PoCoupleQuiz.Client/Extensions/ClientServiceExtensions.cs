@@ -22,8 +22,8 @@ public static class ClientServiceExtensions
         // Note: This will make HTTP calls to the server's API
         services.AddScoped<IQuestionService, HttpQuestionService>();
 
-        // SignalR service for real-time game updates
-        services.AddScoped<IGameHubService, GameHubService>();
+        // SignalR service for real-time game updates — singleton to survive page navigation
+        services.AddSingleton<IGameHubService, GameHubService>();
 
         return services;
     }
