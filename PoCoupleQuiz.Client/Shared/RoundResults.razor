@@ -11,10 +11,14 @@
         </div>
     </div>
     
-    @foreach (var playerAnswer in PlayerAnswers)
+    @{ var nonKingAnswers = PlayerAnswers.Where(p => p.Key != KingPlayerName).ToList(); }
+    @for (int i = 0; i < nonKingAnswers.Count; i++)
     {
+        var playerAnswer = nonKingAnswers[i];
         var isMatch = MatchedPlayers.Contains(playerAnswer.Key);
+        var num = i + 1;
         <div class="player-answer-card @(isMatch ? "match-animate" : "mismatch-animate") @(isMatch ? "matched" : "not-matched")">
+            <div class="answer-number">@num</div>
             <div class="answer-icon">@(isMatch ? "✅" : "❌")</div>
             <div class="answer-content">
                 <span class="answer-label">@playerAnswer.Key</span>
@@ -77,6 +81,15 @@
         box-shadow: 0 4px 12px rgba(248, 113, 113, 0.15);
     }
     
+    .answer-number {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #9ca3af;
+        min-width: 1.25rem;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
     .answer-icon {
         font-size: 1.5rem;
         flex-shrink: 0;
@@ -124,5 +137,6 @@
     [Parameter] public string KingAnswer { get; set; } = "";
     [Parameter] public Dictionary<string, string> PlayerAnswers { get; set; } = new();
     [Parameter] public List<string> MatchedPlayers { get; set; } = new();
+    [Parameter] public string KingPlayerName { get; set; } = "";
     [Parameter] public EventCallback OnNextRound { get; set; }
 }
