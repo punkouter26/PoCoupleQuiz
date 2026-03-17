@@ -1,0 +1,39 @@
+@page "/login"
+@inject NavigationManager Nav
+@inject IWebAssemblyHostEnvironment HostEnv
+
+<PageTitle>PoCoupleQuiz — Login</PageTitle>
+
+@if (HostEnv.IsDevelopment())
+{
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--color-primary-50),var(--color-accent-50))">
+        <div style="background:var(--surface);border-radius:var(--radius-xl);box-shadow:var(--shadow-xl);padding:var(--space-8);max-width:400px;width:100%;text-align:center">
+            <h2 style="font-size:var(--font-size-2xl);font-weight:var(--font-weight-bold);margin-bottom:var(--space-2)">Dev Login</h2>
+            <p style="color:var(--color-neutral-500);margin-bottom:var(--space-6);font-size:var(--font-size-sm)">Local development only — no Microsoft account required</p>
+            <input @bind="devName" @bind:event="oninput"
+                   style="width:100%;padding:var(--space-3) var(--space-4);border:2px solid var(--color-neutral-200);border-radius:var(--radius-md);font-family:inherit;font-size:var(--font-size-base);box-sizing:border-box;margin-bottom:var(--space-4)"
+                   placeholder="Your display name" maxlength="30" />
+            <button @onclick="DoDevLogin"
+                    disabled="@string.IsNullOrWhiteSpace(devName)"
+                    style="width:100%;padding:var(--space-4);background:var(--gradient-primary);color:white;border:none;border-radius:var(--radius-lg);font-size:var(--font-size-base);font-weight:var(--font-weight-bold);cursor:pointer">
+                Login as Dev User
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")] private string? ReturnUrl { get; set; }
+
+    private string devName = "Player1";
+
+    private void DoDevLogin()
+    {
+        if (string.IsNullOrWhiteSpace(devName)) return;
+        // Navigate to /?user=Name — TestAuthStateProvider picks up the param,
+        // silently syncs the server cookie, and notifies auth state changed.
+        // No server redirect needed; each browser window keeps its own cookie jar
+        // (use Incognito for the second player).
+        Nav.NavigateTo($"/?user={Uri.EscapeDataString(devName.Trim())}", forceLoad: false);
+    }
+}

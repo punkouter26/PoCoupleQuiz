@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
@@ -164,21 +165,45 @@ public class GameHubService : IGameHubService
     public event Action<string>? OnPlayerJoined;
     public event Action<string>? OnPlayerLeft;
 
-    public GameHubService(IConfiguration configuration, NavigationManager navigationManager, ILogger<GameHubService> logger)
+    public GameHubService(
+        IConfiguration configuration,
+        NavigationManager navigationManager,
+        ILogger<GameHubService> logger,
+        IAccessTokenProvider? tokenProvider = null)
     {
         _logger = logger;
 
         var baseUrl = configuration["ApiBaseUrl"] ?? "";
-        // NavigationManager.BaseUri ends with '/', so use it to form an absolute URL.
-        // Relative URLs like "/hubs/game" resolve to file:// in WASM and are blocked.
         var hubUrl = string.IsNullOrEmpty(baseUrl)
             ? $"{navigationManager.BaseUri}hubs/game"
             : $"{baseUrl}/hubs/game";
 
-        _hubConnection = new HubConnectionBuilder()
-            .WithUrl(hubUrl)
-            .WithAutomaticReconnect()
-            .Build();
+        var connBuilder = new HubConnectionBuilder();
+
+        if (tokenProvider != null)
+        {
+            // Production: attach MSAL-acquired bearer token so [Authorize] hub is satisfied
+            connBuilder.WithUrl(hubUrl, options =>
+            {
+                options.AccessTokenProvider = async () =>
+                {
+                    var result = await tokenProvider.RequestAccessToken(
+                        new AccessTokenRequestOptions
+                        {
+                            Scopes = new[] { "api://0cb02b96-d2dc-41ec-90b3-5ff9937fab29/game.play" }
+                        });
+                    result.TryGetToken(out var token);
+                    return token?.Value;
+                };
+            });
+        }
+        else
+        {
+            // Development: browser automatically sends dev_user cookie on same-origin requests
+            connBuilder.WithUrl(hubUrl);
+        }
+
+        _hubConnection = connBuilder.WithAutomaticReconnect().Build();
 
         RegisterHandlers();
     }

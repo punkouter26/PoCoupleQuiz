@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Server.Filters;
 
@@ -6,6 +7,7 @@ namespace PoCoupleQuiz.Server.Controllers;
 
 [ApiController]
 [Route("api/game")]
+[Authorize]
 public class GameController : ControllerBase
 {
     private readonly ILogger<GameController> _logger;

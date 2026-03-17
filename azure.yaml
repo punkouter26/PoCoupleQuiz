@@ -22,7 +22,7 @@ metadata:
 #
 # Production Deployment:
 # - GitHub Actions: Automatically builds and deploys on push to master
-# - Deploys to: Azure App Service (B1 plan or higher)
+# - Deploys to: Azure App Service (F1 Free tier; upgrade to B1 only if CPU > 60 min/day)
 # - Uses: Application Insights, Azure Table Storage
 # ============================================================================
 
@@ -32,5 +32,5 @@ services:
         project: ./PoCoupleQuiz.Server/PoCoupleQuiz.Server.csproj
         host: appservice
 
-resourceGroup: PoCoupleQuiz
+resourceGroup: rg-PoCoupleQuiz-prod
 

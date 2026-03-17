@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
 using PoCoupleQuiz.Core.Validators;
@@ -9,6 +10,7 @@ namespace PoCoupleQuiz.Server.Controllers;
 
 [ApiController]
 [Route("api/teams")]
+[Authorize]
 public class TeamsController : ControllerBase
 {
     private readonly ITeamService _teamService;

@@ -1,4 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using PoCoupleQuiz.Core.Services;
 using PoCoupleQuiz.Client.Services;
 
@@ -19,11 +23,18 @@ public static class ClientServiceExtensions
         services.AddScoped<IGameScoringService>(sp => (IGameScoringService)sp.GetRequiredService<IGameEngine>());
 
         // Question service needs to be available on client for game logic
-        // Note: This will make HTTP calls to the server's API
         services.AddScoped<IQuestionService, HttpQuestionService>();
 
-        // SignalR service for real-time game updates — singleton to survive page navigation
-        services.AddSingleton<IGameHubService, GameHubService>();
+        // SignalR service — scoped (behaves like singleton in WASM root scope).
+        // IAccessTokenProvider is null in dev mode (MSAL not registered); cookie auth handles SignalR instead.
+        services.AddScoped<IGameHubService>(sp =>
+        {
+            var config      = sp.GetRequiredService<IConfiguration>();
+            var nav         = sp.GetRequiredService<NavigationManager>();
+            var logger      = sp.GetRequiredService<ILogger<GameHubService>>();
+            var tokenProvider = sp.GetService<IAccessTokenProvider>(); // null in dev
+            return new GameHubService(config, nav, logger, tokenProvider);
+        });
 
         return services;
     }

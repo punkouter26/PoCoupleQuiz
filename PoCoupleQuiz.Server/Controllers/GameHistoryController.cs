@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
 using PoCoupleQuiz.Core.Validators;
@@ -8,6 +9,7 @@ namespace PoCoupleQuiz.Server.Controllers;
 
 [ApiController]
 [Route("api/game-history")]
+[Authorize]
 public class GameHistoryController : ControllerBase
 {
     private readonly IGameHistoryService _gameHistoryService;

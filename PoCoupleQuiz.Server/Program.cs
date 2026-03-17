@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Identity.Web;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Scalar.AspNetCore;
 using Azure.Identity;
@@ -132,6 +134,18 @@ namespace PoCoupleQuiz.Server
                 // Register application services using extension method
                 builder.Services.AddPoCoupleQuizServices(builder.Configuration);
 
+                // Authentication: dev cookie scheme in Development, JWT Bearer in Production
+                if (builder.Environment.IsDevelopment())
+                {
+                    builder.Services.AddDevAuth();
+                }
+                else
+                {
+                    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                        .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+                }
+                builder.Services.AddAuthorization();
+
                 Log.Information("Application services configured successfully");
 
                 var app = builder.Build();
@@ -148,6 +162,48 @@ namespace PoCoupleQuiz.Server
                     {
                         options.WithTitle("PoCoupleQuiz API");
                     });
+
+                    // Dev-only: login endpoint — sets dev_user cookie for test auth bypass
+                    app.MapGet("/dev-login", (string? name, string? returnUrl, HttpContext ctx) =>
+                    {
+                        var userName = string.IsNullOrWhiteSpace(name) ? "DevUser" : name.Trim();
+                        ctx.Response.Cookies.Append("dev_user", userName, new CookieOptions
+                        {
+                            HttpOnly = true,
+                            SameSite = SameSiteMode.Lax,
+                            Expires = DateTimeOffset.UtcNow.AddHours(8)
+                        });
+                        var redirectTo = string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl;
+                        return Results.Redirect(redirectTo);
+                    }).WithTags("Dev").WithSummary("Dev-only cookie login (bypass MS OAuth)").AllowAnonymous();
+
+                    // Dev-only: logout endpoint
+                    app.MapGet("/dev-logout", (HttpContext ctx) =>
+                    {
+                        ctx.Response.Cookies.Delete("dev_user");
+                        return Results.Redirect("/");
+                    }).WithTags("Dev").AllowAnonymous();
+
+                    // Dev-only: auth state endpoint (read by WASM TestAuthStateProvider)
+                    app.MapGet("/api/dev-auth/state", (HttpContext ctx) =>
+                    {
+                        ctx.Request.Cookies.TryGetValue("dev_user", out var devName);
+                        return Results.Json(new { name = string.IsNullOrEmpty(devName) ? null : devName });
+                    }).WithTags("Dev").AllowAnonymous();
+
+                    // Dev-only: silently set identity from URL ?user= param.
+                    // Called by TestAuthStateProvider — sets dev_user cookie, returns JSON (no redirect).
+                    app.MapPost("/api/dev/set-identity", (string? name, HttpContext ctx) =>
+                    {
+                        if (string.IsNullOrWhiteSpace(name)) return Results.BadRequest(new { error = "name required" });
+                        ctx.Response.Cookies.Append("dev_user", name.Trim(), new CookieOptions
+                        {
+                            HttpOnly = true,
+                            SameSite = SameSiteMode.Lax,
+                            Expires = DateTimeOffset.UtcNow.AddHours(8)
+                        });
+                        return Results.Ok(new { name = name.Trim() });
+                    }).WithTags("Dev").WithSummary("Silently set dev identity from ?user= URL param").AllowAnonymous();
                 }
                 else
                 {
@@ -195,6 +251,8 @@ namespace PoCoupleQuiz.Server
                 app.UseBlazorFrameworkFiles();
                 app.UseStaticFiles();
                 app.UseRouting();
+                app.UseAuthentication();
+                app.UseAuthorization();
 
                 // Map health check endpoints (custom detailed endpoint)
                 // Note: /health and /alive are mapped by MapDefaultEndpoints from ServiceDefaults

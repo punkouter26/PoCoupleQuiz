@@ -1,10 +1,12 @@
 @page "/"
 @using PoCoupleQuiz.Core.Models
 @using PoCoupleQuiz.Client.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
 @inject NavigationManager NavigationManager
 @inject IGameHubService Hub
 @inject ILogger<Pages.Index> Logger
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>PoCoupleQuiz</PageTitle>
 
@@ -202,6 +204,49 @@
         .home-card { padding: var(--space-6); }
         .difficulty-selector { grid-template-columns: 1fr; }
     }
+
+    /* ── Mode selection cards ──────────────────────────────────────────── */
+    .mode-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-4);
+        margin-bottom: var(--space-6);
+    }
+
+    @@media (max-width: 480px) { .mode-grid { grid-template-columns: 1fr; } }
+
+    .mode-card {
+        border: 2px solid var(--color-neutral-200);
+        border-radius: var(--radius-xl);
+        padding: var(--space-6) var(--space-4);
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--transition-base);
+        background: white;
+        user-select: none;
+    }
+
+    .mode-card:hover {
+        border-color: var(--color-primary-400);
+        box-shadow: var(--shadow-primary);
+        transform: translateY(-3px);
+    }
+
+    .mode-card.selected {
+        background: var(--gradient-primary);
+        border-color: var(--color-primary-600);
+        color: white;
+        box-shadow: var(--shadow-primary);
+    }
+
+    .mode-card .mode-icon { font-size: 2.5rem; display: block; margin-bottom: var(--space-2); }
+    .mode-card .mode-label { font-weight: var(--font-weight-bold); font-size: var(--font-size-base); display: block; }
+    .mode-card .mode-desc { font-size: var(--font-size-xs); opacity: .7; margin-top: var(--space-1); display: block; }
+
+    /* ── Action tabs (New Game / Join Game) ────────────────────────────── */
+    .action-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-bottom: var(--space-5); }
+    .action-tab { padding: var(--space-3); border: 2px solid var(--color-neutral-200); border-radius: var(--radius-md); background: white; font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm); cursor: pointer; transition: all var(--transition-base); }
+    .action-tab.active { border-color: var(--color-primary-600); color: var(--color-primary-600); background: var(--color-primary-50); }
 </style>
 
 <div class="home-wrapper">
@@ -216,41 +261,86 @@
             <div class="alert-error">@errorMessage</div>
         }
 
-        <div class="form-group">
-            <label>Your Name</label>
-            <input @bind="yourName" @bind:event="oninput" class="form-control" placeholder="Enter your name" maxlength="30" />
-        </div>
-
-        <div class="form-group">
-            <label>Difficulty</label>
-            <div class="difficulty-selector">
-                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Easy ? "selected" : "")"
-                     @onclick="() => selectedDifficulty = DifficultyLevel.Easy">
-                    <span class="difficulty-name">Easy</span>
-                    <span class="difficulty-rounds">3 rounds</span>
+        @if (selectedMode == null)
+        {
+            <!-- Step 1: choose game mode -->
+            <p style="text-align:center;font-weight:var(--font-weight-semibold);margin-bottom:var(--space-4);color:var(--color-neutral-700)">Select a game mode to start</p>
+            <div class="mode-grid">
+                <div class="mode-card" @onclick='() => SelectMode("single")'>
+                    <span class="mode-icon">🎮</span>
+                    <span class="mode-label">1 Player</span>
+                    <span class="mode-desc">You + the King (2 people)</span>
                 </div>
-                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Medium ? "selected" : "")"
-                     @onclick="() => selectedDifficulty = DifficultyLevel.Medium">
-                    <span class="difficulty-name">Medium</span>
-                    <span class="difficulty-rounds">5 rounds</span>
-                </div>
-                <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Hard ? "selected" : "")"
-                     @onclick="() => selectedDifficulty = DifficultyLevel.Hard">
-                    <span class="difficulty-name">Hard</span>
-                    <span class="difficulty-rounds">7 rounds</span>
+                <div class="mode-card" @onclick='() => SelectMode("multi")'>
+                    <span class="mode-icon">🎮🎮</span>
+                    <span class="mode-label">2 Players</span>
+                    <span class="mode-desc">Couples quiz (2–4 people)</span>
                 </div>
             </div>
-        </div>
+        }
+        else
+        {
+            <!-- Step 2: name + difficulty + action -->
+            <button style="background:none;border:none;cursor:pointer;color:var(--color-primary-600);font-size:var(--font-size-sm);padding:0;margin-bottom:var(--space-4)"
+                    @onclick="() => selectedMode = null">
+                ← Change mode
+            </button>
 
-        <button class="btn-primary" @onclick="Play" disabled="@isLoading">
-            @if (isLoading) { <div class="spinner"></div> }
-            else { <span>Play</span> }
-        </button>
+            <div class="form-group">
+                <label>Your Name</label>
+                <input @bind="yourName" @bind:event="oninput" class="form-control"
+                       placeholder="Enter your name" maxlength="30" />
+            </div>
+
+            <div class="form-group">
+                <label>Difficulty</label>
+                <div class="difficulty-selector">
+                    <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Easy ? "selected" : "")"
+                         @onclick="() => selectedDifficulty = DifficultyLevel.Easy">
+                        <span class="difficulty-name">Easy</span>
+                        <span class="difficulty-rounds">3 rounds</span>
+                    </div>
+                    <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Medium ? "selected" : "")"
+                         @onclick="() => selectedDifficulty = DifficultyLevel.Medium">
+                        <span class="difficulty-name">Medium</span>
+                        <span class="difficulty-rounds">5 rounds</span>
+                    </div>
+                    <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Hard ? "selected" : "")"
+                         @onclick="() => selectedDifficulty = DifficultyLevel.Hard">
+                        <span class="difficulty-name">Hard</span>
+                        <span class="difficulty-rounds">7 rounds</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-tabs">
+                <button class="action-tab @(actionTab == "new" ? "active" : "")" @onclick='() => actionTab = "new"'>New Game</button>
+                <button class="action-tab @(actionTab == "join" ? "active" : "")" @onclick='() => actionTab = "join"'>Join Game</button>
+            </div>
+
+            @if (actionTab == "join")
+            {
+                <div class="form-group">
+                    <label>Game Code</label>
+                    <input @bind="joinCode" @bind:event="oninput" class="form-control code-input"
+                           placeholder="XXXX" maxlength="6" />
+                </div>
+            }
+
+            <button class="btn-primary" @onclick="StartOrJoin" disabled="@isLoading">
+                @if (isLoading) { <div class="spinner"></div> }
+                else if (actionTab == "new") { <span>🚀 New Game</span> }
+                else { <span>🔗 Join Game</span> }
+            </button>
+        }
     </div>
 </div>
 
 @code {
+    private string? selectedMode = null;   // null=ModeSelect, "single", "multi"
+    private string actionTab = "new";       // "new" | "join"
     private string yourName = "";
+    private string joinCode = "";
     private DifficultyLevel selectedDifficulty = DifficultyLevel.Medium;
     private bool isLoading = false;
     private string errorMessage = "";
@@ -261,6 +351,15 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Pre-fill name from the authenticated user's display name
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            yourName = authState.User.FindFirst("name")?.Value
+                    ?? authState.User.Identity.Name
+                    ?? "";
+        }
+
         _onLobbyCreated = info =>
         {
             isLoading = false;
@@ -281,17 +380,31 @@
         };
 
         Hub.OnLobbyCreated += _onLobbyCreated;
-        Hub.OnLobbyJoined += _onLobbyJoined;
-        Hub.OnLobbyError += _onLobbyError;
-
-        try { await Hub.ConnectAsync(); }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Could not pre-connect hub on index");
-        }
+        Hub.OnLobbyJoined  += _onLobbyJoined;
+        Hub.OnLobbyError   += _onLobbyError;
     }
 
-    private async Task Play()
+    /// <summary>
+    /// Mode card clicked: authenticate first (if needed), then show the form.
+    /// </summary>
+    private async Task SelectMode(string mode)
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated != true)
+        {
+            NavigationManager.NavigateTo($"/login?returnUrl={Uri.EscapeDataString("/")}", false);
+            return;
+        }
+
+        // Refresh name in case auth state just resolved
+        yourName = authState.User.FindFirst("name")?.Value
+                ?? authState.User.Identity?.Name
+                ?? yourName;
+
+        selectedMode = mode;
+    }
+
+    private async Task StartOrJoin()
     {
         errorMessage = "";
         if (string.IsNullOrWhiteSpace(yourName))
@@ -299,12 +412,29 @@
             errorMessage = "Please enter your name.";
             return;
         }
+
+        if (actionTab == "join" && string.IsNullOrWhiteSpace(joinCode))
+        {
+            errorMessage = "Please enter a game code.";
+            return;
+        }
+
         isLoading = true;
         StateHasChanged();
-        try { await Hub.JoinOrCreateAsync(yourName.Trim(), selectedDifficulty.ToString()); }
+
+        try
+        {
+            if (!Hub.IsConnected)
+                await Hub.ConnectAsync();
+
+            if (actionTab == "new")
+                await Hub.CreateLobbyAsync(yourName.Trim(), selectedDifficulty.ToString());
+            else
+                await Hub.JoinLobbyAsync(joinCode.Trim().ToUpperInvariant(), yourName.Trim());
+        }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Play failed");
+            Logger.LogError(ex, "StartOrJoin failed");
             errorMessage = "Could not connect. Please try again.";
             isLoading = false;
             StateHasChanged();
@@ -314,8 +444,8 @@
     public void Dispose()
     {
         Hub.OnLobbyCreated -= _onLobbyCreated;
-        Hub.OnLobbyJoined -= _onLobbyJoined;
-        Hub.OnLobbyError -= _onLobbyError;
+        Hub.OnLobbyJoined  -= _onLobbyJoined;
+        Hub.OnLobbyError   -= _onLobbyError;
     }
 }
 

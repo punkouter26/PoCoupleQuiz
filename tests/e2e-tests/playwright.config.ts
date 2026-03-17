@@ -5,7 +5,10 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests',
-  
+
+  /* Auth setup: runs once, acquires dev_user cookie, saves browser state */
+  globalSetup: './global-setup.ts',
+
   /* Individual test timeout - Blazor WASM can take time to load */
   timeout: 90 * 1000,
   
@@ -33,6 +36,12 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: 'http://127.0.0.1:5000',
+
+    /* Reuse saved dev_user cookie so tests start already authenticated */
+    storageState: 'storageState.json',
+    
+    /* Run headed in local dev; headless in CI */
+    headless: !!process.env.CI,
     
     /* Ignore HTTPS errors for local development with self-signed certs */
     ignoreHTTPSErrors: true,

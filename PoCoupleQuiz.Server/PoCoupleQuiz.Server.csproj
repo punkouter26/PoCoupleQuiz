@@ -28,6 +28,7 @@
     <PackageReference Include="Serilog.Settings.Configuration" />
     <PackageReference Include="Serilog.Formatting.Compact" />
     <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Microsoft.Identity.Web" />
   </ItemGroup>
 
   <ItemGroup>

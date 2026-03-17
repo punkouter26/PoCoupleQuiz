@@ -36,13 +36,19 @@ public class LogContextEnrichmentMiddleware
         // Get IP address for additional context
         var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
 
-        // Enrich all logs in this request with user and session context
+        // Correlation ID: prefer incoming X-Correlation-ID header, fall back to ASP.NET TraceIdentifier
+        var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault()
+            ?? context.TraceIdentifier;
+        context.Response.Headers["X-Correlation-ID"] = correlationId;
+
+        // Enrich all logs in this request with user, session, and correlation context
+        using (LogContext.PushProperty("CorrelationId", correlationId))
         using (LogContext.PushProperty("UserId", userId))
         using (LogContext.PushProperty("SessionId", sessionId))
         using (LogContext.PushProperty("Environment", _env.EnvironmentName))
         using (LogContext.PushProperty("IpAddress", ipAddress))
         {
-            _logger.LogDebug("Request started with UserId={UserId}, SessionId={SessionId}", userId, sessionId);
+            _logger.LogDebug("Request started with UserId={UserId}, SessionId={SessionId}, CorrelationId={CorrelationId}", userId, sessionId, correlationId);
             
             await _next(context);
         }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.Authorization;
 using PoCoupleQuiz.Core.Models;
 using PoCoupleQuiz.Core.Services;
 
@@ -10,6 +11,7 @@ namespace PoCoupleQuiz.Server.Hubs;
 /// Game state is authoritative in <see cref="IGameSessionManager"/>.
 /// Clients are pure views driven by hub events.
 /// </summary>
+[Authorize]
 public class GameHub : Hub
 {
     private readonly ILogger<GameHub> _logger;

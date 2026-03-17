@@ -84,6 +84,16 @@ TestResults/
 docs/coverage/html/
 docs/node_modules/
 
+## Playwright / E2E local artifacts
+tests/e2e-tests/node_modules/
+tests/e2e-tests/playwright-report/
+tests/e2e-tests/test-results/
+tests/e2e-tests/storageState.json
+tests/e2e-tests/*.trace.zip
+tests/e2e-tests/*.txt
+tests/e2e-tests/npm-debug.log*
+tests/e2e-tests/yarn-error.log*
+
 ## Publish artifacts
 publish/
 publish-app/

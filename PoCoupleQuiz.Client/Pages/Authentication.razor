@@ -1,0 +1,9 @@
+@page "/authentication/{action}"
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+
+@* Handles all Microsoft Identity redirect callbacks (login-callback, logout-callback, login-failed). *@
+<RemoteAuthenticatorView Action="@Action" />
+
+@code {
+    [Parameter] public string Action { get; set; } = "";
+}
