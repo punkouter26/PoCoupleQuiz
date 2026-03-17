@@ -140,10 +140,10 @@ namespace PoCoupleQuiz.Tests
             await Task.Delay(100);
 
             // Assert - Check for home wrapper (new design with lobby-flow)
-            var wrapper = cut.Find(".home-wrapper");
+            var wrapper = cut.Find(".lobby-home-wrapper");
             Assert.NotNull(wrapper);
-            var title = cut.Find("h1.home-title");
-            Assert.Contains("PoCoupleQuiz", title.TextContent);
+            var title = cut.Find("h1.lobby-home-title");
+            Assert.Contains("Lobby", title.TextContent);
         }
 
         [Trait("Category", "Unit")]

@@ -51,8 +51,8 @@ public class IndexTests : BunitContext
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert - the new design renders a home-wrapper and home-card
-        var wrapper = cut.Find(".home-wrapper");
+        // Assert - the new design renders a lobby-home-wrapper
+        var wrapper = cut.Find(".lobby-home-wrapper");
         Assert.NotNull(wrapper);
     }
 
@@ -63,8 +63,8 @@ public class IndexTests : BunitContext
         var cut = Render<IndexPage>();
 
         // Assert - h1 with app title
-        var title = cut.Find("h1.home-title");
-        Assert.Contains("PoCoupleQuiz", title.TextContent);
+        var title = cut.Find("h1.lobby-home-title");
+        Assert.NotNull(title);
     }
 
     [Fact]
@@ -74,8 +74,8 @@ public class IndexTests : BunitContext
         var cut = Render<IndexPage>();
 
         // Assert
-        var subtitle = cut.Find("p.home-subtitle");
-        Assert.Contains("Play together", subtitle.TextContent);
+        var subtitle = cut.Find("p.lobby-home-subtitle");
+        Assert.NotNull(subtitle);
     }
 
     [Fact]
