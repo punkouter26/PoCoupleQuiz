@@ -1,5 +1,4 @@
 @page "/"
-@using PoCoupleQuiz.Core.Models
 @using PoCoupleQuiz.Client.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
@@ -11,7 +10,7 @@
 <PageTitle>PoCoupleQuiz</PageTitle>
 
 <style>
-    .home-wrapper {
+    .lobby-home-wrapper {
         min-height: calc(100vh - 70px);
         display: flex;
         align-items: center;
@@ -20,22 +19,22 @@
         background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-accent-50) 100%);
     }
 
-    .home-card {
+    .lobby-home-card {
         background: var(--surface);
         border-radius: var(--radius-xl);
         box-shadow: var(--shadow-xl);
         padding: var(--space-8);
-        max-width: 520px;
+        max-width: 560px;
         width: 100%;
         animation: slideInUp var(--transition-slow) ease-out;
     }
 
-    .home-header {
+    .lobby-home-header {
         text-align: center;
         margin-bottom: var(--space-8);
     }
 
-    .home-title {
+    .lobby-home-title {
         font-size: var(--font-size-3xl);
         font-weight: var(--font-weight-bold);
         background: var(--gradient-primary);
@@ -45,12 +44,34 @@
         margin-bottom: var(--space-2);
     }
 
-    .home-subtitle {
+    .lobby-home-subtitle {
         font-size: var(--font-size-base);
         color: var(--color-neutral-500);
     }
 
-    .tab-bar {
+    .identity-card {
+        background: var(--color-primary-50);
+        border: 2px solid var(--color-primary-200);
+        border-radius: var(--radius-lg);
+        padding: var(--space-4);
+        margin-bottom: var(--space-6);
+    }
+
+    .identity-label {
+        font-size: var(--font-size-xs);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--color-neutral-500);
+        margin-bottom: var(--space-1);
+    }
+
+    .identity-value {
+        font-size: var(--font-size-xl);
+        color: var(--color-primary-700);
+        font-weight: var(--font-weight-bold);
+    }
+
+    .action-tabs {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: var(--space-2);
@@ -60,7 +81,7 @@
         padding: var(--space-1);
     }
 
-    .tab-btn {
+    .action-tab {
         padding: var(--space-3) var(--space-4);
         border: none;
         border-radius: var(--radius-md);
@@ -72,7 +93,7 @@
         color: var(--color-neutral-500);
     }
 
-    .tab-btn.active {
+    .action-tab.active {
         background: var(--surface);
         color: var(--color-primary-600);
         box-shadow: var(--shadow-sm);
@@ -201,59 +222,15 @@
     }
 
     @@media (max-width: 480px) {
-        .home-card { padding: var(--space-6); }
-        .difficulty-selector { grid-template-columns: 1fr; }
+        .lobby-home-card { padding: var(--space-6); }
     }
-
-    /* ── Mode selection cards ──────────────────────────────────────────── */
-    .mode-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-4);
-        margin-bottom: var(--space-6);
-    }
-
-    @@media (max-width: 480px) { .mode-grid { grid-template-columns: 1fr; } }
-
-    .mode-card {
-        border: 2px solid var(--color-neutral-200);
-        border-radius: var(--radius-xl);
-        padding: var(--space-6) var(--space-4);
-        text-align: center;
-        cursor: pointer;
-        transition: all var(--transition-base);
-        background: white;
-        user-select: none;
-    }
-
-    .mode-card:hover {
-        border-color: var(--color-primary-400);
-        box-shadow: var(--shadow-primary);
-        transform: translateY(-3px);
-    }
-
-    .mode-card.selected {
-        background: var(--gradient-primary);
-        border-color: var(--color-primary-600);
-        color: white;
-        box-shadow: var(--shadow-primary);
-    }
-
-    .mode-card .mode-icon { font-size: 2.5rem; display: block; margin-bottom: var(--space-2); }
-    .mode-card .mode-label { font-weight: var(--font-weight-bold); font-size: var(--font-size-base); display: block; }
-    .mode-card .mode-desc { font-size: var(--font-size-xs); opacity: .7; margin-top: var(--space-1); display: block; }
-
-    /* ── Action tabs (New Game / Join Game) ────────────────────────────── */
-    .action-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-bottom: var(--space-5); }
-    .action-tab { padding: var(--space-3); border: 2px solid var(--color-neutral-200); border-radius: var(--radius-md); background: white; font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm); cursor: pointer; transition: all var(--transition-base); }
-    .action-tab.active { border-color: var(--color-primary-600); color: var(--color-primary-600); background: var(--color-primary-50); }
 </style>
 
-<div class="home-wrapper">
-    <div class="home-card">
-        <div class="home-header">
-            <h1 class="home-title">PoCoupleQuiz</h1>
-            <p class="home-subtitle">Play together — from anywhere</p>
+<div class="lobby-home-wrapper">
+    <div class="lobby-home-card">
+        <div class="lobby-home-header">
+            <h1 class="lobby-home-title">Multiplayer Lobby</h1>
+            <p class="lobby-home-subtitle">Join with at least 2 players, then the host can start the game</p>
         </div>
 
         @if (!string.IsNullOrEmpty(errorMessage))
@@ -261,87 +238,37 @@
             <div class="alert-error">@errorMessage</div>
         }
 
-        @if (selectedMode == null)
+        <div class="identity-card">
+            <div class="identity-label">Assigned Player Name</div>
+            <div class="identity-value">@assignedPlayerName</div>
+        </div>
+
+        <div class="action-tabs">
+            <button class="action-tab @(actionTab == "new" ? "active" : "")" @onclick='() => actionTab = "new"'>Host Lobby</button>
+            <button class="action-tab @(actionTab == "join" ? "active" : "")" @onclick='() => actionTab = "join"'>Join Lobby</button>
+        </div>
+
+        @if (actionTab == "join")
         {
-            <!-- Step 1: choose game mode -->
-            <p style="text-align:center;font-weight:var(--font-weight-semibold);margin-bottom:var(--space-4);color:var(--color-neutral-700)">Select a game mode to start</p>
-            <div class="mode-grid">
-                <div class="mode-card" @onclick='() => SelectMode("single")'>
-                    <span class="mode-icon">🎮</span>
-                    <span class="mode-label">1 Player</span>
-                    <span class="mode-desc">You + the King (2 people)</span>
-                </div>
-                <div class="mode-card" @onclick='() => SelectMode("multi")'>
-                    <span class="mode-icon">🎮🎮</span>
-                    <span class="mode-label">2 Players</span>
-                    <span class="mode-desc">Couples quiz (2–4 people)</span>
-                </div>
+            <div class="form-group">
+                <label>Game Code</label>
+                <input @bind="joinCode" @bind:event="oninput" class="form-control code-input"
+                       placeholder="XXXX" maxlength="6" />
             </div>
         }
-        else
-        {
-            <!-- Step 2: name + difficulty + action -->
-            <button style="background:none;border:none;cursor:pointer;color:var(--color-primary-600);font-size:var(--font-size-sm);padding:0;margin-bottom:var(--space-4)"
-                    @onclick="() => selectedMode = null">
-                ← Change mode
-            </button>
 
-            <div class="form-group">
-                <label>Your Name</label>
-                <input @bind="yourName" @bind:event="oninput" class="form-control"
-                       placeholder="Enter your name" maxlength="30" />
-            </div>
-
-            <div class="form-group">
-                <label>Difficulty</label>
-                <div class="difficulty-selector">
-                    <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Easy ? "selected" : "")"
-                         @onclick="() => selectedDifficulty = DifficultyLevel.Easy">
-                        <span class="difficulty-name">Easy</span>
-                        <span class="difficulty-rounds">3 rounds</span>
-                    </div>
-                    <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Medium ? "selected" : "")"
-                         @onclick="() => selectedDifficulty = DifficultyLevel.Medium">
-                        <span class="difficulty-name">Medium</span>
-                        <span class="difficulty-rounds">5 rounds</span>
-                    </div>
-                    <div class="difficulty-option @(selectedDifficulty == DifficultyLevel.Hard ? "selected" : "")"
-                         @onclick="() => selectedDifficulty = DifficultyLevel.Hard">
-                        <span class="difficulty-name">Hard</span>
-                        <span class="difficulty-rounds">7 rounds</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="action-tabs">
-                <button class="action-tab @(actionTab == "new" ? "active" : "")" @onclick='() => actionTab = "new"'>New Game</button>
-                <button class="action-tab @(actionTab == "join" ? "active" : "")" @onclick='() => actionTab = "join"'>Join Game</button>
-            </div>
-
-            @if (actionTab == "join")
-            {
-                <div class="form-group">
-                    <label>Game Code</label>
-                    <input @bind="joinCode" @bind:event="oninput" class="form-control code-input"
-                           placeholder="XXXX" maxlength="6" />
-                </div>
-            }
-
-            <button class="btn-primary" @onclick="StartOrJoin" disabled="@isLoading">
-                @if (isLoading) { <div class="spinner"></div> }
-                else if (actionTab == "new") { <span>🚀 New Game</span> }
-                else { <span>🔗 Join Game</span> }
-            </button>
-        }
+        <button class="btn-primary" @onclick="EnterLobbyAsync" disabled="@isLoading">
+            @if (isLoading) { <div class="spinner"></div> }
+            else if (actionTab == "new") { <span>🚀 Enter Host Lobby</span> }
+            else { <span>🔗 Join Lobby</span> }
+        </button>
     </div>
 </div>
 
 @code {
-    private string? selectedMode = null;   // null=ModeSelect, "single", "multi"
-    private string actionTab = "new";       // "new" | "join"
-    private string yourName = "";
+    private string actionTab = "new";
+    private string assignedPlayerName = "";
     private string joinCode = "";
-    private DifficultyLevel selectedDifficulty = DifficultyLevel.Medium;
     private bool isLoading = false;
     private string errorMessage = "";
 
@@ -351,13 +278,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Pre-fill name from the authenticated user's display name
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         if (authState.User.Identity?.IsAuthenticated == true)
         {
-            yourName = authState.User.FindFirst("name")?.Value
-                    ?? authState.User.Identity.Name
-                    ?? "";
+            assignedPlayerName = authState.User.FindFirst("name")?.Value
+                ?? authState.User.Identity.Name
+                ?? "";
+        }
+
+        if (string.IsNullOrWhiteSpace(assignedPlayerName))
+        {
+            var suffix = Guid.NewGuid().ToString("N")[..4].ToUpperInvariant();
+            assignedPlayerName = $"Player-{suffix}";
         }
 
         _onLobbyCreated = info =>
@@ -384,11 +316,10 @@
         Hub.OnLobbyError   += _onLobbyError;
     }
 
-    /// <summary>
-    /// Mode card clicked: authenticate first (if needed), then show the form.
-    /// </summary>
-    private async Task SelectMode(string mode)
+    private async Task EnterLobbyAsync()
     {
+        errorMessage = "";
+
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         if (authState.User.Identity?.IsAuthenticated != true)
         {
@@ -396,31 +327,15 @@
             return;
         }
 
-        // Refresh name in case auth state just resolved
-        yourName = authState.User.FindFirst("name")?.Value
-                ?? authState.User.Identity?.Name
-                ?? yourName;
-
-        selectedMode = mode;
-    }
-
-    private async Task StartOrJoin()
-    {
-        errorMessage = "";
-        if (string.IsNullOrWhiteSpace(yourName))
-        {
-            errorMessage = "Please enter your name.";
-            return;
-        }
+        isLoading = true;
+        StateHasChanged();
 
         if (actionTab == "join" && string.IsNullOrWhiteSpace(joinCode))
         {
             errorMessage = "Please enter a game code.";
+            isLoading = false;
             return;
         }
-
-        isLoading = true;
-        StateHasChanged();
 
         try
         {
@@ -428,13 +343,13 @@
                 await Hub.ConnectAsync();
 
             if (actionTab == "new")
-                await Hub.CreateLobbyAsync(yourName.Trim(), selectedDifficulty.ToString());
+                await Hub.CreateLobbyAsync(assignedPlayerName, "Medium");
             else
-                await Hub.JoinLobbyAsync(joinCode.Trim().ToUpperInvariant(), yourName.Trim());
+                await Hub.JoinLobbyAsync(joinCode.Trim().ToUpperInvariant(), assignedPlayerName);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "StartOrJoin failed");
+            Logger.LogError(ex, "EnterLobbyAsync failed");
             errorMessage = "Could not connect. Please try again.";
             isLoading = false;
             StateHasChanged();
