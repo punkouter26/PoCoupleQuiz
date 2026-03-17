@@ -79,66 +79,74 @@ public class IndexTests : BunitContext
     }
 
     [Fact]
-    public void Index_RendersNameInput()
+    public void Index_RendersActionTabs()
     {
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert - single name input
-        var inputs = cut.FindAll("input.form-control");
-        Assert.Single(inputs);
-        Assert.Equal("Enter your name", inputs[0].GetAttribute("placeholder"));
+        // Assert - two action tabs for Host and Join
+        var tabs = cut.FindAll(".action-tab");
+        Assert.Equal(2, tabs.Count);
+        Assert.Contains(tabs, t => t.TextContent.Contains("Host Lobby"));
+        Assert.Contains(tabs, t => t.TextContent.Contains("Join Lobby"));
     }
 
     [Fact]
-    public void Index_RendersDifficultyOptions()
+    public void Index_RendersAssignedPlayerName()
     {
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert - three difficulty option cards
-        var options = cut.FindAll(".difficulty-option");
-        Assert.Equal(3, options.Count);
+        // Assert - player name is displayed
+        var nameDisplay = cut.Find(".identity-value");
+        Assert.NotNull(nameDisplay);
+        Assert.NotEmpty(nameDisplay.TextContent);
     }
 
     [Fact]
-    public void Index_DefaultDifficulty_IsMedium()
+    public void Index_DefaultTabIsHostLobby()
     {
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert - Medium option is selected by default
-        var selectedOptions = cut.FindAll(".difficulty-option.selected");
-        Assert.Single(selectedOptions);
-        Assert.Contains("Medium", selectedOptions[0].TextContent);
+        // Assert - first tab is active by default
+        var activeTabs = cut.FindAll(".action-tab.active");
+        Assert.Single(activeTabs);
+        Assert.Contains("Host Lobby", activeTabs[0].TextContent);
     }
 
     [Fact]
-    public void Index_DifficultyOptions_HaveCorrectLabels()
+    public void Index_JoinTabShowsGameCodeInput()
     {
         // Act
         var cut = Render<IndexPage>();
 
-        // Assert
-        var options = cut.FindAll(".difficulty-option");
-        Assert.Contains(options, o => o.TextContent.Contains("Easy"));
-        Assert.Contains(options, o => o.TextContent.Contains("Medium"));
-        Assert.Contains(options, o => o.TextContent.Contains("Hard"));
+        // Act - click on Join Lobby tab
+        var joinTab = cut.FindAll(".action-tab")[1];
+        joinTab.Click();
+
+        // Assert - game code input appears
+        var codeInput = cut.FindAll("input");
+        Assert.Contains(codeInput, i => {
+            var placeholder = i.GetAttribute("placeholder");
+            return placeholder is not null && placeholder.Contains("XXXX");
+        });
     }
 
     [Fact]
-    public void Index_PlayButton_Exists()
+    public void Index_EnterLobbyButton_Exists()
     {
         // Act
         var cut = Render<IndexPage>();
 
         // Assert
         var button = cut.Find("button.btn-primary");
-        Assert.Contains("Play", button.TextContent);
+        Assert.NotNull(button);
+        Assert.Contains(button.TextContent, new[] { "Enter Host Lobby", "Join Lobby" });
     }
 
     [Fact]
-    public void Index_PlayButton_IsNotDisabledByDefault()
+    public void Index_EnterLobbyButton_IsNotDisabledByDefault()
     {
         // Act
         var cut = Render<IndexPage>();
@@ -146,7 +154,7 @@ public class IndexTests : BunitContext
         // Assert - button is not disabled when not loading
         var button = cut.Find("button.btn-primary");
         Assert.False(button.HasAttribute("disabled") && button.GetAttribute("disabled") != "false",
-            "Play button should not be disabled initially");
+            "Enter Lobby button should not be disabled initially");
     }
 
     [Fact]
