@@ -8,22 +8,26 @@ using PoCoupleQuiz.Client.Services;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Bunit;
 using Radzen;
 using Microsoft.Extensions.DependencyInjection;
 using GameModel = PoCoupleQuiz.Core.Models.Game;
+using System.Security.Claims;
 
 namespace PoCoupleQuiz.Tests
 {
     public class GameTests : BunitContext, IAsyncLifetime
     {
-        private readonly Mock<IQuestionService> _mockQuestionService; private readonly Mock<ITeamService> _mockTeamService;
+        private readonly Mock<IQuestionService> _mockQuestionService;
+        private readonly Mock<ITeamService> _mockTeamService;
         private readonly Mock<IGameHistoryService> _mockGameHistoryService;
         private readonly Mock<ILogger<PoCoupleQuiz.Client.Pages.Index>> _mockLogger;
         private readonly Mock<IGameStateService> _mockGameStateService;
         private readonly Mock<NavigationManager> _mockNavigationManager;
         private readonly Mock<NotificationService> _mockNotificationService;
         private readonly Mock<IGameHubService> _mockGameHubService;
+        private readonly Mock<AuthenticationStateProvider> _mockAuthStateProvider;
         private IServiceProvider _serviceProvider;
 
         public GameTests()
@@ -36,6 +40,16 @@ namespace PoCoupleQuiz.Tests
             _mockNavigationManager = new Mock<NavigationManager>();
             _mockNotificationService = new Mock<NotificationService>();
             _mockGameHubService = new Mock<IGameHubService>();
+            _mockAuthStateProvider = new Mock<AuthenticationStateProvider>();
+            
+            // Setup AuthenticationStateProvider to return authenticated user
+            var claims = new[] { new Claim(ClaimTypes.Name, "TestPlayer") };
+            var identity = new ClaimsIdentity(claims, "TestAuth");
+            var user = new ClaimsPrincipal(identity);
+            var authState = new AuthenticationState(user);
+            _mockAuthStateProvider.Setup(x => x.GetAuthenticationStateAsync())
+                .ReturnsAsync(authState);
+            
             _mockGameHubService.Setup(h => h.ConnectAsync()).Returns(Task.CompletedTask);
             _mockGameHubService.Setup(h => h.DisposeAsync()).Returns(ValueTask.CompletedTask);
             _mockGameHubService.SetupAdd(h => h.OnLobbyCreated += It.IsAny<Action<LobbyInfo>>());
@@ -72,6 +86,7 @@ namespace PoCoupleQuiz.Tests
             Services.AddSingleton<NavigationManager>(_mockNavigationManager.Object);
             Services.AddSingleton<NotificationService>(_mockNotificationService.Object);
             Services.AddSingleton<IGameHubService>(_mockGameHubService.Object);
+            Services.AddSingleton<AuthenticationStateProvider>(_mockAuthStateProvider.Object);
             // Add Radzen services
             Services.AddScoped<DialogService>();
             Services.AddScoped<TooltipService>();
