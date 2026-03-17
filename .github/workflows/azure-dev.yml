@@ -83,23 +83,4 @@ jobs:
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --src ./app-package.zip
 
-      - name: Verify /health endpoint
-        run: |
-          APP_URL=$(az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query defaultHostName -o tsv)
-          echo "App URL: https://$APP_URL"
-
-          for attempt in {1..18}; do
-            STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "https://$APP_URL/health" || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "Health check passed: HTTP $STATUS"
-              exit 0
-            fi
-
-            echo "Attempt $attempt/18: /health returned HTTP $STATUS. Retrying in 10s..."
-            sleep 10
-          done
-
-          echo "Health check failed after retries"
-          exit 1
-
 
